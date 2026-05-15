@@ -276,8 +276,8 @@ fun PaymentsScreen(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "VALOR",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "R$ ${String.format("%.2f", payment.amount)}",

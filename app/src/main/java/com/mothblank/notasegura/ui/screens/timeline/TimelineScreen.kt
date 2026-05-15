@@ -295,7 +295,7 @@ fun TimelineScreen(
                         Text(
                             text = item.category.uppercase(),
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.secondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
 
                         HorizontalDivider(

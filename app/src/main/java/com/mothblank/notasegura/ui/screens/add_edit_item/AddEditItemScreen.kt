@@ -142,7 +142,7 @@ fun AddEditItemScreen(
                 "Toque na imagem para alterar", 
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             Button(

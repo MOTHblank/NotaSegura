@@ -2,7 +2,7 @@
 
 NotaSegura is an Android application designed to help users, especially the elderly, manage their physical and digital receipts, warranty expirations, and payment reminders in a simple, secure, and organized way.
 
-Built with modern Android standards (Jetpack Compose, Room, WorkManager) for the year 2026.
+Built with modern Android standards (Jetpack Compose, Room, WorkManager).
 
 ## 🌟 Key Features
 

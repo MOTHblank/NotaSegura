@@ -8,4 +8,5 @@ interface PaymentRepository {
     suspend fun insertPayment(payment: Payment)
     suspend fun deletePayment(payment: Payment)
     suspend fun getPaymentById(id: String): Payment?
+    suspend fun existsPayment(title: String, dueDate: java.time.LocalDate): Boolean
 }

@@ -12,4 +12,5 @@ class PaymentRepositoryImpl(
     override suspend fun insertPayment(payment: Payment) = dao.insertPayment(payment)
     override suspend fun deletePayment(payment: Payment) = dao.deletePayment(payment)
     override suspend fun getPaymentById(id: String): Payment? = dao.getPaymentById(id)
+    override suspend fun existsPayment(title: String, dueDate: java.time.LocalDate): Boolean = dao.existsPayment(title, dueDate)
 }

@@ -62,11 +62,7 @@ class PaymentsViewModel(
                 val nextMonthDate = payment.dueDate.plusMonths(1)
                 
                 // Verifica se já não existe um lembrete para o próximo mês (evita duplicatas)
-                val allPayments = repository.getAllPayments().first()
-                val alreadyExists = allPayments.any { 
-                    it.title == payment.title && 
-                    it.dueDate == nextMonthDate 
-                }
+                val alreadyExists = repository.existsPayment(payment.title, nextMonthDate)
                 
                 if (!alreadyExists) {
                     val nextPayment = payment.copy(

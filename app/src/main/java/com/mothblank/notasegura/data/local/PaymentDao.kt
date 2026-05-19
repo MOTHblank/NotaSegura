@@ -17,4 +17,7 @@ interface PaymentDao {
 
     @Query("SELECT * FROM payments WHERE id = :id")
     suspend fun getPaymentById(id: String): Payment?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM payments WHERE title = :title AND dueDate = :dueDate LIMIT 1)")
+    suspend fun existsPayment(title: String, dueDate: java.time.LocalDate): Boolean
 }

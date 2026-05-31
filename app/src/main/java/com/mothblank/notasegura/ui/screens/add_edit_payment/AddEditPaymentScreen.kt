@@ -65,7 +65,17 @@ fun AddEditPaymentScreen(
             label = { Text("Valor (R$)", style = MaterialTheme.typography.titleMedium) },
             textStyle = MaterialTheme.typography.bodyLarge,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true
+            singleLine = true,
+            isError = uiState.amountError != null,
+            supportingText = {
+                if (uiState.amountError != null) {
+                    Text(
+                        text = uiState.amountError!!,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         )
 
         var showDatePicker by remember { mutableStateOf(false) }
@@ -119,7 +129,11 @@ fun AddEditPaymentScreen(
         Spacer(modifier = Modifier.height(24.dp))
         
         Button(
-            onClick = { viewModel.savePayment(); navController.popBackStack() },
+            onClick = {
+                if (viewModel.savePayment()) {
+                    navController.popBackStack()
+                }
+            },
             modifier = Modifier.fillMaxWidth().height(72.dp),
             enabled = uiState.title.isNotBlank() && uiState.dueDate != null,
             shape = RoundedCornerShape(16.dp)

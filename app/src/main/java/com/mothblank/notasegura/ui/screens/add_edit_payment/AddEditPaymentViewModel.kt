@@ -16,6 +16,7 @@ import java.util.UUID
 data class AddEditPaymentUiState(
     val title: String = "",
     val amount: String = "",
+    val amountError: String? = null,
     val dueDate: LocalDate? = null,
     val isPaid: Boolean = false,
     val isRecurring: Boolean = false,
@@ -57,7 +58,7 @@ class AddEditPaymentViewModel(
     fun onAmountChange(newAmount: String) {
         // Only allow numbers and one decimal point
         if (newAmount.isEmpty() || newAmount.matches(Regex("""^\d*\.?\d*$"""))) {
-            _uiState.update { it.copy(amount = newAmount) }
+            _uiState.update { it.copy(amount = newAmount, amountError = null) }
         }
     }
 
@@ -77,12 +78,17 @@ class AddEditPaymentViewModel(
         return date?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: ""
     }
 
-    fun savePayment() {
+    fun savePayment(): Boolean {
         val currentState = _uiState.value
-        val amountValue = currentState.amount.toDoubleOrNull() ?: 0.0
         
         if (currentState.title.isBlank() || currentState.dueDate == null) {
-            return
+            return false
+        }
+
+        val amountValue = currentState.amount.toDoubleOrNull()
+        if (amountValue == null) {
+            _uiState.update { it.copy(amountError = "Valor inválido") }
+            return false
         }
 
         val paymentToSave = Payment(
@@ -97,5 +103,6 @@ class AddEditPaymentViewModel(
         viewModelScope.launch {
             repository.insertPayment(paymentToSave)
         }
+        return true
     }
 }

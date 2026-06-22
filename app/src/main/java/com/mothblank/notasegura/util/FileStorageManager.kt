@@ -46,7 +46,10 @@ object FileStorageManager {
         val canonicalFilesDir = context.filesDir.canonicalPath
         val canonicalTargetFile = file.canonicalPath
 
-        if (!canonicalTargetFile.startsWith(canonicalFilesDir)) {
+        // Append file separator to ensure exact folder prefix matching
+        val safePrefix = if (canonicalFilesDir.endsWith(File.separator)) canonicalFilesDir else canonicalFilesDir + File.separator
+
+        if (!canonicalTargetFile.startsWith(safePrefix)) {
             // Path is outside the intended directory, this might be a path traversal attack
             return false
         }

@@ -38,9 +38,19 @@ object FileStorageManager {
     /**
      * Deletes a file given its path.
      */
-    fun deleteImageFromInternalStorage(path: String?): Boolean {
+    fun deleteImageFromInternalStorage(context: Context, path: String?): Boolean {
         if (path == null) return false
         val file = File(path)
+
+        // Prevent path traversal by ensuring the resolved path is within context.filesDir
+        val canonicalFilesDir = context.filesDir.canonicalPath
+        val canonicalTargetFile = file.canonicalPath
+
+        if (!canonicalTargetFile.startsWith(canonicalFilesDir)) {
+            // Path is outside the intended directory, this might be a path traversal attack
+            return false
+        }
+
         return if (file.exists()) {
             file.delete()
         } else {

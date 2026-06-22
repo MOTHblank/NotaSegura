@@ -83,6 +83,7 @@ fun TimelineScreen(
         )
     )
 ) {
+    val context = LocalContext.current
     val items by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val categories by viewModel.categories.collectAsState()
@@ -183,7 +184,7 @@ fun TimelineScreen(
                     LaunchedEffect(isVisible, item.id) {
                         if (!isVisible) {
                             delay(300L)
-                            viewModel.deleteItem(item)
+                            viewModel.deleteItem(context, item)
                         }
                     }
 

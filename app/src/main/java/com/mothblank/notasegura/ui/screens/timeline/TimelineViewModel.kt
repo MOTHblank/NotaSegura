@@ -3,6 +3,7 @@ package com.mothblank.notasegura.ui.screens.timeline
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mothblank.notasegura.domain.model.WarrantyItem
+import android.content.Context
 import com.mothblank.notasegura.domain.repository.WarrantyRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -52,10 +53,10 @@ class TimelineViewModel(
         _selectedCategory.value = category
     }
 
-    fun deleteItem(item: WarrantyItem) {
+    fun deleteItem(context: Context, item: WarrantyItem) {
         viewModelScope.launch {
             item.imagePath?.let { path ->
-                FileStorageManager.deleteImageFromInternalStorage(path)
+                FileStorageManager.deleteImageFromInternalStorage(context, path)
             }
             repository.deleteItem(item)
         }

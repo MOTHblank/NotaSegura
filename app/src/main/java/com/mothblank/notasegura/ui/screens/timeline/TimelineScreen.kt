@@ -108,7 +108,7 @@ fun TimelineScreen(
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                Icon(Icons.Default.Close, null)
+                                Icon(Icons.Default.Close, contentDescription = "Limpar pesquisa")
                             }
                         }
                     } else null,

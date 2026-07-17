@@ -1,0 +1,3 @@
+## 2024-07-17 - Missing/Static Content Descriptions in Compose IconButtons
+**Learning:** Found that `IconButton` components in Jetpack Compose, like clear search buttons, often lack proper `contentDescription`s (passing `null`), hindering screen reader accessibility. Additionally, toggle buttons (like payment status) sometimes use static descriptions (e.g., "Marcar como pago") regardless of their state, which misleads users when the state is active.
+**Action:** Always provide meaningful, localized strings for `contentDescription` in interactive `Icon`s. For toggleable states, ensure the description dynamically reflects the action that will occur if pressed (e.g., `if (state) "Desmarcar" else "Marcar"`).

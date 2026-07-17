@@ -69,7 +69,7 @@ fun PaymentsScreen(
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                Icon(Icons.Default.Close, null)
+                                Icon(Icons.Default.Close, contentDescription = "Limpar pesquisa")
                             }
                         }
                     } else null,
@@ -241,7 +241,7 @@ fun PaymentsScreen(
                 ) {
                     Icon(
                         imageVector = if (payment.isPaid) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        contentDescription = "Marcar como pago",
+                        contentDescription = if (payment.isPaid) "Desmarcar como pago" else "Marcar como pago",
                         modifier = Modifier.size(32.dp),
                         tint = if (payment.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )

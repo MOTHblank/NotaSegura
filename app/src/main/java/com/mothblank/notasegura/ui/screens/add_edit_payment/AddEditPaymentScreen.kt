@@ -21,6 +21,7 @@ import com.mothblank.notasegura.ViewModelFactory
 import java.time.Instant
 import java.time.ZoneId
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +91,10 @@ fun AddEditPaymentScreen(
                 readOnly = true,
                 trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }
             )
-            Spacer(modifier = Modifier.matchParentSize().clickable { showDatePicker = true })
+            Spacer(modifier = Modifier.matchParentSize().clickable(
+                onClickLabel = "Selecionar data de vencimento",
+                role = Role.Button
+            ) { showDatePicker = true })
         }
 
         Surface(

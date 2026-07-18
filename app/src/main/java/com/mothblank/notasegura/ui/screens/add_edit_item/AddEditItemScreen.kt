@@ -1,5 +1,6 @@
 package com.mothblank.notasegura.ui.screens.add_edit_item
 
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Alignment
@@ -190,7 +191,10 @@ fun AddEditItemScreen(
                     readOnly = true, 
                     trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }
                 )
-                Spacer(modifier = Modifier.matchParentSize().clickable { showPurchaseDatePicker = true })
+                Spacer(modifier = Modifier.matchParentSize().clickable(
+                    onClickLabel = "Selecionar data da compra",
+                    role = Role.Button
+                ) { showPurchaseDatePicker = true })
             }
 
             Box {
@@ -203,7 +207,10 @@ fun AddEditItemScreen(
                     readOnly = true, 
                     trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }
                 )
-                Spacer(modifier = Modifier.matchParentSize().clickable { showExpirationDatePicker = true })
+                Spacer(modifier = Modifier.matchParentSize().clickable(
+                    onClickLabel = "Selecionar data de fim da garantia",
+                    role = Role.Button
+                ) { showExpirationDatePicker = true })
             }
         }
 

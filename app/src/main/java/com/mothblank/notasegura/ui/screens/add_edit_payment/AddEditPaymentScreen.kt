@@ -106,11 +106,14 @@ fun AddEditPaymentScreen(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().clickable { viewModel.onPaidChange(!uiState.isPaid) }
+                    modifier = Modifier.fillMaxWidth().clickable(
+                        role = Role.Checkbox,
+                        onClickLabel = if (uiState.isPaid) "Desmarcar como pago" else "Marcar como pago"
+                    ) { viewModel.onPaidChange(!uiState.isPaid) }
                 ) {
                     Checkbox(
                         checked = uiState.isPaid,
-                        onCheckedChange = viewModel::onPaidChange,
+                        onCheckedChange = null,
                         modifier = Modifier.size(48.dp)
                     )
                     Text("JÁ ESTÁ PAGO", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
@@ -118,11 +121,14 @@ fun AddEditPaymentScreen(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().clickable { viewModel.onRecurringChange(!uiState.isRecurring) }
+                    modifier = Modifier.fillMaxWidth().clickable(
+                        role = Role.Checkbox,
+                        onClickLabel = if (uiState.isRecurring) "Desativar pagamento mensal" else "Ativar pagamento mensal"
+                    ) { viewModel.onRecurringChange(!uiState.isRecurring) }
                 ) {
                     Checkbox(
                         checked = uiState.isRecurring,
-                        onCheckedChange = viewModel::onRecurringChange,
+                        onCheckedChange = null,
                         modifier = Modifier.size(48.dp)
                     )
                     Text("PAGAMENTO MENSAL", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)

@@ -131,12 +131,15 @@ fun AddEditItemScreen(
         if (uiState.imagePath != null) {
             AsyncImage(
                 model = uiState.imagePath,
-                contentDescription = "Nota Fiscal",
+                contentDescription = "Imagem do documento anexado",
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(250.dp) // Larger image preview
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showInputOptions = true },
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = "Alterar imagem do documento"
+                    ) { showInputOptions = true },
                 contentScale = ContentScale.Crop
             )
             Text(
@@ -275,7 +278,10 @@ fun AddEditItemScreen(
                 ListItem(
                     headlineContent = { Text("Tirar Foto") },
                     leadingContent = { Icon(Icons.Default.CameraAlt, contentDescription = null) },
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.clickable(
+                        role = Role.Button,
+                        onClickLabel = "Tirar foto"
+                    ) {
                         showInputOptions = false
                         val newUri = createImageUri(context)
                         tempImageUri = newUri
@@ -285,7 +291,10 @@ fun AddEditItemScreen(
                 ListItem(
                     headlineContent = { Text("Escolher da Galeria") },
                     leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.clickable(
+                        role = Role.Button,
+                        onClickLabel = "Escolher da galeria"
+                    ) {
                         showInputOptions = false
                         galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     }
@@ -293,7 +302,10 @@ fun AddEditItemScreen(
                 ListItem(
                     headlineContent = { Text("Selecionar PDF") },
                     leadingContent = { Icon(Icons.Default.PictureAsPdf, contentDescription = null) },
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.clickable(
+                        role = Role.Button,
+                        onClickLabel = "Selecionar PDF"
+                    ) {
                         showInputOptions = false
                         pdfLauncher.launch("application/pdf")
                     }

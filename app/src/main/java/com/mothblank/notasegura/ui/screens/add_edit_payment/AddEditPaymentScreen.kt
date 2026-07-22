@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -56,7 +58,8 @@ fun AddEditPaymentScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Nome da Conta", style = MaterialTheme.typography.titleMedium) },
             textStyle = MaterialTheme.typography.bodyLarge,
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
         )
 
         OutlinedTextField(
@@ -65,7 +68,7 @@ fun AddEditPaymentScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Valor (R$)", style = MaterialTheme.typography.titleMedium) },
             textStyle = MaterialTheme.typography.bodyLarge,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
             singleLine = true,
             isError = uiState.amountError != null,
             supportingText = {

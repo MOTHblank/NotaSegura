@@ -55,6 +55,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.*
 import androidx.core.content.FileProvider
 import java.io.File
@@ -166,7 +169,8 @@ fun AddEditItemScreen(
             modifier = Modifier.fillMaxWidth(), 
             label = { Text("Nome do Produto", style = MaterialTheme.typography.titleMedium) },
             textStyle = MaterialTheme.typography.bodyLarge,
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
         )
 
         OutlinedTextField(
@@ -175,7 +179,8 @@ fun AddEditItemScreen(
             modifier = Modifier.fillMaxWidth(), 
             label = { Text("Categoria", style = MaterialTheme.typography.titleMedium) },
             textStyle = MaterialTheme.typography.bodyLarge,
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done)
         )
 
         var showPurchaseDatePicker by remember { mutableStateOf(false) }

@@ -9,3 +9,7 @@
 ## 2024-07-17 - Accessible Interactive Rows in Compose
 **Learning:** When building list items or rows that contain both text and a `Checkbox`, placing `clickable` on the `Row` and `onCheckedChange` on the `Checkbox` creates confusing, nested touch targets for screen readers. Users might hear redundant actions or generic "Checkbox" labels.
 **Action:** To make the entire row a single, accessible touch target, set the `Checkbox`'s `onCheckedChange` to `null`. Apply `.clickable(role = Role.Checkbox, onClick = { ... }, onClickLabel = "Alternar [estado]")` to the parent `Row` instead.
+
+## 2024-07-17 - Keyboard Options for Form Usability
+**Learning:** For older users (or any user completing forms on mobile devices), navigating between fields using the soft keyboard's actions (e.g., "Next" to go to the next field, "Done" to finish) is significantly faster than tapping the screen to select each field. Similarly, text inputs for names and categories should have automatic word capitalization to reduce typing effort.
+**Action:** Always provide `keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)` for sequential form text fields, and `ImeAction.Done` for the last field.

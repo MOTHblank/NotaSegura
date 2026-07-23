@@ -110,11 +110,19 @@ fun PaymentsScreen(
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     )
                     Text(
-                        text = "Nenhum pagamento cadastrado",
+                        text = if (searchQuery.isNotEmpty() || showOnlyPending) "Nenhum resultado encontrado" else "Nenhum pagamento cadastrado",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.outline,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
+                    if (searchQuery.isEmpty() && !showOnlyPending) {
+                        Text(
+                            text = "Toque em 'Novo Pagamento' para começar",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         } else {

@@ -13,3 +13,7 @@
 ## 2024-07-17 - Keyboard Options for Form Usability
 **Learning:** For older users (or any user completing forms on mobile devices), navigating between fields using the soft keyboard's actions (e.g., "Next" to go to the next field, "Done" to finish) is significantly faster than tapping the screen to select each field. Similarly, text inputs for names and categories should have automatic word capitalization to reduce typing effort.
 **Action:** Always provide `keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)` for sequential form text fields, and `ImeAction.Done` for the last field.
+
+## 2024-07-17 - Context-Aware Empty States
+**Learning:** Generic empty states like "No items found" are confusing when a user is actively searching or filtering, as it implies the entire database is empty rather than just the current search results. Users need to know whether the list is truly empty or if their filter criteria just yielded no results.
+**Action:** Always make empty state messages context-aware. If a search query or filter is active, display "No results found". If the list is truly empty, display the standard empty message along with a helpful call-to-action (e.g., "Tap 'New Item' to start").

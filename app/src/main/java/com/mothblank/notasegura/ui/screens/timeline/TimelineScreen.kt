@@ -154,11 +154,19 @@ fun TimelineScreen(
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     )
                     Text(
-                        text = "Nenhuma garantia cadastrada",
+                        text = if (searchQuery.isNotEmpty() || selectedCategory != null) "Nenhum resultado encontrado" else "Nenhuma garantia cadastrada",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.outline,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
+                    if (searchQuery.isEmpty() && selectedCategory == null) {
+                        Text(
+                            text = "Toque em 'Nova Garantia' para começar",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         } else {

@@ -29,7 +29,9 @@ import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.navigation.AppScreen
 import kotlinx.coroutines.delay
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
@@ -267,16 +269,25 @@ fun PaymentsScreen(
                         else MaterialTheme.colorScheme.onSurface
                     )
 
+                    val daysUntilDue = ChronoUnit.DAYS.between(LocalDate.now(), payment.dueDate)
+
+                    val (statusLabel, statusColor) = when {
+                        payment.isPaid -> Pair("Pago em:", MaterialTheme.colorScheme.onSurfaceVariant)
+                        daysUntilDue < 0 -> Pair("Atrasado:", com.mothblank.notasegura.ui.theme.ExpiredRed)
+                        daysUntilDue <= 7 -> Pair("Vence em breve:", com.mothblank.notasegura.ui.theme.WarningYellow)
+                        else -> Pair("Vencimento:", MaterialTheme.colorScheme.primary)
+                    }
+
                     Text(
-                        text = "Vencimento:",
+                        text = statusLabel,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (!payment.isPaid && daysUntilDue <= 7) statusColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (!payment.isPaid && daysUntilDue <= 7) FontWeight.Bold else FontWeight.Normal
                     )
                     Text(
                         text = payment.dueDate.format(dateFormatter),
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (payment.isPaid) MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.primary,
+                        color = statusColor,
                         fontWeight = FontWeight.Bold
                     )
                 }

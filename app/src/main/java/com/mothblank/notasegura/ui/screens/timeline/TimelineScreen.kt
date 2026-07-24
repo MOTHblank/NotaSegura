@@ -56,7 +56,9 @@ import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.WarrantyItem
 import com.mothblank.notasegura.navigation.AppScreen
 import kotlinx.coroutines.delay
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import androidx.compose.ui.platform.LocalSavedStateRegistryOwner
 
 import androidx.compose.foundation.lazy.LazyRow
@@ -312,15 +314,24 @@ fun TimelineScreen(
                             thickness = 0.5.dp
                         )
 
+                        val daysUntilExpiration = ChronoUnit.DAYS.between(LocalDate.now(), item.expirationDate)
+
+                        val (statusLabel, statusColor) = when {
+                            daysUntilExpiration < 0 -> Pair("Expirado:", com.mothblank.notasegura.ui.theme.ExpiredRed)
+                            daysUntilExpiration <= 30 -> Pair("Vence em breve:", com.mothblank.notasegura.ui.theme.WarningYellow)
+                            else -> Pair("Vence em:", MaterialTheme.colorScheme.primary)
+                        }
+
                         Text(
-                            text = "Vence em:",
+                            text = statusLabel,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (daysUntilExpiration < 0) statusColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (daysUntilExpiration <= 30) FontWeight.Bold else FontWeight.Normal
                         )
                         Text(
                             text = item.expirationDate.format(dateFormatter),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = statusColor,
                             fontWeight = FontWeight.Bold
                         )
                     }

@@ -17,3 +17,7 @@
 ## 2024-07-17 - Context-Aware Empty States
 **Learning:** Generic empty states like "No items found" are confusing when a user is actively searching or filtering, as it implies the entire database is empty rather than just the current search results. Users need to know whether the list is truly empty or if their filter criteria just yielded no results.
 **Action:** Always make empty state messages context-aware. If a search query or filter is active, display "No results found". If the list is truly empty, display the standard empty message along with a helpful call-to-action (e.g., "Tap 'New Item' to start").
+
+## 2024-05-18 - Improved Contrast and Status Clarity for Elderly Users
+**Learning:** Default Material design colors (like standard Amber/Yellow for warnings) often lack sufficient contrast against light backgrounds, making it hard for elderly users to distinguish critical status indicators (e.g., "Vence em breve" or "Atrasado"). Furthermore, static labels without context require more cognitive load.
+**Action:** Always verify semantic colors against accessibility contrast guidelines. Use darker shades for warnings (e.g., `#F57F17` instead of `#xFFFFC107`). Pair color changes with dynamic, explicit text labels (e.g., changing "Vencimento" to "Atrasado" when overdue) to reinforce status changes beyond just color.

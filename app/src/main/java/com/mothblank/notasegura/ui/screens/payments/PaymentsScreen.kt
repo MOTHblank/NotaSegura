@@ -22,6 +22,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
@@ -50,6 +54,7 @@ fun PaymentsScreen(
 ) {
     val payments by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val focusManager = LocalFocusManager.current
     val showOnlyPending by viewModel.showOnlyPending.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -67,7 +72,9 @@ fun PaymentsScreen(
                     onValueChange = viewModel::onSearchQueryChange,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Pesquisar pagamentos...") },
-                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Ícone de pesquisa") },
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { viewModel.onSearchQueryChange("") }) {

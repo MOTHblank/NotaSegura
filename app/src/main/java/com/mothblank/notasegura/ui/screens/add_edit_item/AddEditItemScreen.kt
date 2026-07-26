@@ -56,8 +56,10 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.runtime.*
 import androidx.core.content.FileProvider
 import java.io.File
@@ -91,6 +93,7 @@ fun AddEditItemScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     var showInputOptions by remember { mutableStateOf(false) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -180,7 +183,8 @@ fun AddEditItemScreen(
             label = { Text("Categoria", style = MaterialTheme.typography.titleMedium) },
             textStyle = MaterialTheme.typography.bodyLarge,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done)
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
         )
 
         var showPurchaseDatePicker by remember { mutableStateOf(false) }

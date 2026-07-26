@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +25,7 @@ import java.time.Instant
 import java.time.ZoneId
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +40,7 @@ fun AddEditPaymentScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier
@@ -69,6 +72,7 @@ fun AddEditPaymentScreen(
             label = { Text("Valor (R$)", style = MaterialTheme.typography.titleMedium) },
             textStyle = MaterialTheme.typography.bodyLarge,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             singleLine = true,
             isError = uiState.amountError != null,
             supportingText = {

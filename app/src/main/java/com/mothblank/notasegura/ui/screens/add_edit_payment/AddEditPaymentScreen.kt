@@ -11,6 +11,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +62,17 @@ fun AddEditPaymentScreen(
             value = uiState.title,
             onValueChange = viewModel::onTitleChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Nome da Conta", style = MaterialTheme.typography.titleMedium) },
+            label = {
+                Text(
+                    text = buildAnnotatedString {
+                        append("Nome da Conta ")
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                            append("*")
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
             textStyle = MaterialTheme.typography.bodyLarge,
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
@@ -69,7 +82,17 @@ fun AddEditPaymentScreen(
             value = uiState.amount,
             onValueChange = viewModel::onAmountChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Valor (R$)", style = MaterialTheme.typography.titleMedium) },
+            label = {
+                Text(
+                    text = buildAnnotatedString {
+                        append("Valor (R$) ")
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                            append("*")
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
             textStyle = MaterialTheme.typography.bodyLarge,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
@@ -93,7 +116,17 @@ fun AddEditPaymentScreen(
                 value = viewModel.formatDate(uiState.dueDate),
                 onValueChange = {},
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Data de Vencimento", style = MaterialTheme.typography.titleMedium) },
+                label = {
+                    Text(
+                        text = buildAnnotatedString {
+                            append("Data de Vencimento ")
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                                append("*")
+                            }
+                        },
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
                 textStyle = MaterialTheme.typography.bodyLarge,
                 readOnly = true,
                 trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }

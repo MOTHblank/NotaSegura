@@ -21,3 +21,7 @@
 ## 2024-05-18 - Improved Contrast and Status Clarity for Elderly Users
 **Learning:** Default Material design colors (like standard Amber/Yellow for warnings) often lack sufficient contrast against light backgrounds, making it hard for elderly users to distinguish critical status indicators (e.g., "Vence em breve" or "Atrasado"). Furthermore, static labels without context require more cognitive load.
 **Action:** Always verify semantic colors against accessibility contrast guidelines. Use darker shades for warnings (e.g., `#F57F17` instead of `#xFFFFC107`). Pair color changes with dynamic, explicit text labels (e.g., changing "Vencimento" to "Atrasado" when overdue) to reinforce status changes beyond just color.
+
+## 2024-05-18 - Visual Indicators for Required Fields
+**Learning:** For elderly users, understanding which fields are mandatory is critical to reducing cognitive load and preventing errors when filling out forms.
+**Action:** Consistently append a red asterisk (using `buildAnnotatedString` and `MaterialTheme.colorScheme.error`) to the labels of all required form fields across the app.

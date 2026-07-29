@@ -27,6 +27,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,7 +62,17 @@ fun AddEditPaymentScreen(
             value = uiState.title,
             onValueChange = viewModel::onTitleChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Nome da Conta", style = MaterialTheme.typography.titleMedium) },
+            label = {
+                Text(
+                    buildAnnotatedString {
+                        append("Nome da Conta")
+                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                            append(" *")
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
             textStyle = MaterialTheme.typography.bodyLarge,
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
@@ -93,7 +106,17 @@ fun AddEditPaymentScreen(
                 value = viewModel.formatDate(uiState.dueDate),
                 onValueChange = {},
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Data de Vencimento", style = MaterialTheme.typography.titleMedium) },
+                label = {
+                    Text(
+                        buildAnnotatedString {
+                            append("Data de Vencimento")
+                            withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                                append(" *")
+                            }
+                        },
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
                 textStyle = MaterialTheme.typography.bodyLarge,
                 readOnly = true,
                 trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }

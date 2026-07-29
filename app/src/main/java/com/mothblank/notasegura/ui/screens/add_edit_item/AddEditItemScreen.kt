@@ -73,6 +73,9 @@ import coil3.compose.AsyncImage
 import java.time.Instant
 
 import java.time.ZoneId
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 
 fun createImageUri(context: Context): Uri {
     val imageFile = File(context.cacheDir, "new_image_${System.currentTimeMillis()}.jpg")
@@ -170,7 +173,17 @@ fun AddEditItemScreen(
             value = uiState.name, 
             onValueChange = viewModel::onNameChange, 
             modifier = Modifier.fillMaxWidth(), 
-            label = { Text("Nome do Produto", style = MaterialTheme.typography.titleMedium) },
+            label = {
+                Text(
+                    buildAnnotatedString {
+                        append("Nome do Produto")
+                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                            append(" *")
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
             textStyle = MaterialTheme.typography.bodyLarge,
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
@@ -198,7 +211,16 @@ fun AddEditItemScreen(
                     value = viewModel.formatDate(uiState.purchaseDate), 
                     onValueChange = {}, 
                     modifier = Modifier.fillMaxWidth(), 
-                    label = { Text("Data da Compra") }, 
+                    label = {
+                        Text(
+                            buildAnnotatedString {
+                                append("Data da Compra")
+                                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                                    append(" *")
+                                }
+                            }
+                        )
+                    },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     readOnly = true, 
                     trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }
@@ -214,7 +236,16 @@ fun AddEditItemScreen(
                     value = viewModel.formatDate(uiState.expirationDate), 
                     onValueChange = {}, 
                     modifier = Modifier.fillMaxWidth(), 
-                    label = { Text("Fim da Garantia") }, 
+                    label = {
+                        Text(
+                            buildAnnotatedString {
+                                append("Fim da Garantia")
+                                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                                    append(" *")
+                                }
+                            }
+                        )
+                    },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     readOnly = true, 
                     trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }

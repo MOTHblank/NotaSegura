@@ -57,6 +57,9 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.LocalFocusManager
@@ -170,7 +173,17 @@ fun AddEditItemScreen(
             value = uiState.name, 
             onValueChange = viewModel::onNameChange, 
             modifier = Modifier.fillMaxWidth(), 
-            label = { Text("Nome do Produto", style = MaterialTheme.typography.titleMedium) },
+            label = {
+                Text(
+                    buildAnnotatedString {
+                        append("Nome do Produto")
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                            append(" *")
+                        }
+                    },
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
             textStyle = MaterialTheme.typography.bodyLarge,
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next)
@@ -198,7 +211,16 @@ fun AddEditItemScreen(
                     value = viewModel.formatDate(uiState.purchaseDate), 
                     onValueChange = {}, 
                     modifier = Modifier.fillMaxWidth(), 
-                    label = { Text("Data da Compra") }, 
+                    label = {
+                        Text(
+                            buildAnnotatedString {
+                                append("Data da Compra")
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                                    append(" *")
+                                }
+                            }
+                        )
+                    },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     readOnly = true, 
                     trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }
@@ -214,7 +236,16 @@ fun AddEditItemScreen(
                     value = viewModel.formatDate(uiState.expirationDate), 
                     onValueChange = {}, 
                     modifier = Modifier.fillMaxWidth(), 
-                    label = { Text("Fim da Garantia") }, 
+                    label = {
+                        Text(
+                            buildAnnotatedString {
+                                append("Fim da Garantia")
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                                    append(" *")
+                                }
+                            }
+                        )
+                    },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     readOnly = true, 
                     trailingIcon = { Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp)) }

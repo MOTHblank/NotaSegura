@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -97,108 +100,115 @@ fun AddEditPaymentScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            "Adicionar/Editar Pagamento",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        OutlinedTextField(
-            value = uiState.title,
-            onValueChange = viewModel::onTitleChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { RequiredPaymentLabel("Nome da Conta") },
-            textStyle = MaterialTheme.typography.bodyLarge,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        OutlinedTextField(
-            value = uiState.amount,
-            onValueChange = viewModel::onAmountChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { RequiredPaymentLabel("Valor (R$)") },
-            textStyle = MaterialTheme.typography.bodyLarge,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Decimal,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-            singleLine = true,
-            isError = uiState.amountError != null,
-            supportingText = {
-                uiState.amountError?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
-                }
-            }
-        )
-
-        Box {
+        PaymentFormSection(
+            title = "Pagamento",
+            subtitle = "Dados principais da cobrança."
+        ) {
             OutlinedTextField(
-                value = viewModel.formatDate(uiState.dueDate),
-                onValueChange = {},
+                value = uiState.title,
+                onValueChange = viewModel::onTitleChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { RequiredPaymentLabel("Data de Vencimento") },
+                label = { RequiredPaymentLabel("Nome da conta") },
                 textStyle = MaterialTheme.typography.bodyLarge,
-                readOnly = true,
-                trailingIcon = {
-                    Icon(Icons.Default.DateRange, null, modifier = Modifier.size(32.dp))
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                )
+            )
+
+            OutlinedTextField(
+                value = uiState.amount,
+                onValueChange = viewModel::onAmountChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { RequiredPaymentLabel("Valor (R$)") },
+                textStyle = MaterialTheme.typography.bodyLarge,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.clearFocus() }
+                ),
+                singleLine = true,
+                isError = uiState.amountError != null,
+                supportingText = {
+                    uiState.amountError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
                 }
             )
-            Spacer(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clickable(
-                        onClickLabel = "Selecionar data de vencimento",
-                        role = Role.Button
-                    ) { showDatePicker = true }
-            )
+
+            Box {
+                OutlinedTextField(
+                    value = viewModel.formatDate(uiState.dueDate),
+                    onValueChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { RequiredPaymentLabel("Data de vencimento") },
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    readOnly = true,
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.DateRange,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                )
+                Spacer(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(
+                            onClickLabel = "Selecionar data de vencimento",
+                            role = Role.Button
+                        ) { showDatePicker = true }
+                )
+            }
         }
 
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant
-            )
+        PaymentFormSection(
+            title = "Opções",
+            subtitle = "Defina o estado atual e se a cobrança se repete."
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                PaymentCheckboxRow(
-                    checked = uiState.isPaid,
-                    text = "JÁ ESTÁ PAGO",
-                    onClick = { viewModel.onPaidChange(!uiState.isPaid) }
-                )
-                PaymentCheckboxRow(
-                    checked = uiState.isRecurring,
-                    text = "PAGAMENTO MENSAL",
-                    onClick = { viewModel.onRecurringChange(!uiState.isRecurring) }
-                )
-            }
+            PaymentCheckboxRow(
+                checked = uiState.isPaid,
+                title = "Já está pago",
+                supportingText = "Registra este pagamento como concluído.",
+                onClick = { viewModel.onPaidChange(!uiState.isPaid) }
+            )
+
+            PaymentCheckboxRow(
+                checked = uiState.isRecurring,
+                title = "Pagamento mensal",
+                supportingText = "Cria a próxima ocorrência quando esta for marcada como paga.",
+                onClick = { viewModel.onRecurringChange(!uiState.isRecurring) }
+            )
         }
 
         uiState.errorMessage?.let {
-            Text(
-                it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
 
         Button(
             onClick = viewModel::savePayment,
-            modifier = Modifier.fillMaxWidth().height(72.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp),
             enabled = !uiState.isSaving &&
                 uiState.title.isNotBlank() &&
                 uiState.dueDate != null,
@@ -210,9 +220,14 @@ fun AddEditPaymentScreen(
                     strokeWidth = 3.dp
                 )
             } else {
-                Text("SALVAR", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "SALVAR PAGAMENTO",
+                    style = MaterialTheme.typography.titleMedium
+                )
             }
         }
+
+        Spacer(Modifier.height(12.dp))
     }
 
     if (showDatePicker) {
@@ -248,6 +263,43 @@ fun AddEditPaymentScreen(
 }
 
 @Composable
+private fun PaymentFormSection(
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            content()
+        }
+    }
+}
+
+@Composable
 private fun RequiredPaymentLabel(text: String) {
     Text(
         buildAnnotatedString {
@@ -255,32 +307,48 @@ private fun RequiredPaymentLabel(text: String) {
             withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
                 append("*")
             }
-        },
-        style = MaterialTheme.typography.titleMedium
+        }
     )
 }
 
 @Composable
 private fun PaymentCheckboxRow(
     checked: Boolean,
-    text: String,
+    title: String,
+    supportingText: String,
     onClick: () -> Unit
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Checkbox, onClick = onClick)
+            .clickable(role = Role.Checkbox, onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = null,
-            modifier = Modifier.size(48.dp)
-        )
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = null,
+                modifier = Modifier.size(48.dp)
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    supportingText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }

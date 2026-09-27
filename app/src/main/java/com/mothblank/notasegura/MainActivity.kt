@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
@@ -41,8 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -80,12 +79,35 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotaSeguraApp() {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val app = context.applicationContext as NotaSeguraApplication
     val coroutineScope = rememberCoroutineScope()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    val isPurchaseEditor = currentRoute == AppScreen.AddEditItem.route
+    val isPaymentEditor = currentRoute == AppScreen.AddEditPayment.route
+    val showPrimaryNavigation =
+        currentRoute == AppScreen.Timeline.route || currentRoute == AppScreen.Payments.route
+
+    val editorTitle = when {
+        isPurchaseEditor -> {
+            if (navBackStackEntry?.arguments?.getString("itemId").isNullOrBlank()) {
+                "Nova compra"
+            } else {
+                "Editar compra"
+            }
+        }
+        isPaymentEditor -> {
+            if (navBackStackEntry?.arguments?.getString("paymentId").isNullOrBlank()) {
+                "Novo pagamento"
+            } else {
+                "Editar pagamento"
+            }
+        }
+        else -> null
+    }
 
     var menuExpanded by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
@@ -123,138 +145,158 @@ fun NotaSeguraApp() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Nota Segura",
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
-                },
-                actions = {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "Mais opções",
-                            tint = Color.White
+            if (editorTitle != null) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            editorTitle,
+                            style = MaterialTheme.typography.titleLarge
                         )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Voltar"
+                            )
+                        }
                     }
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "Nota Segura",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "Mais opções"
+                            )
+                        }
 
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Compartilhar relatório PDF") },
-                            leadingIcon = {
-                                Icon(Icons.Default.PictureAsPdf, contentDescription = null)
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                coroutineScope.launch {
-                                    val purchases = app.purchaseDocumentStore
-                                        .getAllPurchases()
-                                        .first()
-                                    val payments = app.paymentRepository
-                                        .getAllPayments()
-                                        .first()
-                                    val file = withContext(Dispatchers.IO) {
-                                        ExportManager.createPdf(
-                                            context,
-                                            purchases,
-                                            payments
-                                        )
-                                    }
-                                    if (file != null) {
-                                        ExportManager.sharePdf(context, file)
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "Não foi possível gerar o PDF.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Compartilhar relatório PDF") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    coroutineScope.launch {
+                                        val purchases = app.purchaseDocumentStore
+                                            .getAllPurchases()
+                                            .first()
+                                        val payments = app.paymentRepository
+                                            .getAllPayments()
+                                            .first()
+                                        val file = withContext(Dispatchers.IO) {
+                                            ExportManager.createPdf(
+                                                context,
+                                                purchases,
+                                                payments
+                                            )
+                                        }
+                                        if (file != null) {
+                                            ExportManager.sharePdf(context, file)
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Não foi possível gerar o PDF.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
 
-                        DropdownMenuItem(
-                            text = { Text("Criar backup") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Backup, contentDescription = null)
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                createBackupLauncher.launch(
-                                    "NotaSegura_Backup_${LocalDate.now()}.notasegura"
-                                )
-                            }
-                        )
+                            DropdownMenuItem(
+                                text = { Text("Criar backup") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Backup, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    createBackupLauncher.launch(
+                                        "NotaSegura_Backup_${LocalDate.now()}.notasegura"
+                                    )
+                                }
+                            )
 
-                        DropdownMenuItem(
-                            text = { Text("Restaurar backup") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Restore, contentDescription = null)
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                openBackupLauncher.launch(arrayOf("*/*"))
-                            }
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White
-                )
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            Icons.Default.Inventory2,
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    },
-                    label = { Text("Compras") },
-                    selected = currentRoute == AppScreen.Timeline.route,
-                    onClick = {
-                        navController.navigate(AppScreen.Timeline.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
+                            DropdownMenuItem(
+                                text = { Text("Restaurar backup") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Restore, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    openBackupLauncher.launch(arrayOf("*/*"))
+                                }
+                            )
                         }
-                    }
-                )
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            Icons.Default.Payments,
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp)
-                        )
                     },
-                    label = { Text("Pagamentos") },
-                    selected = currentRoute == AppScreen.Payments.route,
-                    onClick = {
-                        navController.navigate(AppScreen.Payments.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                        actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 )
             }
         },
+        bottomBar = {
+            if (showPrimaryNavigation) {
+                NavigationBar {
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.Inventory2,
+                                contentDescription = null,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        },
+                        label = { Text("Compras") },
+                        selected = currentRoute == AppScreen.Timeline.route,
+                        onClick = {
+                            navController.navigate(AppScreen.Timeline.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.Payments,
+                                contentDescription = null,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        },
+                        label = { Text("Pagamentos") },
+                        selected = currentRoute == AppScreen.Payments.route,
+                        onClick = {
+                            navController.navigate(AppScreen.Payments.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        },
         floatingActionButton = {
-            if (currentRoute == AppScreen.Timeline.route || currentRoute == AppScreen.Payments.route) {
+            if (showPrimaryNavigation) {
                 ExtendedFloatingActionButton(
                     onClick = {
                         if (currentRoute == AppScreen.Timeline.route) {
@@ -273,9 +315,9 @@ fun NotaSeguraApp() {
                     text = {
                         Text(
                             if (currentRoute == AppScreen.Timeline.route) {
-                                "Nova Compra"
+                                "Nova compra"
                             } else {
-                                "Novo Pagamento"
+                                "Novo pagamento"
                             }
                         )
                     }

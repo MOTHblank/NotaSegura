@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,13 +40,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -60,7 +61,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -78,11 +78,13 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.ui.components.DocumentViewerDialog
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
 import java.io.File
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 private fun createCameraUri(context: Context): Uri {
     val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
@@ -114,6 +116,7 @@ fun AddEditItemScreen(
     var tempImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var showPurchaseDatePicker by remember { mutableStateOf(false) }
     var showWarrantyDatePicker by remember { mutableStateOf(false) }
+    var previewAttachment by remember { mutableStateOf<PurchaseAttachmentUi?>(null) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -148,115 +151,136 @@ fun AddEditItemScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            "Compra e documentos",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        AttachmentSection(
-            attachments = uiState.attachments,
-            isAnalyzing = uiState.isAnalyzingDocument,
-            onAdd = { showAttachmentOptions = true },
-            onRemove = viewModel::removeAttachment
-        )
-
-        OcrSuggestionsCard(
-            state = uiState,
-            onMerchant = viewModel::applyMerchantSuggestion,
-            onDate = viewModel::applyPurchaseDateSuggestion,
-            onValue = viewModel::applyPurchaseValueSuggestion,
-            onModel = viewModel::applyModelSuggestion,
-            onSerial = viewModel::applySerialSuggestion
-        )
-
-        OutlinedTextField(
-            value = uiState.productName,
-            onValueChange = viewModel::onProductNameChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { RequiredLabel("Produto") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        OutlinedTextField(
-            value = uiState.merchant,
-            onValueChange = viewModel::onMerchantChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Loja / vendedor") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        OutlinedTextField(
-            value = uiState.purchaseValue,
-            onValueChange = viewModel::onPurchaseValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Valor da compra (R$)") },
-            singleLine = true,
-            isError = uiState.purchaseValueError != null,
-            supportingText = {
-                uiState.purchaseValueError?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Decimal,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        OutlinedTextField(
-            value = uiState.category,
-            onValueChange = viewModel::onCategoryChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Categoria") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        FormSection(
+            title = "Compra",
+            subtitle = "Quando e onde a compra foi feita."
         ) {
             OutlinedTextField(
-                value = uiState.modelNumber,
-                onValueChange = viewModel::onModelNumberChange,
-                modifier = Modifier.weight(1f),
-                label = { Text("Modelo") },
-                singleLine = true
+                value = uiState.merchant,
+                onValueChange = viewModel::onMerchantChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Loja / vendedor") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                )
             )
+            uiState.ocrSuggestions?.merchant?.let {
+                FieldSuggestion(
+                    value = it,
+                    onUse = viewModel::applyMerchantSuggestion
+                )
+            }
+
             OutlinedTextField(
-                value = uiState.serialNumber,
-                onValueChange = viewModel::onSerialNumberChange,
-                modifier = Modifier.weight(1f),
-                label = { Text("Nº de série") },
-                singleLine = true
+                value = uiState.purchaseValue,
+                onValueChange = viewModel::onPurchaseValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Valor da compra (R$)") },
+                singleLine = true,
+                isError = uiState.purchaseValueError != null,
+                supportingText = {
+                    uiState.purchaseValueError?.let { message ->
+                        Text(message, color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                )
             )
+            uiState.ocrSuggestions?.purchaseValueCents?.let {
+                FieldSuggestion(
+                    value = CurrencyUtils.formatCents(it),
+                    onUse = viewModel::applyPurchaseValueSuggestion
+                )
+            }
+
+            DateField(
+                value = viewModel.formatDate(uiState.purchaseDate),
+                label = "Data da compra",
+                required = true,
+                clickLabel = "Selecionar data da compra",
+                onClick = { showPurchaseDatePicker = true }
+            )
+            uiState.ocrSuggestions?.purchaseDate?.let {
+                FieldSuggestion(
+                    value = it.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    onUse = viewModel::applyPurchaseDateSuggestion
+                )
+            }
         }
 
-        DateField(
-            value = viewModel.formatDate(uiState.purchaseDate),
-            label = "Data da compra",
-            required = true,
-            clickLabel = "Selecionar data da compra",
-            onClick = { showPurchaseDatePicker = true }
-        )
+        FormSection(
+            title = "Produto",
+            subtitle = "Identifique o item para encontrá-lo depois."
+        ) {
+            OutlinedTextField(
+                value = uiState.productName,
+                onValueChange = viewModel::onProductNameChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { RequiredLabel("Produto") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                )
+            )
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            OutlinedTextField(
+                value = uiState.category,
+                onValueChange = viewModel::onCategoryChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Categoria") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                )
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = uiState.modelNumber,
+                    onValueChange = viewModel::onModelNumberChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Modelo") },
+                    singleLine = true
+                )
+                uiState.ocrSuggestions?.modelNumber?.let {
+                    FieldSuggestion(
+                        value = it,
+                        onUse = viewModel::applyModelSuggestion
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = uiState.serialNumber,
+                    onValueChange = viewModel::onSerialNumberChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Nº de série") },
+                    singleLine = true
+                )
+                uiState.ocrSuggestions?.serialNumber?.let {
+                    FieldSuggestion(
+                        value = it,
+                        onUse = viewModel::applySerialSuggestion
+                    )
+                }
+            }
+        }
+
+        FormSection(
+            title = "Garantia",
+            subtitle = "Opcional. Deixe em branco se não houver garantia registrada."
+        ) {
             DateField(
                 value = viewModel.formatDate(uiState.warrantyEndDate),
                 label = "Fim da garantia",
@@ -274,28 +298,53 @@ fun AddEditItemScreen(
             }
         }
 
-        OutlinedTextField(
-            value = uiState.notes,
-            onValueChange = viewModel::onNotesChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Observações") },
-            minLines = 3,
-            maxLines = 6,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = { focusManager.clearFocus() }
+        FormSection(
+            title = "Documentos",
+            subtitle = "Guarde fotos de comprovantes, notas e arquivos PDF."
+        ) {
+            AttachmentSection(
+                attachments = uiState.attachments,
+                isAnalyzing = uiState.isAnalyzingDocument,
+                onAdd = { showAttachmentOptions = true },
+                onPreview = { previewAttachment = it },
+                onRemove = viewModel::removeAttachment
             )
-        )
+        }
+
+        FormSection(
+            title = "Observações",
+            subtitle = "Informações extras que não cabem nos campos acima."
+        ) {
+            OutlinedTextField(
+                value = uiState.notes,
+                onValueChange = viewModel::onNotesChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Observações") },
+                minLines = 3,
+                maxLines = 6,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.clearFocus() }
+                )
+            )
+        }
 
         uiState.errorMessage?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
 
         Button(
@@ -315,11 +364,11 @@ fun AddEditItemScreen(
                     strokeWidth = 3.dp
                 )
             } else {
-                Text("SALVAR", style = MaterialTheme.typography.titleLarge)
+                Text("SALVAR COMPRA", style = MaterialTheme.typography.titleMedium)
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(12.dp))
     }
 
     if (showPurchaseDatePicker) {
@@ -349,6 +398,7 @@ fun AddEditItemScreen(
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
                 ListItem(
                     headlineContent = { Text("Tirar foto") },
+                    supportingContent = { Text("Fotografe um comprovante ou certificado.") },
                     leadingContent = {
                         Icon(Icons.Default.CameraAlt, contentDescription = null)
                     },
@@ -362,6 +412,7 @@ fun AddEditItemScreen(
                 )
                 ListItem(
                     headlineContent = { Text("Escolher imagem ou PDF") },
+                    supportingContent = { Text("Selecione um documento já salvo no aparelho.") },
                     leadingContent = {
                         Icon(Icons.Default.Description, contentDescription = null)
                     },
@@ -373,6 +424,79 @@ fun AddEditItemScreen(
             }
         }
     }
+
+    previewAttachment?.let { attachment ->
+        DocumentViewerDialog(
+            path = attachment.path,
+            mimeType = attachment.mimeType,
+            displayName = attachment.displayName,
+            onDismiss = { previewAttachment = null }
+        )
+    }
+}
+
+@Composable
+private fun FormSection(
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun FieldSuggestion(
+    value: String,
+    onUse: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Encontrado: $value",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onUse) {
+                Text("Usar")
+            }
+        }
+    }
 }
 
 @Composable
@@ -380,18 +504,15 @@ private fun AttachmentSection(
     attachments: List<PurchaseAttachmentUi>,
     isAnalyzing: Boolean,
     onAdd: () -> Unit,
+    onPreview: (PurchaseAttachmentUi) -> Unit,
     onRemove: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                "Documentos",
-                style = MaterialTheme.typography.titleLarge
-            )
-            if (isAnalyzing) {
+        if (isAnalyzing) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(22.dp),
                     strokeWidth = 2.dp
@@ -403,40 +524,55 @@ private fun AttachmentSection(
             }
         }
 
-        if (attachments.isNotEmpty()) {
+        if (attachments.isEmpty()) {
+            Text(
+                "Nenhum documento anexado.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(attachments, key = { it.id }) { attachment ->
                     Card(
+                        onClick = { onPreview(attachment) },
                         modifier = Modifier
-                            .width(150.dp)
-                            .height(150.dp),
-                        shape = RoundedCornerShape(12.dp)
+                            .width(156.dp)
+                            .height(164.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant
+                        )
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             if (attachment.isImage) {
                                 AsyncImage(
                                     model = attachment.path,
-                                    contentDescription = attachment.displayName,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
+                                    contentDescription = "Abrir ${attachment.displayName}",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(8.dp),
+                                    contentScale = ContentScale.Fit
                                 )
                             } else {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(12.dp),
+                                        .padding(14.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Icon(
                                         Icons.Default.PictureAsPdf,
                                         contentDescription = null,
-                                        modifier = Modifier.size(44.dp)
+                                        modifier = Modifier.size(46.dp),
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
+                                    Spacer(Modifier.height(8.dp))
                                     Text(
                                         attachment.displayName,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 2
+                                        maxLines = 3
                                     )
                                 }
                             }
@@ -445,10 +581,16 @@ private fun AttachmentSection(
                                 onClick = { onRemove(attachment.id) },
                                 modifier = Modifier.align(Alignment.TopEnd)
                             ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Remover documento"
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remover documento",
+                                        modifier = Modifier.padding(6.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -463,86 +605,6 @@ private fun AttachmentSection(
             Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text("ADICIONAR DOCUMENTO")
-        }
-    }
-}
-
-@Composable
-private fun OcrSuggestionsCard(
-    state: AddEditUiState,
-    onMerchant: () -> Unit,
-    onDate: () -> Unit,
-    onValue: () -> Unit,
-    onModel: () -> Unit,
-    onSerial: () -> Unit
-) {
-    val suggestions = state.ocrSuggestions ?: return
-    val hasSuggestions = suggestions.merchant != null ||
-        suggestions.purchaseDate != null ||
-        suggestions.purchaseValueCents != null ||
-        suggestions.modelNumber != null ||
-        suggestions.serialNumber != null
-
-    if (!hasSuggestions) return
-
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                "Dados encontrados no documento",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                "Revise e aplique apenas o que estiver correto.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            HorizontalDivider()
-
-            suggestions.merchant?.let {
-                SuggestionRow("Loja", it, onMerchant)
-            }
-            suggestions.purchaseDate?.let {
-                SuggestionRow(
-                    "Data",
-                    it.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                    onDate
-                )
-            }
-            suggestions.purchaseValueCents?.let {
-                SuggestionRow("Valor", CurrencyUtils.formatCents(it), onValue)
-            }
-            suggestions.modelNumber?.let {
-                SuggestionRow("Modelo", it, onModel)
-            }
-            suggestions.serialNumber?.let {
-                SuggestionRow("Nº de série", it, onSerial)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SuggestionRow(
-    label: String,
-    value: String,
-    onUse: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(value, style = MaterialTheme.typography.bodyLarge)
-        }
-        TextButton(onClick = onUse) {
-            Text("Usar")
         }
     }
 }

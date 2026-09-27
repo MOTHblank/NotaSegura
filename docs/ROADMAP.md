@@ -1,59 +1,70 @@
-# NotaSegura Roadmap: Receipts & Payment Reminders (2026)
+# NotaSegura Roadmap
 
-## Background & Motivation
-The project currently supports tracking warranty expirations using a simple entity model. To modernize the app for 2026 and meet new user requirements, we are expanding it to handle physical/digital receipt storage and payment reminders. The user has opted for a **Separate Entities** approach to keep the logic for receipts/warranties distinct from payment tracking.
+## Current baseline
 
-## Scope & Impact
-*   **Database:** Room schema will be updated. Existing `WarrantyItem` will be extended, and a new `Payment` entity will be introduced. Migration logic is required.
-*   **Storage:** Images (receipts) captured via camera or gallery will be copied to internal app storage for persistence.
-*   **UI:** Navigation and screens will be updated to accommodate two primary domains: Receipts/Warranties and Payments.
-*   **Background Tasks:** The existing WorkManager implementation will be expanded to notify users of upcoming payments.
+The app now has two explicit domains:
 
-## Proposed Solution
+- warranty / proof-of-purchase records;
+- payment reminders and recurring payment occurrences.
 
-### 1. Documentation
-*   Create a `docs/` folder in the project root.
-*   Save this roadmap as `docs/ROADMAP.md` for future reference.
+Important correctness work completed in the current schema:
 
-### 2. Data Layer Changes
-*   **Receipt Handling:**
-    *   Rename `WarrantyItem` to `Receipt` (optional, but semantically better) or simply add an `imagePath: String?` field to the existing `WarrantyItem` to store the local file path of the saved receipt image.
-*   **Payment Reminders:**
-    *   Create a new `@Entity` named `Payment` containing: `id`, `title`, `amount` (Double), `dueDate` (LocalDate), `isPaid` (Boolean), and optionally `isRecurring` (Boolean).
-    *   Create a `PaymentDao`.
-*   **Database Update:**
-    *   Update `AppDatabase` version from `1` to `2`.
-    *   Write a Room Migration to preserve existing data.
+- Room schema version 3 with explicit v1→v2 and v2→v3 migrations;
+- payment values stored as integer centavos instead of floating point;
+- recurring payments keep an anchor day across short months;
+- paid state and paid date are distinct, so migrated paid records do not receive fabricated timestamps;
+- receipt images are staged in cache and committed only with a successful record save;
+- record deletion happens before managed-file deletion;
+- DatePicker values are interpreted as UTC calendar dates instead of local instants;
+- save screens navigate away only after persistence succeeds;
+- reminder queries execute in Room rather than loading entire tables;
+- PDF summaries paginate and share through FileProvider.
 
-### 3. Storage Layer
-*   Implement a helper (e.g., `FileStorageManager`) to securely copy `Uri` contents from the `ActivityResultContracts` (Camera/Gallery) into `context.filesDir` to ensure the app retains access to the image even if the original is deleted or permission is lost.
+## Near-term priorities
 
-### 4. UI Layer Changes
-*   **Navigation:** Introduce a `BottomNavigationBar` or `TabRow` on the main screen to toggle between the "Receipts" timeline and the "Payments" timeline.
-*   **Receipts UI:** Update `WarrantyItemCard` to display a small thumbnail of the `imagePath` using a library like Coil. Update `AddEditItemScreen` to show the persisted image.
-*   **Payments UI:** Create `PaymentsScreen` and `AddEditPaymentScreen`.
-*   **Dependencies:** Add [Coil for Compose](https://coil-kt.github.io/coil/compose/) for image loading.
+### 1. Backup and restore
 
-### 5. Background Work
-*   Modify `ExpirationCheckWorker` (or create a new `PaymentReminderWorker`) to query the `PaymentDao` for unpaid items due in the next few days and trigger notifications.
+Implement a user-controlled backup format containing:
 
-## Implementation Steps
-1.  **Phase 1: Project Structure & Storage**
-    *   Create `docs/ROADMAP.md`.
-    *   Implement image saving utility to internal storage.
-    *   Add Coil dependency.
-2.  **Phase 2: Data Model & Migrations**
-    *   Create `Payment` entity and DAO.
-    *   Update `WarrantyItem` with `imagePath`.
-    *   Increment DB version and implement Migration.
-3.  **Phase 3: UI Implementation**
-    *   Build the Payments timeline and Add/Edit screens.
-    *   Implement main screen navigation (Tabs/BottomNav).
-    *   Update Receipt screens to display images.
-4.  **Phase 4: Notifications**
-    *   Update WorkManager logic to include payment alerts.
+- Room data;
+- managed receipt images;
+- format/schema version;
+- integrity manifest/checksums.
 
-## Verification
-*   Test Room migration from v1 to v2 to ensure existing warranties are not lost.
-*   Verify images taken via camera or gallery remain visible after app restarts.
-*   Verify payment notifications trigger at the correct intervals.
+Prefer encrypted archives with a recoverable user workflow. A backup is incomplete until restore has been tested.
+
+### 2. First-class purchase records
+
+The current `WarrantyItem` remains minimal. Evolve it toward a purchase/document record with:
+
+- product name;
+- merchant;
+- purchase value;
+- purchase date;
+- warranty duration/end date;
+- serial/model number;
+- notes;
+- multiple attachments.
+
+Do not infer warranty expiry from arbitrary OCR dates.
+
+### 3. Better document ingestion
+
+- retain image capture/gallery;
+- add actual PDF persistence before reintroducing the PDF picker;
+- provide OCR suggestions rather than silently overwriting typed values;
+- index OCR text for later search.
+
+### 4. Reminder controls
+
+- configurable lead times;
+- notification settings screen;
+- deep links into the exact warranty/payment;
+- optional notification action for marking a payment paid.
+
+### 5. Recovery and maintenance
+
+- orphan-file cleanup for legacy installs;
+- schema migration instrumentation tests;
+- backup/restore tests;
+- accessibility checks with large font scale and TalkBack.

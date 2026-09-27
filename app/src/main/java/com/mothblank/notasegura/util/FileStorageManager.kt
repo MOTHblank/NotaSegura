@@ -4,60 +4,79 @@ import android.content.Context
 import android.net.Uri
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
 import java.util.UUID
 
 object FileStorageManager {
+    private const val RECEIPTS_DIR = "receipts"
+    private const val STAGING_DIR = "receipt_staging"
 
-    /**
-     * Copies a file from a given Uri to the internal storage of the app.
-     * Returns the absolute path of the saved file, or null if it fails.
-     */
-    fun saveImageToInternalStorage(context: Context, uri: Uri): String? {
+    fun stageImage(context: Context, uri: Uri): String? {
+        val stagingDir = File(context.cacheDir, STAGING_DIR).apply { mkdirs() }
+        val stagedFile = File(stagingDir, "receipt_${UUID.randomUUID()}.jpg")
+
         return try {
-            val contentResolver = context.contentResolver
-            val inputStream: InputStream? = contentResolver.openInputStream(uri)
-            
-            // Create a unique filename
-            val fileName = "receipt_${UUID.randomUUID()}.jpg"
-            val file = File(context.filesDir, fileName)
-            
-            val outputStream = FileOutputStream(file)
-            inputStream?.use { input ->
-                outputStream.use { output ->
-                    input.copyTo(output)
+            val input = context.contentResolver.openInputStream(uri) ?: return null
+            input.use { source ->
+                FileOutputStream(stagedFile).use { destination ->
+                    source.copyTo(destination)
                 }
             }
-            file.absolutePath
-        } catch (e: Exception) {
-            e.printStackTrace()
+            if (stagedFile.length() == 0L) {
+                stagedFile.delete()
+                null
+            } else {
+                stagedFile.absolutePath
+            }
+        } catch (_: Exception) {
+            stagedFile.delete()
             null
         }
     }
 
-    /**
-     * Deletes a file given its path.
-     */
-    fun deleteImageFromInternalStorage(context: Context, path: String?): Boolean {
-        if (path == null) return false
-        val file = File(path)
+    fun commitStagedImage(context: Context, stagedPath: String): String? {
+        val stagedFile = safeFileWithin(File(context.cacheDir, STAGING_DIR), stagedPath) ?: return null
+        if (!stagedFile.isFile || stagedFile.length() == 0L) return null
 
-        // Prevent path traversal by ensuring the resolved path is within context.filesDir
-        val canonicalFilesDir = context.filesDir.canonicalPath
-        val canonicalTargetFile = file.canonicalPath
+        val receiptsDir = File(context.filesDir, RECEIPTS_DIR).apply { mkdirs() }
+        val destination = File(receiptsDir, "receipt_${UUID.randomUUID()}.jpg")
 
-        // Append file separator to ensure exact folder prefix matching
-        val safePrefix = if (canonicalFilesDir.endsWith(File.separator)) canonicalFilesDir else canonicalFilesDir + File.separator
-
-        if (!canonicalTargetFile.startsWith(safePrefix)) {
-            // Path is outside the intended directory, this might be a path traversal attack
-            return false
+        return try {
+            stagedFile.inputStream().use { source ->
+                FileOutputStream(destination).use { output -> source.copyTo(output) }
+            }
+            if (!destination.isFile || destination.length() == 0L) {
+                destination.delete()
+                null
+            } else {
+                stagedFile.delete()
+                destination.absolutePath
+            }
+        } catch (_: Exception) {
+            destination.delete()
+            null
         }
+    }
 
-        return if (file.exists()) {
-            file.delete()
-        } else {
-            false
+    fun deleteStagedImage(context: Context, path: String?): Boolean =
+        deleteWithin(File(context.cacheDir, STAGING_DIR), path)
+
+    fun deleteManagedImage(context: Context, path: String?): Boolean =
+        deleteWithin(context.filesDir, path)
+
+    private fun deleteWithin(root: File, path: String?): Boolean {
+        if (path == null) return false
+        val file = safeFileWithin(root, path) ?: return false
+        return file.isFile && file.delete()
+    }
+
+    private fun safeFileWithin(root: File, path: String): File? {
+        return try {
+            val canonicalRoot = root.canonicalFile
+            val canonicalTarget = File(path).canonicalFile
+            val prefix = canonicalRoot.path + File.separator
+            canonicalTarget.takeIf { it.path.startsWith(prefix) }
+        } catch (_: Exception) {
+            null
         }
     }
 }

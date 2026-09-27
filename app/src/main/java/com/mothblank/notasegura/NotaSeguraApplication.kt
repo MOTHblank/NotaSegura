@@ -24,14 +24,8 @@ class NotaSeguraApplication : Application() {
         Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java,
-            "nota-segura-db"
-        )
-            .addMigrations(
-                AppDatabase.MIGRATION_1_2,
-                AppDatabase.MIGRATION_2_3,
-                AppDatabase.MIGRATION_3_4
-            )
-            .build()
+            "nota-segura-v2.db"
+        ).build()
     }
 
     val purchaseRepository: PurchaseRepository by lazy {

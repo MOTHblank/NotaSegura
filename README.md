@@ -4,7 +4,7 @@ NotaSegura is a local-first Android archive for purchases, proof-of-purchase doc
 
 ## Current model
 
-A purchase is now a first-class record rather than a warranty row. It can contain:
+A purchase is a first-class record. It can contain:
 
 - product name;
 - merchant;
@@ -74,9 +74,11 @@ The existing PDF export remains a human-readable report and is deliberately sepa
 - `ui/`: Compose screens and ViewModels.
 - `util/`: OCR parsing, dates, money, file hashing/storage, export, and permissions.
 
-## Schema
+## Schema policy
 
-Schema v4 migrates legacy `warranty_items` into `purchases`. Existing receipt paths become `Attachment` rows, so upgrades preserve previously stored documents.
+The current purchase/attachment/payment model is the first supported database baseline. NotaSegura has never had production users, so pre-release schemas are intentionally not migrated or preserved. Development installs using older database files can be discarded.
+
+Once a production release has real user data, schema changes must use explicit Room migrations and preserve backup compatibility.
 
 ## Next work
 
@@ -84,4 +86,4 @@ Schema v4 migrates legacy `warranty_items` into `purchases`. Existing receipt pa
 - add a dashboard for upcoming obligations and expiring warranties;
 - add reminder thresholds/deep links/actions;
 - add attachment types/editing and PDF text extraction;
-- add migration and backup/restore instrumentation tests.
+- add backup/restore and persistence tests for the supported baseline.

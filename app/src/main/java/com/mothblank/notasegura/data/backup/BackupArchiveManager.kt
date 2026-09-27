@@ -45,7 +45,7 @@ class BackupArchiveManager(
     companion object {
         private const val FORMAT_NAME = "NotaSeguraBackup"
         private const val FORMAT_VERSION = 1
-        private const val SCHEMA_VERSION = 4
+        private const val SCHEMA_VERSION = 1
         private const val MAX_ARCHIVE_BYTES = 512L * 1024L * 1024L
         private const val MAX_JSON_BYTES = 8 * 1024 * 1024
     }

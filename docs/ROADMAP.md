@@ -1,16 +1,17 @@
 # NotaSegura Roadmap
 
-## Completed foundation
+## Current baseline
 
-### Schema v4: purchases and attachments
+### Purchases and attachments
 
-The legacy warranty-centric model has been replaced by:
+The supported data model starts with:
 
 - `Purchase` for the underlying purchase/product record;
 - `Attachment` for receipt photos, PDFs, warranty documents, invoices, and future evidence;
-- `PurchaseWithAttachments` for UI/domain reads.
+- `PurchaseWithAttachments` for UI/domain reads;
+- `Payment` for payment obligations and recurrence.
 
-The v3→v4 migration preserves legacy rows and converts old `imagePath` values into attachment records.
+NotaSegura has never had production users, so experimental schemas that existed before this model are not compatibility targets. The current Room schema is the first supported baseline. Future migrations should begin from this baseline once real user data exists.
 
 ### Structured OCR
 
@@ -74,9 +75,9 @@ Add a simple operational landing screen rather than a chart-heavy finance dashbo
 
 ### 5. Recovery and test hardening
 
-- Room migration instrumentation tests through v4;
 - backup corruption/rollback tests;
 - large archive tests;
 - process-death tests during editing;
 - orphan-file reconciliation;
-- TalkBack and large-font accessibility checks.
+- TalkBack and large-font accessibility checks;
+- add Room migration tests only when the first post-release schema migration exists.

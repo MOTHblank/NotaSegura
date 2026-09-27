@@ -58,7 +58,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
-import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
+import com.mothblank.notasegura.domain.model.PurchaseWithAttachments\nimport com.mothblank.notasegura.domain.model.isImage
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.theme.ExpiredRed
 import com.mothblank.notasegura.ui.theme.WarningYellow

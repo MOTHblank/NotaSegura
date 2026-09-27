@@ -28,13 +28,13 @@ data class Attachment(
     val sha256: String? = null,
     val ocrText: String? = null,
     val createdAt: Long
-) {
-    val isImage: Boolean
-        get() = mimeType.startsWith("image/")
+)
 
-    val isPdf: Boolean
-        get() = mimeType == "application/pdf"
-}
+val Attachment.isImage: Boolean
+    get() = mimeType.startsWith("image/")
+
+val Attachment.isPdf: Boolean
+    get() = mimeType == "application/pdf"
 
 object AttachmentType {
     const val RECEIPT = "RECEIPT"

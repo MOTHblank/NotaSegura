@@ -8,7 +8,7 @@ import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
 import com.mothblank.notasegura.domain.model.Payment
-import com.mothblank.notasegura.domain.model.WarrantyItem
+import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import java.io.File
 import java.io.FileOutputStream
 import java.time.format.DateTimeFormatter
@@ -21,7 +21,7 @@ object ExportManager {
 
     fun createPdf(
         context: Context,
-        warranties: List<WarrantyItem>,
+        purchases: List<PurchaseWithAttachments>,
         payments: List<Payment>
     ): File? {
         val document = PdfDocument()
@@ -31,17 +31,30 @@ object ExportManager {
         return try {
             writer.drawHeading("Relatório NotaSegura")
 
-            writer.drawSection("Garantias e documentos")
-            if (warranties.isEmpty()) {
-                writer.drawBody("Nenhuma garantia cadastrada.")
+            writer.drawSection("Compras e documentos")
+            if (purchases.isEmpty()) {
+                writer.drawBody("Nenhuma compra cadastrada.")
             } else {
-                warranties.forEach { item ->
-                    val attachment = if (item.imagePath != null) " • documento anexado" else ""
-                    writer.drawBody(
-                        "${item.name} • ${item.category.ifBlank { "Sem categoria" }} • " +
-                            "compra ${item.purchaseDate.format(dateFormatter)} • " +
-                            "garantia até ${item.expirationDate.format(dateFormatter)}$attachment"
-                    )
+                purchases.forEach { item ->
+                    val purchase = item.purchase
+                    val details = buildList {
+                        add(purchase.productName)
+                        purchase.merchant?.let { add(it) }
+                        purchase.purchaseValueCents?.let { add(CurrencyUtils.formatCents(it)) }
+                        add("compra ${purchase.purchaseDate.format(dateFormatter)}")
+                        purchase.warrantyEndDate?.let {
+                            add("garantia até ${it.format(dateFormatter)}")
+                        }
+                        purchase.modelNumber?.let { add("modelo $it") }
+                        purchase.serialNumber?.let { add("série $it") }
+                        if (item.attachments.isNotEmpty()) {
+                            add(
+                                if (item.attachments.size == 1) "1 documento"
+                                else "${item.attachments.size} documentos"
+                            )
+                        }
+                    }
+                    writer.drawBody(details.joinToString(" • "))
                 }
             }
 

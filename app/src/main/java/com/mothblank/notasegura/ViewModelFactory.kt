@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.CreationExtras
-import com.mothblank.notasegura.data.storage.WarrantyDocumentStore
+import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemViewModel
 import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentViewModel
@@ -13,7 +13,7 @@ import com.mothblank.notasegura.ui.screens.timeline.TimelineViewModel
 
 @Suppress("UNCHECKED_CAST")
 class ViewModelFactory(
-    private val warrantyDocumentStore: WarrantyDocumentStore,
+    private val purchaseDocumentStore: PurchaseDocumentStore,
     private val paymentRepository: PaymentRepository
 ) : ViewModelProvider.Factory {
 
@@ -25,10 +25,10 @@ class ViewModelFactory(
 
         return when {
             modelClass.isAssignableFrom(TimelineViewModel::class.java) ->
-                TimelineViewModel(warrantyDocumentStore) as T
+                TimelineViewModel(purchaseDocumentStore) as T
 
             modelClass.isAssignableFrom(AddEditItemViewModel::class.java) ->
-                AddEditItemViewModel(warrantyDocumentStore, savedStateHandle) as T
+                AddEditItemViewModel(purchaseDocumentStore, savedStateHandle) as T
 
             modelClass.isAssignableFrom(PaymentsViewModel::class.java) ->
                 PaymentsViewModel(paymentRepository) as T

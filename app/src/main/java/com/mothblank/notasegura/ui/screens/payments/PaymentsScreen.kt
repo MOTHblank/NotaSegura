@@ -72,7 +72,7 @@ fun PaymentsScreen(
     viewModel: PaymentsViewModel = viewModel(
         factory = (LocalContext.current.applicationContext as NotaSeguraApplication).let { app ->
             ViewModelFactory(
-                warrantyDocumentStore = app.warrantyDocumentStore,
+                purchaseDocumentStore = app.purchaseDocumentStore,
                 paymentRepository = app.paymentRepository
             )
         }

@@ -1,25 +1,25 @@
 # Future feature ideas
 
-## Encrypted backup and restore
+## Encrypted portable backups
 
-Local-only storage protects privacy but creates a device-loss risk. Add an explicit, user-controlled backup/restore flow. Prefer a portable encrypted archive over implicit account coupling.
+The versioned backup format now exists and verifies integrity. The next security step is encryption with a user-controlled recovery secret. Do not make recovery depend exclusively on the device Keystore, because backups must survive device loss.
 
-## Better receipt understanding
+## Smarter reminders
 
-Expand OCR into structured suggestions for merchant, purchase total, product/model/serial identifiers, and purchase date. OCR output should always remain reviewable before it mutates saved data.
+Model reminder thresholds and delivery state rather than sending generic summaries from fixed windows. Deep-link notifications to individual purchases/payments and support direct payment completion actions.
 
-## Multiple document attachments
+## Today screen
 
-A purchase may have a receipt photo, invoice PDF, warranty certificate, and repair record. Model attachments as their own records rather than adding more nullable paths to `WarrantyItem`.
+Show only immediately useful information: overdue payments, near-term due dates, expiring warranties, recent documents, and common actions.
 
-## Reminder customization
+## Better document understanding
 
-Allow users to choose reminder lead times and enable/disable warranty and payment reminder categories independently.
+OCR is now reviewable and searchable. Extend it with PDF text extraction, more robust Brazilian fiscal-document parsing, duplicate detection, and confidence/provenance metadata for extracted values.
 
-## Searchable archive
+## Purchase lifecycle
 
-Index structured fields and OCR text so old proof-of-purchase records can be found by merchant, product, model, serial number, category, or recognized receipt text.
+Add repair/service history, warranty claims, return windows, extended warranties, and disposal/resale records without collapsing these into the purchase itself.
 
-## Export and recovery
+## Evidence export
 
-The existing PDF is a human-readable summary, not a backup. Keep report export and backup/restore as separate concepts with different formats and guarantees.
+Keep the current PDF report as a readable summary. Add a separate evidence-package export containing selected original documents plus a manifest, distinct from the recovery backup format.

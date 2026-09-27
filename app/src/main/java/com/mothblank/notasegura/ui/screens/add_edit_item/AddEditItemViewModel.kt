@@ -8,8 +8,14 @@ import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import com.mothblank.notasegura.data.storage.WarrantyDocumentStore
-import com.mothblank.notasegura.domain.model.WarrantyItem
+import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
+import com.mothblank.notasegura.data.storage.StagedAttachment
+import com.mothblank.notasegura.domain.model.Attachment
+import com.mothblank.notasegura.domain.model.Purchase
+import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
+import com.mothblank.notasegura.util.CurrencyUtils
+import com.mothblank.notasegura.util.ReceiptOcrParser
+import com.mothblank.notasegura.util.ReceiptOcrSuggestions
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -19,21 +25,39 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import java.util.UUID
 
+data class PurchaseAttachmentUi(
+    val id: String,
+    val path: String,
+    val mimeType: String,
+    val displayName: String,
+    val isStaged: Boolean
+) {
+    val isImage: Boolean
+        get() = mimeType.startsWith("image/")
+}
+
 data class AddEditUiState(
-    val name: String = "",
+    val productName: String = "",
+    val merchant: String = "",
+    val purchaseValue: String = "",
+    val purchaseValueError: String? = null,
     val category: String = "",
+    val modelNumber: String = "",
+    val serialNumber: String = "",
+    val notes: String = "",
     val purchaseDate: LocalDate? = null,
-    val expirationDate: LocalDate? = null,
-    val imagePath: String? = null,
+    val warrantyEndDate: LocalDate? = null,
+    val attachments: List<PurchaseAttachmentUi> = emptyList(),
+    val ocrSuggestions: ReceiptOcrSuggestions? = null,
+    val isAnalyzingDocument: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
 
 class AddEditItemViewModel(
-    private val documentStore: WarrantyDocumentStore,
+    private val documentStore: PurchaseDocumentStore,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -44,21 +68,38 @@ class AddEditItemViewModel(
     val saved = _saved.asSharedFlow()
 
     private val itemId: String? = savedStateHandle["itemId"]
-    private var originalImagePath: String? = null
-    private var stagedImagePath: String? = null
+    private var original: PurchaseWithAttachments? = null
+    private val stagedAttachments = linkedMapOf<String, StagedAttachment>()
+    private val removedAttachments = linkedMapOf<String, Attachment>()
+    private var pendingOcrCount = 0
 
     init {
         if (itemId != null) {
             viewModelScope.launch {
-                documentStore.getItemById(itemId)?.let { item ->
-                    originalImagePath = item.imagePath
+                documentStore.getPurchaseById(itemId)?.let { item ->
+                    original = item
                     _uiState.update {
                         it.copy(
-                            name = item.name,
-                            category = item.category,
-                            purchaseDate = item.purchaseDate,
-                            expirationDate = item.expirationDate,
-                            imagePath = item.imagePath
+                            productName = item.purchase.productName,
+                            merchant = item.purchase.merchant.orEmpty(),
+                            purchaseValue = item.purchase.purchaseValueCents
+                                ?.let { CurrencyUtils.centsToEditable(it) }
+                                .orEmpty(),
+                            category = item.purchase.category,
+                            modelNumber = item.purchase.modelNumber.orEmpty(),
+                            serialNumber = item.purchase.serialNumber.orEmpty(),
+                            notes = item.purchase.notes,
+                            purchaseDate = item.purchase.purchaseDate,
+                            warrantyEndDate = item.purchase.warrantyEndDate,
+                            attachments = item.attachments.map { attachment ->
+                                PurchaseAttachmentUi(
+                                    id = attachment.id,
+                                    path = attachment.filePath,
+                                    mimeType = attachment.mimeType,
+                                    displayName = attachment.displayName ?: "Documento",
+                                    isStaged = false
+                                )
+                            }
                         )
                     }
                 }
@@ -66,69 +107,158 @@ class AddEditItemViewModel(
         }
     }
 
-    fun onNameChange(value: String) = _uiState.update {
-        it.copy(name = value, errorMessage = null)
+    fun onProductNameChange(value: String) = updateText { copy(productName = value) }
+    fun onMerchantChange(value: String) = updateText { copy(merchant = value) }
+    fun onCategoryChange(value: String) = updateText { copy(category = value) }
+    fun onModelNumberChange(value: String) = updateText { copy(modelNumber = value) }
+    fun onSerialNumberChange(value: String) = updateText { copy(serialNumber = value) }
+    fun onNotesChange(value: String) = updateText { copy(notes = value) }
+
+    fun onPurchaseValueChange(value: String) {
+        if (CurrencyUtils.isValidEditableAmount(value)) {
+            _uiState.update {
+                it.copy(
+                    purchaseValue = value,
+                    purchaseValueError = null,
+                    errorMessage = null
+                )
+            }
+        }
     }
 
-    fun onCategoryChange(value: String) = _uiState.update {
-        it.copy(category = value, errorMessage = null)
+    fun onPurchaseDateChange(value: LocalDate) {
+        _uiState.update { it.copy(purchaseDate = value, errorMessage = null) }
     }
 
-    fun onPurchaseDateChange(value: LocalDate) = _uiState.update {
-        it.copy(purchaseDate = value, errorMessage = null)
+    fun onWarrantyEndDateChange(value: LocalDate?) {
+        _uiState.update { it.copy(warrantyEndDate = value, errorMessage = null) }
     }
 
-    fun onExpirationDateChange(value: LocalDate) = _uiState.update {
-        it.copy(expirationDate = value, errorMessage = null)
-    }
-
-    fun onImageSelected(context: Context, uri: Uri) {
+    fun onAttachmentSelected(context: Context, uri: Uri) {
         viewModelScope.launch {
-            val newStagedPath = documentStore.stageImage(uri)
-            if (newStagedPath == null) {
-                _uiState.update { it.copy(errorMessage = "Não foi possível copiar a imagem selecionada.") }
+            val staged = documentStore.stageAttachment(uri)
+            if (staged == null) {
+                _uiState.update {
+                    it.copy(errorMessage = "Não foi possível copiar o documento selecionado.")
+                }
                 return@launch
             }
 
-            documentStore.discardStagedImage(stagedImagePath)
-            stagedImagePath = newStagedPath
-            _uiState.update { it.copy(imagePath = newStagedPath, errorMessage = null) }
-            processImageForOcr(context, uri)
+            stagedAttachments[staged.stagedFile.id] = staged
+            _uiState.update {
+                it.copy(
+                    attachments = it.attachments + PurchaseAttachmentUi(
+                        id = staged.stagedFile.id,
+                        path = staged.stagedFile.path,
+                        mimeType = staged.stagedFile.mimeType,
+                        displayName = staged.stagedFile.displayName,
+                        isStaged = true
+                    ),
+                    errorMessage = null
+                )
+            }
+
+            if (staged.stagedFile.mimeType.startsWith("image/")) {
+                processImageForOcr(context, uri, staged.stagedFile.id)
+            }
         }
     }
 
-    private fun processImageForOcr(context: Context, imageUri: Uri) {
+    fun removeAttachment(id: String) {
+        stagedAttachments.remove(id)?.let { staged ->
+            documentStore.discardStagedAttachment(staged)
+        }
+
+        original?.attachments?.firstOrNull { it.id == id }?.let { existing ->
+            removedAttachments[id] = existing
+        }
+
+        _uiState.update {
+            it.copy(attachments = it.attachments.filterNot { attachment -> attachment.id == id })
+        }
+    }
+
+    private fun processImageForOcr(context: Context, imageUri: Uri, attachmentId: String) {
+        pendingOcrCount += 1
+        _uiState.update { it.copy(isAnalyzingDocument = true) }
+
         try {
             val image = InputImage.fromFilePath(context, imageUri)
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
             recognizer.process(image)
-                .addOnSuccessListener { visionText -> parseReceiptDates(visionText.text) }
-                .addOnCompleteListener { recognizer.close() }
+                .addOnSuccessListener { visionText ->
+                    stagedAttachments[attachmentId]?.let { staged ->
+                        stagedAttachments[attachmentId] = staged.copy(ocrText = visionText.text)
+                    }
+                    val parsed = ReceiptOcrParser.parse(visionText.text)
+                    _uiState.update { state ->
+                        state.copy(
+                            ocrSuggestions = mergeSuggestions(state.ocrSuggestions, parsed)
+                        )
+                    }
+                }
+                .addOnCompleteListener {
+                    recognizer.close()
+                    finishOcr()
+                }
         } catch (_: IOException) {
-            // The attachment is still valid even if OCR cannot read it.
+            finishOcr()
         }
     }
 
-    private fun parseReceiptDates(text: String) {
-        val dateRegex = """(\d{2}[/-]\d{2}[/-]\d{4})""".toRegex()
-        val dates = dateRegex.findAll(text)
-            .mapNotNull { match ->
-                try {
-                    LocalDate.parse(
-                        match.value.replace("-", "/"),
-                        DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                    )
-                } catch (_: DateTimeParseException) {
-                    null
-                }
-            }
-            .filter { !it.isAfter(LocalDate.now().plusDays(1)) }
-            .toList()
+    private fun finishOcr() {
+        pendingOcrCount = (pendingOcrCount - 1).coerceAtLeast(0)
+        _uiState.update { it.copy(isAnalyzingDocument = pendingOcrCount > 0) }
+    }
 
-        val likelyPurchaseDate = dates.maxOrNull() ?: return
-        _uiState.update { current ->
-            if (current.purchaseDate == null) current.copy(purchaseDate = likelyPurchaseDate)
-            else current
+    fun applyMerchantSuggestion() {
+        val suggestion = _uiState.value.ocrSuggestions?.merchant ?: return
+        _uiState.update {
+            it.copy(
+                merchant = suggestion,
+                ocrSuggestions = it.ocrSuggestions?.copy(merchant = null)
+            )
+        }
+    }
+
+    fun applyPurchaseDateSuggestion() {
+        val suggestion = _uiState.value.ocrSuggestions?.purchaseDate ?: return
+        _uiState.update {
+            it.copy(
+                purchaseDate = suggestion,
+                ocrSuggestions = it.ocrSuggestions?.copy(purchaseDate = null)
+            )
+        }
+    }
+
+    fun applyPurchaseValueSuggestion() {
+        val suggestion = _uiState.value.ocrSuggestions?.purchaseValueCents ?: return
+        _uiState.update {
+            it.copy(
+                purchaseValue = CurrencyUtils.centsToEditable(suggestion),
+                ocrSuggestions = it.ocrSuggestions?.copy(purchaseValueCents = null)
+            )
+        }
+    }
+
+    fun applyModelSuggestion() {
+        val suggestion = _uiState.value.ocrSuggestions?.modelNumber ?: return
+        _uiState.update {
+            it.copy(
+                modelNumber = suggestion,
+                ocrSuggestions = it.ocrSuggestions?.copy(modelNumber = null)
+            )
+        }
+    }
+
+    fun applySerialSuggestion() {
+        val suggestion = _uiState.value.ocrSuggestions?.serialNumber ?: return
+        _uiState.update {
+            it.copy(
+                serialNumber = suggestion,
+                ocrSuggestions = it.ocrSuggestions?.copy(serialNumber = null)
+            )
         }
     }
 
@@ -137,44 +267,61 @@ class AddEditItemViewModel(
 
     fun saveItem() {
         val state = _uiState.value
-        val purchaseDate = state.purchaseDate
-        val expirationDate = state.expirationDate
+        val purchaseDate = state.purchaseDate ?: return
+        if (state.productName.isBlank() || state.isSaving || state.isAnalyzingDocument) return
 
-        if (state.name.isBlank() || purchaseDate == null || expirationDate == null) return
-        if (expirationDate.isBefore(purchaseDate)) {
-            _uiState.update { it.copy(errorMessage = "O fim da garantia não pode ser anterior à compra.") }
+        if (state.warrantyEndDate?.isBefore(purchaseDate) == true) {
+            _uiState.update {
+                it.copy(errorMessage = "O fim da garantia não pode ser anterior à compra.")
+            }
             return
         }
-        if (state.isSaving) return
 
-        val item = WarrantyItem(
+        val purchaseValueCents = if (state.purchaseValue.isBlank()) {
+            null
+        } else {
+            CurrencyUtils.parseToCents(state.purchaseValue)
+        }
+
+        if (state.purchaseValue.isNotBlank() && purchaseValueCents == null) {
+            _uiState.update { it.copy(purchaseValueError = "Valor inválido") }
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val previous = original?.purchase
+        val purchase = Purchase(
             id = itemId ?: UUID.randomUUID().toString(),
-            name = state.name.trim(),
-            category = state.category.trim(),
+            productName = state.productName.trim(),
+            merchant = state.merchant.trim().ifBlank { null },
+            purchaseValueCents = purchaseValueCents,
             purchaseDate = purchaseDate,
-            expirationDate = expirationDate,
-            imagePath = null
+            warrantyEndDate = state.warrantyEndDate,
+            category = state.category.trim(),
+            modelNumber = state.modelNumber.trim().ifBlank { null },
+            serialNumber = state.serialNumber.trim().ifBlank { null },
+            notes = state.notes.trim(),
+            createdAt = previous?.createdAt?.takeIf { it > 0L } ?: now,
+            updatedAt = now
         )
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
-                val savedItem = documentStore.saveItem(
-                    item = item,
-                    stagedImagePath = stagedImagePath,
-                    previousImagePath = originalImagePath
+                documentStore.savePurchase(
+                    purchase = purchase,
+                    stagedAttachments = stagedAttachments.values.toList(),
+                    removedAttachments = removedAttachments.values.toList()
                 )
-                originalImagePath = savedItem.imagePath
-                stagedImagePath = null
-                _uiState.update {
-                    it.copy(imagePath = savedItem.imagePath, isSaving = false)
-                }
+                stagedAttachments.clear()
+                removedAttachments.clear()
+                _uiState.update { it.copy(isSaving = false) }
                 _saved.emit(Unit)
             } catch (error: Exception) {
                 _uiState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = error.message ?: "Não foi possível salvar o item."
+                        errorMessage = error.message ?: "Não foi possível salvar a compra."
                     )
                 }
             }
@@ -182,7 +329,26 @@ class AddEditItemViewModel(
     }
 
     override fun onCleared() {
-        documentStore.discardStagedImage(stagedImagePath)
+        stagedAttachments.values.forEach(documentStore::discardStagedAttachment)
         super.onCleared()
+    }
+
+    private fun updateText(transform: AddEditUiState.() -> AddEditUiState) {
+        _uiState.update { it.transform().copy(errorMessage = null) }
+    }
+
+    private fun mergeSuggestions(
+        current: ReceiptOcrSuggestions?,
+        next: ReceiptOcrSuggestions
+    ): ReceiptOcrSuggestions {
+        if (current == null) return next
+        return ReceiptOcrSuggestions(
+            merchant = current.merchant ?: next.merchant,
+            purchaseDate = current.purchaseDate ?: next.purchaseDate,
+            purchaseValueCents = current.purchaseValueCents ?: next.purchaseValueCents,
+            modelNumber = current.modelNumber ?: next.modelNumber,
+            serialNumber = current.serialNumber ?: next.serialNumber,
+            rawText = current.rawText + "\n" + next.rawText
+        )
     }
 }

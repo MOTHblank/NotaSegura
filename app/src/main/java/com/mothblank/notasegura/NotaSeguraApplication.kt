@@ -8,13 +8,14 @@ import androidx.room.Room
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.mothblank.notasegura.data.backup.BackupArchiveManager
 import com.mothblank.notasegura.data.local.AppDatabase
 import com.mothblank.notasegura.data.repository.PaymentRepositoryImpl
-import com.mothblank.notasegura.data.repository.WarrantyRepositoryImpl
-import com.mothblank.notasegura.data.storage.WarrantyDocumentStore
+import com.mothblank.notasegura.data.repository.PurchaseRepositoryImpl
+import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.data.worker.ExpirationCheckWorker
 import com.mothblank.notasegura.domain.repository.PaymentRepository
-import com.mothblank.notasegura.domain.repository.WarrantyRepository
+import com.mothblank.notasegura.domain.repository.PurchaseRepository
 import java.util.concurrent.TimeUnit
 
 class NotaSeguraApplication : Application() {
@@ -25,20 +26,28 @@ class NotaSeguraApplication : Application() {
             AppDatabase::class.java,
             "nota-segura-db"
         )
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4
+            )
             .build()
     }
 
-    val repository: WarrantyRepository by lazy {
-        WarrantyRepositoryImpl(database.warrantyItemDao())
+    val purchaseRepository: PurchaseRepository by lazy {
+        PurchaseRepositoryImpl(database.purchaseDao())
     }
 
     val paymentRepository: PaymentRepository by lazy {
         PaymentRepositoryImpl(database.paymentDao())
     }
 
-    val warrantyDocumentStore: WarrantyDocumentStore by lazy {
-        WarrantyDocumentStore(applicationContext, repository)
+    val purchaseDocumentStore: PurchaseDocumentStore by lazy {
+        PurchaseDocumentStore(applicationContext, purchaseRepository)
+    }
+
+    val backupArchiveManager: BackupArchiveManager by lazy {
+        BackupArchiveManager(applicationContext, database)
     }
 
     override fun onCreate() {

@@ -21,7 +21,7 @@ class ExpirationCheckWorker(
         val app = applicationContext as NotaSeguraApplication
         val today = LocalDate.now()
 
-        val expiringItems = app.repository.getItemsExpiringBetween(
+        val expiringPurchases = app.purchaseRepository.getPurchasesExpiringBetween(
             startDate = today,
             endDate = today.plusDays(30)
         )
@@ -30,14 +30,14 @@ class ExpirationCheckWorker(
             endDate = today.plusDays(3)
         )
 
-        if (expiringItems.isNotEmpty()) {
+        if (expiringPurchases.isNotEmpty()) {
             showNotification(
                 101,
                 "Lembrete de Garantia",
-                if (expiringItems.size == 1) {
-                    "Você tem 1 item expirando nos próximos 30 dias."
+                if (expiringPurchases.size == 1) {
+                    "Você tem 1 garantia terminando nos próximos 30 dias."
                 } else {
-                    "Você tem ${expiringItems.size} itens expirando nos próximos 30 dias."
+                    "Você tem ${expiringPurchases.size} garantias terminando nos próximos 30 dias."
                 }
             )
         }

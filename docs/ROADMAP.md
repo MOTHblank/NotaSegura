@@ -1,70 +1,82 @@
 # NotaSegura Roadmap
 
-## Current baseline
+## Completed foundation
 
-The app now has two explicit domains:
+### Schema v4: purchases and attachments
 
-- warranty / proof-of-purchase records;
-- payment reminders and recurring payment occurrences.
+The legacy warranty-centric model has been replaced by:
 
-Important correctness work completed in the current schema:
+- `Purchase` for the underlying purchase/product record;
+- `Attachment` for receipt photos, PDFs, warranty documents, invoices, and future evidence;
+- `PurchaseWithAttachments` for UI/domain reads.
 
-- Room schema version 3 with explicit v1→v2 and v2→v3 migrations;
-- payment values stored as integer centavos instead of floating point;
-- recurring payments keep an anchor day across short months;
-- paid state and paid date are distinct, so migrated paid records do not receive fabricated timestamps;
-- receipt images are staged in cache and committed only with a successful record save;
-- record deletion happens before managed-file deletion;
-- DatePicker values are interpreted as UTC calendar dates instead of local instants;
-- save screens navigate away only after persistence succeeds;
-- reminder queries execute in Room rather than loading entire tables;
-- PDF summaries paginate and share through FileProvider.
+The v3→v4 migration preserves legacy rows and converts old `imagePath` values into attachment records.
 
-## Near-term priorities
+### Structured OCR
 
-### 1. Backup and restore
+Image OCR now:
 
-Implement a user-controlled backup format containing:
+- persists raw recognized text on the attachment;
+- extracts possible merchant, date, total, model, and serial number;
+- presents each extracted value as a separate suggestion;
+- requires explicit user acceptance before structured fields change;
+- never derives warranty expiration from arbitrary receipt dates.
 
-- Room data;
-- managed receipt images;
-- format/schema version;
-- integrity manifest/checksums.
+Purchase search includes OCR text.
 
-Prefer encrypted archives with a recoverable user workflow. A backup is incomplete until restore has been tested.
+### Portable backup / restore
 
-### 2. First-class purchase records
+Backup format v1 is a ZIP-based `.notasegura` archive with:
 
-The current `WarrantyItem` remains minimal. Evolve it toward a purchase/document record with:
+- `manifest.json`;
+- `data.json`;
+- original managed attachment files;
+- SHA-256 integrity records.
 
-- product name;
-- merchant;
-- purchase value;
-- purchase date;
-- warranty duration/end date;
-- serial/model number;
-- notes;
-- multiple attachments.
+Restore validates the archive and all attachment checksums before replacing Room data. Database replacement is transactional and old document files are only removed after a successful restore.
 
-Do not infer warranty expiry from arbitrary OCR dates.
+The archive is currently integrity-protected but **not encrypted**.
 
-### 3. Better document ingestion
+## Next priorities
 
-- retain image capture/gallery;
-- add actual PDF persistence before reintroducing the PDF picker;
-- provide OCR suggestions rather than silently overwriting typed values;
-- index OCR text for later search.
+### 1. Encrypt backups
 
-### 4. Reminder controls
+Add passphrase/recovery-key encryption using an explicit versioned cryptographic envelope. Keep checksum/integrity validation inside the encrypted payload and define password-loss behavior clearly.
 
-- configurable lead times;
-- notification settings screen;
-- deep links into the exact warranty/payment;
-- optional notification action for marking a payment paid.
+### 2. Reminder model
 
-### 5. Recovery and maintenance
+Replace fixed worker windows with reminder state:
 
-- orphan-file cleanup for legacy installs;
-- schema migration instrumentation tests;
-- backup/restore tests;
-- accessibility checks with large font scale and TalkBack.
+- configurable warranty thresholds such as 30/7/1 days;
+- payment thresholds such as 3/1/0 days and overdue;
+- delivery state to avoid repeating identical daily notifications;
+- notification deep links to the exact record;
+- optional "Marcar como pago" action.
+
+### 3. Home / Today screen
+
+Add a simple operational landing screen rather than a chart-heavy finance dashboard:
+
+- overdue payments;
+- payments due soon;
+- warranties ending soon;
+- scan/add/search shortcuts;
+- recent purchases.
+
+### 4. Attachment capabilities
+
+- explicit attachment type editing;
+- PDF text extraction;
+- full-screen document viewing;
+- attachment rename;
+- optional additional OCR languages;
+- duplicate-document detection using SHA-256.
+
+### 5. Recovery and test hardening
+
+- Room migration instrumentation tests through v4;
+- backup corruption/rollback tests;
+- large archive tests;
+- process-death tests during editing;
+- orphan-file reconciliation;
+- TalkBack and large-font accessibility checks.

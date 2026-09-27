@@ -19,7 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -58,10 +58,11 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
-import com.mothblank.notasegura.domain.model.WarrantyItem
+import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.theme.ExpiredRed
 import com.mothblank.notasegura.ui.theme.WarningYellow
+import com.mothblank.notasegura.util.CurrencyUtils
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -73,7 +74,7 @@ fun TimelineScreen(
     viewModel: TimelineViewModel = viewModel(
         factory = (LocalContext.current.applicationContext as NotaSeguraApplication).let { app ->
             ViewModelFactory(
-                warrantyDocumentStore = app.warrantyDocumentStore,
+                purchaseDocumentStore = app.purchaseDocumentStore,
                 paymentRepository = app.paymentRepository
             )
         }
@@ -84,7 +85,7 @@ fun TimelineScreen(
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val focusManager = LocalFocusManager.current
-    var pendingDelete by remember { mutableStateOf<WarrantyItem?>(null) }
+    var pendingDelete by remember { mutableStateOf<PurchaseWithAttachments?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
@@ -99,7 +100,7 @@ fun TimelineScreen(
                     value = searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Pesquisar garantias...") },
+                    placeholder = { Text("Pesquisar produto, loja, série ou texto da nota...") },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(
                         onSearch = { focusManager.clearFocus() }
@@ -143,7 +144,7 @@ fun TimelineScreen(
         }
 
         if (items.isEmpty()) {
-            EmptyWarrantyState(
+            EmptyPurchaseState(
                 filtered = searchQuery.isNotEmpty() || selectedCategory != null
             )
         } else {
@@ -152,7 +153,7 @@ fun TimelineScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(items, key = { it.id }) { item ->
+                items(items, key = { it.purchase.id }) { item ->
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = { value ->
                             if (value != SwipeToDismissBoxValue.Settled) {
@@ -166,10 +167,12 @@ fun TimelineScreen(
                         state = dismissState,
                         backgroundContent = { DeleteBackground() },
                         content = {
-                            WarrantyItemCard(
+                            PurchaseCard(
                                 item = item,
                                 onClick = {
-                                    navController.navigate(AppScreen.AddEditItem.editRoute(item.id))
+                                    navController.navigate(
+                                        AppScreen.AddEditItem.editRoute(item.purchase.id)
+                                    )
                                 }
                             )
                         }
@@ -182,10 +185,10 @@ fun TimelineScreen(
     pendingDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Excluir garantia?") },
+            title = { Text("Excluir compra?") },
             text = {
                 Text(
-                    "O registro e o documento anexado serão excluídos. Essa ação não pode ser desfeita."
+                    "A compra e todos os documentos anexados serão excluídos. Essa ação não pode ser desfeita."
                 )
             },
             confirmButton = {
@@ -208,7 +211,7 @@ fun TimelineScreen(
 }
 
 @Composable
-private fun EmptyWarrantyState(filtered: Boolean) {
+private fun EmptyPurchaseState(filtered: Boolean) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -218,16 +221,16 @@ private fun EmptyWarrantyState(filtered: Boolean) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.List,
+                imageVector = Icons.Default.Inventory2,
                 contentDescription = null,
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(96.dp),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
             )
             Text(
                 text = if (filtered) {
                     "Nenhum resultado encontrado"
                 } else {
-                    "Nenhuma garantia cadastrada"
+                    "Nenhuma compra cadastrada"
                 },
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.outline,
@@ -235,7 +238,7 @@ private fun EmptyWarrantyState(filtered: Boolean) {
             )
             if (!filtered) {
                 Text(
-                    "Toque em 'Nova Garantia' para começar",
+                    "Toque em 'Nova Compra' para guardar seu primeiro comprovante",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -263,23 +266,14 @@ private fun DeleteBackground() {
 }
 
 @Composable
-private fun WarrantyItemCard(
-    item: WarrantyItem,
+private fun PurchaseCard(
+    item: PurchaseWithAttachments,
     onClick: () -> Unit
 ) {
+    val purchase = item.purchase
     val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-    val daysUntilExpiration =
-        ChronoUnit.DAYS.between(LocalDate.now(), item.expirationDate)
-    val statusColor = when {
-        daysUntilExpiration < 0 -> ExpiredRed
-        daysUntilExpiration <= 30 -> WarningYellow
-        else -> MaterialTheme.colorScheme.primary
-    }
-    val statusLabel = when {
-        daysUntilExpiration < 0 -> "Expirado:"
-        daysUntilExpiration <= 30 -> "Vence em breve:"
-        else -> "Vence em:"
-    }
+    val image = item.attachments.firstOrNull { it.isImage }
+    val warrantyEnd = purchase.warrantyEndDate
 
     Card(
         onClick = onClick,
@@ -291,59 +285,97 @@ private fun WarrantyItemCard(
         )
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.padding(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            item.imagePath?.let { imagePath ->
+            if (image != null) {
                 AsyncImage(
-                    model = imagePath,
-                    contentDescription = "Miniatura do documento de ${item.name}",
+                    model = image.filePath,
+                    contentDescription = "Documento de ${purchase.productName}",
                     modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .size(82.dp)
+                        .clip(RoundedCornerShape(10.dp)),
                     contentScale = ContentScale.Crop
                 )
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Text(
-                    item.name,
+                    purchase.productName,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                if (item.category.isNotBlank()) {
+
+                purchase.merchant?.let {
                     Text(
-                        item.category.uppercase(),
-                        style = MaterialTheme.typography.labelLarge,
+                        it,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 4.dp),
-                    thickness = 0.5.dp
-                )
-
-                Text(
-                    statusLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = statusColor,
-                    fontWeight = if (daysUntilExpiration <= 30) {
-                        FontWeight.Bold
-                    } else {
-                        FontWeight.Normal
+                val details = buildList {
+                    purchase.purchaseValueCents?.let {
+                        add(CurrencyUtils.formatCents(it))
                     }
-                )
-                Text(
-                    item.expirationDate.format(formatter),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = statusColor,
-                    fontWeight = FontWeight.Bold
-                )
+                    if (purchase.category.isNotBlank()) add(purchase.category)
+                    if (item.attachments.isNotEmpty()) {
+                        add(
+                            if (item.attachments.size == 1) "1 documento"
+                            else "${item.attachments.size} documentos"
+                        )
+                    }
+                }
+
+                if (details.isNotEmpty()) {
+                    Text(
+                        details.joinToString(" • "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 3.dp))
+
+                if (warrantyEnd == null) {
+                    Text(
+                        "Sem garantia cadastrada",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "Comprado em ${purchase.purchaseDate.format(formatter)}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    val days = ChronoUnit.DAYS.between(LocalDate.now(), warrantyEnd)
+                    val label = when {
+                        days < 0 -> "Garantia expirada:"
+                        days <= 30 -> "Garantia termina em breve:"
+                        else -> "Garantia até:"
+                    }
+                    val color = when {
+                        days < 0 -> ExpiredRed
+                        days <= 30 -> WarningYellow
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = color,
+                        fontWeight = if (days <= 30) FontWeight.Bold else FontWeight.Normal
+                    )
+                    Text(
+                        warrantyEnd.format(formatter),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = color,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

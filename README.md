@@ -1,31 +1,65 @@
 # NotaSegura
 
-NotaSegura is an Android app for keeping proof-of-purchase documents, warranty dates, and payment reminders in one place.
+NotaSegura is a local-first Android archive for purchases, proof-of-purchase documents, warranty dates, and payment reminders.
 
-The app is local-first. Receipt images are copied into app-private storage, Room stores the structured records, and Android WorkManager handles reminder checks. NotaSegura does not currently provide cloud synchronization or application-level encrypted storage, so it should not be described as an encrypted vault.
+## Current model
 
-## Current features
+A purchase is now a first-class record rather than a warranty row. It can contain:
 
-- Warranty tracking with purchase and expiration dates.
-- Receipt/photo attachment stored in app-private internal storage.
-- OCR assistance for likely purchase dates without inventing warranty dates.
-- Payment reminders with exact cent-based monetary storage.
-- Monthly recurring payments with stable billing-day anchoring.
-- Paid-date tracking for newly marked payments.
-- Search and filtering for warranties and payments.
-- Reminder notifications for warranties expiring within 30 days and unpaid payments due within 3 days.
-- Multi-page PDF summary export through Android's share sheet.
-- Large touch targets and high-contrast typography intended to remain usable for older users.
+- product name;
+- merchant;
+- purchase value;
+- purchase date;
+- optional warranty end date;
+- category;
+- model number;
+- serial number;
+- notes;
+- any number of image or PDF attachments.
+
+Attachments are separate Room entities with ownership, MIME type, display name, SHA-256 checksum, and optional OCR text.
+
+## Document ingestion
+
+Images from the camera or document picker are copied into app-private storage. PDFs are also supported as real attachments.
+
+Image OCR uses ML Kit and stores the recognized text with the attachment. The app extracts possible merchant, purchase date, total, model, and serial number, but presents them as reviewable suggestions. OCR never invents warranty dates.
+
+Search covers structured purchase fields and stored OCR text, so an old receipt can be found by merchant, model, serial number, or recognized receipt content.
+
+## Payments
+
+- exact integer-cent monetary storage;
+- paid state and paid date;
+- monthly recurrence with stable billing-day anchoring;
+- pending-payment filtering;
+- WorkManager reminders.
+
+## Backup and restore
+
+The app can create a portable versioned `.notasegura` archive containing:
+
+- purchases;
+- attachment metadata;
+- original managed documents;
+- payments;
+- a format/schema manifest;
+- SHA-256 checksums for data and every document.
+
+Restore copies the archive into staging, validates structure and checksums, prepares replacement documents, and only then replaces Room data in a transaction. A malformed or incomplete archive is rejected before the live database is changed.
+
+**Current limitation:** backup archives provide integrity checking but are not yet encrypted. Treat exported backup files as sensitive documents.
+
+The existing PDF export remains a human-readable report and is deliberately separate from backup/recovery.
 
 ## Data and security model
 
-- Structured data is stored locally in Room.
-- Attached receipt images are stored under the app's private files directory.
-- Android backup is disabled in the manifest.
-- PDF exports are temporary cache files shared only through a FileProvider grant.
-- There is no cloud backup or app-level database/file encryption yet.
-
-This means normal Android application sandboxing protects the data from ordinary other apps, but losing the device or uninstalling the app can still destroy local records unless the user exports them.
+- Room stores structured data locally.
+- Managed documents live under app-private internal storage.
+- Android backup remains disabled.
+- Shared PDF reports are temporary cache files exposed through FileProvider grants.
+- Portable backups are explicitly created by the user through Android's document picker.
+- There is no cloud sync or app-level database/file encryption yet.
 
 ## Project structure
 
@@ -33,25 +67,21 @@ This means normal Android application sandboxing protects the data from ordinary
 
 - `data/local/`: Room database and DAOs.
 - `data/repository/`: repository implementations.
-- `data/storage/`: receipt/document persistence that coordinates Room and managed files.
+- `data/storage/`: attachment staging/commit and purchase document ownership.
+- `data/backup/`: versioned archive backup/restore.
 - `data/worker/`: scheduled reminder checks.
-- `domain/`: models and repository contracts.
+- `domain/`: purchase, attachment, payment models and repository contracts.
 - `ui/`: Compose screens and ViewModels.
-- `util/`: date, money, export, notification-permission, and file helpers.
+- `util/`: OCR parsing, dates, money, file hashing/storage, export, and permissions.
 
-## Build
+## Schema
 
-1. Clone the repository.
-2. Open it in Android Studio Ladybug or newer.
-3. Sync Gradle.
-4. Run the `app` configuration on Android 8.0 (API 26) or newer.
+Schema v4 migrates legacy `warranty_items` into `purchases`. Existing receipt paths become `Attachment` rows, so upgrades preserve previously stored documents.
 
-## Next product work
+## Next work
 
-The strongest next additions are:
-
-- encrypted, user-controlled backup/restore with restore verification;
-- richer purchase metadata such as merchant, serial/model number, notes, and purchase value;
-- OCR suggestions for merchant/total/serial fields;
-- full PDF document attachments rather than image-only evidence;
-- explicit notification settings and reminder lead-time controls.
+- encrypt portable backups with a user-controlled recovery secret;
+- add a dashboard for upcoming obligations and expiring warranties;
+- add reminder thresholds/deep links/actions;
+- add attachment types/editing and PDF text extraction;
+- add migration and backup/restore instrumentation tests.

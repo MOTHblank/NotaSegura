@@ -4,12 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,21 +17,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -59,6 +69,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -67,11 +78,13 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
 import java.io.File
+import java.time.LocalDate
 
-private fun createImageUri(context: Context): Uri {
+private fun createCameraUri(context: Context): Uri {
     val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(
         context,
@@ -87,7 +100,7 @@ fun AddEditItemScreen(
     viewModel: AddEditItemViewModel = viewModel(
         factory = (LocalContext.current.applicationContext as NotaSeguraApplication).let { app ->
             ViewModelFactory(
-                warrantyDocumentStore = app.warrantyDocumentStore,
+                purchaseDocumentStore = app.purchaseDocumentStore,
                 paymentRepository = app.paymentRepository
             )
         }
@@ -97,10 +110,10 @@ fun AddEditItemScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    var showInputOptions by remember { mutableStateOf(false) }
+    var showAttachmentOptions by remember { mutableStateOf(false) }
     var tempImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var showPurchaseDatePicker by remember { mutableStateOf(false) }
-    var showExpirationDatePicker by remember { mutableStateOf(false) }
+    var showWarrantyDatePicker by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -115,17 +128,19 @@ fun AddEditItemScreen(
         }
     }
 
-    val galleryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
+    val documentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { viewModel.onImageSelected(context, it) }
+        uri?.let { viewModel.onAttachmentSelected(context, it) }
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            tempImageUri?.let(Uri::parse)?.let { viewModel.onImageSelected(context, it) }
+            tempImageUri?.let(Uri::parse)?.let {
+                viewModel.onAttachmentSelected(context, it)
+            }
         }
         tempImageUri = null
     }
@@ -133,56 +148,37 @@ fun AddEditItemScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(20.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Text(
-            "Adicionar/Editar Item",
+            "Compra e documentos",
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.primary
         )
 
-        if (uiState.imagePath != null) {
-            AsyncImage(
-                model = uiState.imagePath,
-                contentDescription = "Imagem do documento anexado",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(
-                        role = Role.Button,
-                        onClickLabel = "Alterar imagem do documento"
-                    ) { showInputOptions = true },
-                contentScale = ContentScale.Crop
-            )
-            Text(
-                "Toque na imagem para alterar",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            Button(
-                onClick = { showInputOptions = true },
-                modifier = Modifier.fillMaxWidth().height(64.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(32.dp))
-                Spacer(Modifier.size(12.dp))
-                Text("ADICIONAR DOCUMENTO", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        AttachmentSection(
+            attachments = uiState.attachments,
+            isAnalyzing = uiState.isAnalyzingDocument,
+            onAdd = { showAttachmentOptions = true },
+            onRemove = viewModel::removeAttachment
+        )
+
+        OcrSuggestionsCard(
+            state = uiState,
+            onMerchant = viewModel::applyMerchantSuggestion,
+            onDate = viewModel::applyPurchaseDateSuggestion,
+            onValue = viewModel::applyPurchaseValueSuggestion,
+            onModel = viewModel::applyModelSuggestion,
+            onSerial = viewModel::applySerialSuggestion
+        )
 
         OutlinedTextField(
-            value = uiState.name,
-            onValueChange = viewModel::onNameChange,
+            value = uiState.productName,
+            onValueChange = viewModel::onProductNameChange,
             modifier = Modifier.fillMaxWidth(),
-            label = {
-                RequiredLabel("Nome do Produto")
-            },
-            textStyle = MaterialTheme.typography.bodyLarge,
+            label = { RequiredLabel("Produto") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,
@@ -191,40 +187,108 @@ fun AddEditItemScreen(
         )
 
         OutlinedTextField(
-            value = uiState.category,
-            onValueChange = viewModel::onCategoryChange,
+            value = uiState.merchant,
+            onValueChange = viewModel::onMerchantChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Categoria", style = MaterialTheme.typography.titleMedium) },
-            textStyle = MaterialTheme.typography.bodyLarge,
+            label = { Text("Loja / vendedor") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
+                imeAction = ImeAction.Next
+            )
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                "Datas importantes:",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+        OutlinedTextField(
+            value = uiState.purchaseValue,
+            onValueChange = viewModel::onPurchaseValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Valor da compra (R$)") },
+            singleLine = true,
+            isError = uiState.purchaseValueError != null,
+            supportingText = {
+                uiState.purchaseValueError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Decimal,
+                imeAction = ImeAction.Next
             )
+        )
 
-            DateField(
-                value = viewModel.formatDate(uiState.purchaseDate),
-                label = "Data da Compra",
-                clickLabel = "Selecionar data da compra",
-                onClick = { showPurchaseDatePicker = true }
+        OutlinedTextField(
+            value = uiState.category,
+            onValueChange = viewModel::onCategoryChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Categoria") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Next
             )
+        )
 
-            DateField(
-                value = viewModel.formatDate(uiState.expirationDate),
-                label = "Fim da Garantia",
-                clickLabel = "Selecionar data de fim da garantia",
-                onClick = { showExpirationDatePicker = true }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedTextField(
+                value = uiState.modelNumber,
+                onValueChange = viewModel::onModelNumberChange,
+                modifier = Modifier.weight(1f),
+                label = { Text("Modelo") },
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = uiState.serialNumber,
+                onValueChange = viewModel::onSerialNumberChange,
+                modifier = Modifier.weight(1f),
+                label = { Text("Nº de série") },
+                singleLine = true
             )
         }
+
+        DateField(
+            value = viewModel.formatDate(uiState.purchaseDate),
+            label = "Data da compra",
+            required = true,
+            clickLabel = "Selecionar data da compra",
+            onClick = { showPurchaseDatePicker = true }
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            DateField(
+                value = viewModel.formatDate(uiState.warrantyEndDate),
+                label = "Fim da garantia",
+                required = false,
+                clickLabel = "Selecionar fim da garantia",
+                onClick = { showWarrantyDatePicker = true }
+            )
+            if (uiState.warrantyEndDate != null) {
+                TextButton(
+                    onClick = { viewModel.onWarrantyEndDateChange(null) },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Remover garantia")
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = uiState.notes,
+            onValueChange = viewModel::onNotesChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Observações") },
+            minLines = 3,
+            maxLines = 6,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Sentences,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { focusManager.clearFocus() }
+            )
+        )
 
         uiState.errorMessage?.let {
             Text(
@@ -236,11 +300,13 @@ fun AddEditItemScreen(
 
         Button(
             onClick = viewModel::saveItem,
-            modifier = Modifier.fillMaxWidth().height(72.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp),
             enabled = !uiState.isSaving &&
-                uiState.name.isNotBlank() &&
-                uiState.purchaseDate != null &&
-                uiState.expirationDate != null,
+                !uiState.isAnalyzingDocument &&
+                uiState.productName.isNotBlank() &&
+                uiState.purchaseDate != null,
             shape = RoundedCornerShape(16.dp)
         ) {
             if (uiState.isSaving) {
@@ -252,10 +318,12 @@ fun AddEditItemScreen(
                 Text("SALVAR", style = MaterialTheme.typography.titleLarge)
             }
         }
+
+        Spacer(Modifier.height(24.dp))
     }
 
     if (showPurchaseDatePicker) {
-        AppDatePickerDialog(
+        PurchaseDatePickerDialog(
             onDismiss = { showPurchaseDatePicker = false },
             onSelected = {
                 viewModel.onPurchaseDateChange(it)
@@ -264,47 +332,217 @@ fun AddEditItemScreen(
         )
     }
 
-    if (showExpirationDatePicker) {
-        AppDatePickerDialog(
-            onDismiss = { showExpirationDatePicker = false },
+    if (showWarrantyDatePicker) {
+        PurchaseDatePickerDialog(
+            onDismiss = { showWarrantyDatePicker = false },
             onSelected = {
-                viewModel.onExpirationDateChange(it)
-                showExpirationDatePicker = false
+                viewModel.onWarrantyEndDateChange(it)
+                showWarrantyDatePicker = false
             }
         )
     }
 
-    if (showInputOptions) {
-        ModalBottomSheet(onDismissRequest = { showInputOptions = false }) {
+    if (showAttachmentOptions) {
+        ModalBottomSheet(
+            onDismissRequest = { showAttachmentOptions = false }
+        ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
                 ListItem(
-                    headlineContent = { Text("Tirar Foto") },
-                    leadingContent = { Icon(Icons.Default.CameraAlt, contentDescription = null) },
-                    modifier = Modifier.clickable(
-                        role = Role.Button,
-                        onClickLabel = "Tirar foto"
-                    ) {
-                        showInputOptions = false
-                        createImageUri(context).also {
-                            tempImageUri = it.toString()
-                            cameraLauncher.launch(it)
+                    headlineContent = { Text("Tirar foto") },
+                    leadingContent = {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    },
+                    modifier = Modifier.clickable(role = Role.Button) {
+                        showAttachmentOptions = false
+                        createCameraUri(context).also { uri ->
+                            tempImageUri = uri.toString()
+                            cameraLauncher.launch(uri)
                         }
                     }
                 )
                 ListItem(
-                    headlineContent = { Text("Escolher da Galeria") },
-                    leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
-                    modifier = Modifier.clickable(
-                        role = Role.Button,
-                        onClickLabel = "Escolher da galeria"
-                    ) {
-                        showInputOptions = false
-                        galleryLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
+                    headlineContent = { Text("Escolher imagem ou PDF") },
+                    leadingContent = {
+                        Icon(Icons.Default.Description, contentDescription = null)
+                    },
+                    modifier = Modifier.clickable(role = Role.Button) {
+                        showAttachmentOptions = false
+                        documentLauncher.launch(arrayOf("image/*", "application/pdf"))
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AttachmentSection(
+    attachments: List<PurchaseAttachmentUi>,
+    isAnalyzing: Boolean,
+    onAdd: () -> Unit,
+    onRemove: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Documentos",
+                style = MaterialTheme.typography.titleLarge
+            )
+            if (isAnalyzing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    "Lendo documento...",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        if (attachments.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(attachments, key = { it.id }) { attachment ->
+                    Card(
+                        modifier = Modifier
+                            .width(150.dp)
+                            .height(150.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            if (attachment.isImage) {
+                                AsyncImage(
+                                    model = attachment.path,
+                                    contentDescription = attachment.displayName,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.PictureAsPdf,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(44.dp)
+                                    )
+                                    Text(
+                                        attachment.displayName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 2
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = { onRemove(attachment.id) },
+                                modifier = Modifier.align(Alignment.TopEnd)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remover documento"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Button(
+            onClick = onAdd,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("ADICIONAR DOCUMENTO")
+        }
+    }
+}
+
+@Composable
+private fun OcrSuggestionsCard(
+    state: AddEditUiState,
+    onMerchant: () -> Unit,
+    onDate: () -> Unit,
+    onValue: () -> Unit,
+    onModel: () -> Unit,
+    onSerial: () -> Unit
+) {
+    val suggestions = state.ocrSuggestions ?: return
+    val hasSuggestions = suggestions.merchant != null ||
+        suggestions.purchaseDate != null ||
+        suggestions.purchaseValueCents != null ||
+        suggestions.modelNumber != null ||
+        suggestions.serialNumber != null
+
+    if (!hasSuggestions) return
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "Dados encontrados no documento",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                "Revise e aplique apenas o que estiver correto.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            HorizontalDivider()
+
+            suggestions.merchant?.let {
+                SuggestionRow("Loja", it, onMerchant)
+            }
+            suggestions.purchaseDate?.let {
+                SuggestionRow(
+                    "Data",
+                    it.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    onDate
+                )
+            }
+            suggestions.purchaseValueCents?.let {
+                SuggestionRow("Valor", CurrencyUtils.formatCents(it), onValue)
+            }
+            suggestions.modelNumber?.let {
+                SuggestionRow("Modelo", it, onModel)
+            }
+            suggestions.serialNumber?.let {
+                SuggestionRow("Nº de série", it, onSerial)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionRow(
+    label: String,
+    value: String,
+    onUse: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+            Text(value, style = MaterialTheme.typography.bodyLarge)
+        }
+        TextButton(onClick = onUse) {
+            Text("Usar")
         }
     }
 }
@@ -317,8 +555,7 @@ private fun RequiredLabel(text: String) {
             withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
                 append("*")
             }
-        },
-        style = MaterialTheme.typography.titleMedium
+        }
     )
 }
 
@@ -326,6 +563,7 @@ private fun RequiredLabel(text: String) {
 private fun DateField(
     value: String,
     label: String,
+    required: Boolean,
     clickLabel: String,
     onClick: () -> Unit
 ) {
@@ -334,11 +572,12 @@ private fun DateField(
             value = value,
             onValueChange = {},
             modifier = Modifier.fillMaxWidth(),
-            label = { RequiredLabel(label) },
-            textStyle = MaterialTheme.typography.bodyLarge,
+            label = {
+                if (required) RequiredLabel(label) else Text(label)
+            },
             readOnly = true,
             trailingIcon = {
-                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(32.dp))
+                Icon(Icons.Default.DateRange, contentDescription = null)
             }
         )
         Spacer(
@@ -355,9 +594,9 @@ private fun DateField(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AppDatePickerDialog(
+private fun PurchaseDatePickerDialog(
     onDismiss: () -> Unit,
-    onSelected: (java.time.LocalDate) -> Unit
+    onSelected: (LocalDate) -> Unit
 ) {
     val state = rememberDatePickerState()
     val confirmEnabled = remember {

@@ -18,11 +18,20 @@ interface PaymentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPayment(payment: Payment)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPayments(payments: List<Payment>)
+
     @Delete
     suspend fun deletePayment(payment: Payment)
 
     @Query("SELECT * FROM payments WHERE id = :id")
     suspend fun getPaymentById(id: String): Payment?
+
+    @Query("SELECT * FROM payments")
+    suspend fun getPaymentsSnapshot(): List<Payment>
+
+    @Query("DELETE FROM payments")
+    suspend fun clearPayments()
 
     @Query(
         """

@@ -51,12 +51,11 @@ interface PaymentDao {
         """
         SELECT * FROM payments
         WHERE isPaid = 0
-          AND dueDate BETWEEN :startDate AND :endDate
+          AND dueDate <= :endDate
         ORDER BY dueDate ASC
         """
     )
-    suspend fun getPendingPaymentsDueBetween(
-        startDate: LocalDate,
+    suspend fun getPendingPaymentsDueOnOrBefore(
         endDate: LocalDate
     ): List<Payment>
 

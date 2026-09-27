@@ -1,6 +1,8 @@
 package com.mothblank.notasegura
 
+import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -16,10 +18,12 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +54,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mothblank.notasegura.navigation.AppScreen
+import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemScreen
 import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
 import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
@@ -94,14 +99,14 @@ fun NotaSeguraApp() {
     val editorTitle = when {
         isPurchaseEditor -> {
             if (navBackStackEntry?.arguments?.getString("itemId").isNullOrBlank()) {
-                "Nova compra"
+                "Adicionar compra"
             } else {
                 "Editar compra"
             }
         }
         isPaymentEditor -> {
             if (navBackStackEntry?.arguments?.getString("paymentId").isNullOrBlank()) {
-                "Novo pagamento"
+                "Adicionar pagamento"
             } else {
                 "Editar pagamento"
             }
@@ -111,6 +116,7 @@ fun NotaSeguraApp() {
 
     var menuExpanded by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingEditorExit by remember { mutableStateOf(false) }
 
     val createBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
@@ -121,7 +127,7 @@ fun NotaSeguraApp() {
                     .onSuccess { summary ->
                         Toast.makeText(
                             context,
-                            "Backup criado: ${summary.purchases} compras, " +
+                            "Cópia de segurança salva: ${summary.purchases} compras, " +
                                 "${summary.attachments} documentos e ${summary.payments} pagamentos.",
                             Toast.LENGTH_LONG
                         ).show()
@@ -129,7 +135,7 @@ fun NotaSeguraApp() {
                     .onFailure { error ->
                         Toast.makeText(
                             context,
-                            error.message ?: "Não foi possível criar o backup.",
+                            error.message ?: "Não foi possível salvar a cópia de segurança.",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -154,7 +160,7 @@ fun NotaSeguraApp() {
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                        IconButton(onClick = { pendingEditorExit = true }) {
                             Icon(
                                 Icons.Default.ArrowBack,
                                 contentDescription = "Voltar"
@@ -171,10 +177,19 @@ fun NotaSeguraApp() {
                         )
                     },
                     actions = {
-                        IconButton(onClick = { menuExpanded = true }) {
+                        TextButton(
+                            onClick = { menuExpanded = true },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
                             Icon(
                                 Icons.Default.MoreVert,
-                                contentDescription = "Mais opções"
+                                contentDescription = null
+                            )
+                            Text(
+                                "Opções",
+                                modifier = Modifier.padding(start = 4.dp)
                             )
                         }
 
@@ -183,7 +198,7 @@ fun NotaSeguraApp() {
                             onDismissRequest = { menuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Compartilhar relatório PDF") },
+                                text = { Text("Compartilhar relatório") },
                                 leadingIcon = {
                                     Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                                 },
@@ -217,7 +232,7 @@ fun NotaSeguraApp() {
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Criar backup") },
+                                text = { Text("Salvar cópia de segurança") },
                                 leadingIcon = {
                                     Icon(Icons.Default.Backup, contentDescription = null)
                                 },
@@ -230,13 +245,28 @@ fun NotaSeguraApp() {
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Restaurar backup") },
+                                text = { Text("Restaurar cópia de segurança") },
                                 leadingIcon = {
                                     Icon(Icons.Default.Restore, contentDescription = null)
                                 },
                                 onClick = {
                                     menuExpanded = false
                                     openBackupLauncher.launch(arrayOf("*/*"))
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Configurar lembretes") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Notifications, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                        }
+                                    )
                                 }
                             )
                         }
@@ -315,9 +345,9 @@ fun NotaSeguraApp() {
                     text = {
                         Text(
                             if (currentRoute == AppScreen.Timeline.route) {
-                                "Nova compra"
+                                "Adicionar compra"
                             } else {
-                                "Novo pagamento"
+                                "Adicionar pagamento"
                             }
                         )
                     }
@@ -361,14 +391,24 @@ fun NotaSeguraApp() {
         }
     }
 
+    if (pendingEditorExit) {
+        UnsavedExitDialog(
+            onKeepEditing = { pendingEditorExit = false },
+            onDiscardAndExit = {
+                pendingEditorExit = false
+                navController.popBackStack()
+            }
+        )
+    }
+
     pendingRestoreUri?.let { uri ->
         AlertDialog(
             onDismissRequest = { pendingRestoreUri = null },
-            title = { Text("Restaurar backup?") },
+            title = { Text("Restaurar cópia de segurança?") },
             text = {
                 Text(
-                    "A restauração substitui as compras, documentos e pagamentos atuais. " +
-                        "O arquivo é verificado antes de qualquer alteração."
+                    "Isso substituirá todas as compras, documentos e pagamentos que estão no aparelho. " +
+                        "O arquivo será conferido antes de qualquer alteração."
                 )
             },
             confirmButton = {
@@ -380,7 +420,7 @@ fun NotaSeguraApp() {
                                 .onSuccess { summary ->
                                     Toast.makeText(
                                         context,
-                                        "Backup restaurado: ${summary.purchases} compras, " +
+                                        "Dados restaurados: ${summary.purchases} compras, " +
                                             "${summary.attachments} documentos e ${summary.payments} pagamentos.",
                                         Toast.LENGTH_LONG
                                     ).show()
@@ -388,14 +428,14 @@ fun NotaSeguraApp() {
                                 .onFailure { error ->
                                     Toast.makeText(
                                         context,
-                                        error.message ?: "Não foi possível restaurar o backup.",
+                                        error.message ?: "Não foi possível restaurar a cópia de segurança.",
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
                         }
                     }
                 ) {
-                    Text("Restaurar")
+                    Text("Continuar")
                 }
             },
             dismissButton = {

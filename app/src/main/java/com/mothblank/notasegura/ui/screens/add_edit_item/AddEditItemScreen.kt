@@ -3,6 +3,7 @@ package com.mothblank.notasegura.ui.screens.add_edit_item
 import android.Manifest
 import android.content.Context
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,7 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -79,6 +81,8 @@ import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
+import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
+import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
@@ -117,18 +121,27 @@ fun AddEditItemScreen(
     var showPurchaseDatePicker by remember { mutableStateOf(false) }
     var showWarrantyDatePicker by remember { mutableStateOf(false) }
     var previewAttachment by remember { mutableStateOf<PurchaseAttachmentUi?>(null) }
+    var showReminderPermissionDialog by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) {}
+    ) {
+        navController.popBackStack()
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.saved.collect {
-            if (NotificationPermissionPolicy.shouldRequestAfterSuccessfulSave(context)) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (NotificationPermissionPolicy.shouldOfferAfterSuccessfulSave(context)) {
+                showReminderPermissionDialog = true
+            } else {
+                navController.popBackStack()
             }
-            navController.popBackStack()
         }
+    }
+
+    BackHandler {
+        showExitDialog = true
     }
 
     val documentLauncher = rememberLauncherForActivityResult(
@@ -155,6 +168,12 @@ fun AddEditItemScreen(
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text(
+            "* Campos obrigatórios",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
         FormSection(
             title = "Compra",
             subtitle = "Quando e onde a compra foi feita."
@@ -351,7 +370,7 @@ fun AddEditItemScreen(
             onClick = viewModel::saveItem,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp),
+                .heightIn(min = 64.dp),
             enabled = !uiState.isSaving &&
                 !uiState.isAnalyzingDocument &&
                 uiState.productName.isNotBlank() &&
@@ -364,7 +383,7 @@ fun AddEditItemScreen(
                     strokeWidth = 3.dp
                 )
             } else {
-                Text("SALVAR COMPRA", style = MaterialTheme.typography.titleMedium)
+                Text("Salvar compra", style = MaterialTheme.typography.titleMedium)
             }
         }
 
@@ -423,6 +442,31 @@ fun AddEditItemScreen(
                 )
             }
         }
+    }
+
+    if (showExitDialog) {
+        UnsavedExitDialog(
+            onKeepEditing = { showExitDialog = false },
+            onDiscardAndExit = {
+                showExitDialog = false
+                navController.popBackStack()
+            }
+        )
+    }
+
+    if (showReminderPermissionDialog) {
+        ReminderPermissionDialog(
+            onEnable = {
+                NotificationPermissionPolicy.markOfferHandled(context)
+                showReminderPermissionDialog = false
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            },
+            onNotNow = {
+                NotificationPermissionPolicy.markOfferHandled(context)
+                showReminderPermissionDialog = false
+                navController.popBackStack()
+            }
+        )
     }
 
     previewAttachment?.let { attachment ->
@@ -531,67 +575,77 @@ private fun AttachmentSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
+            Text(
+                "Toque em um documento para abrir e ampliar.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(attachments, key = { it.id }) { attachment ->
-                    Card(
-                        onClick = { onPreview(attachment) },
-                        modifier = Modifier
-                            .width(156.dp)
-                            .height(164.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant
-                        )
+                    Column(
+                        modifier = Modifier.width(156.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            if (attachment.isImage) {
-                                AsyncImage(
-                                    model = attachment.path,
-                                    contentDescription = "Abrir ${attachment.displayName}",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(8.dp),
-                                    contentScale = ContentScale.Fit
-                                )
-                            } else {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(14.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.PictureAsPdf,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(46.dp),
-                                        tint = MaterialTheme.colorScheme.primary
+                        Card(
+                            onClick = { onPreview(attachment) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(156.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant
+                            )
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                if (attachment.isImage) {
+                                    AsyncImage(
+                                        model = attachment.path,
+                                        contentDescription = "Abrir ${attachment.displayName}",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(8.dp),
+                                        contentScale = ContentScale.Fit
                                     )
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        attachment.displayName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        maxLines = 3
-                                    )
+                                } else {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(14.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.PictureAsPdf,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(46.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(
+                                            attachment.displayName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 3
+                                        )
+                                    }
                                 }
                             }
+                        }
 
-                            IconButton(
-                                onClick = { onRemove(attachment.id) },
-                                modifier = Modifier.align(Alignment.TopEnd)
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Remover documento",
-                                        modifier = Modifier.padding(6.dp)
-                                    )
-                                }
-                            }
+                        TextButton(
+                            onClick = { onRemove(attachment.id) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                "Remover",
+                                modifier = Modifier.padding(start = 6.dp),
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
@@ -604,7 +658,7 @@ private fun AttachmentSection(
         ) {
             Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("ADICIONAR DOCUMENTO")
+            Text("Adicionar documento")
         }
     }
 }

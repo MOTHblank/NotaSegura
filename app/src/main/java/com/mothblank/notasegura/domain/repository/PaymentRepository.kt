@@ -10,5 +10,5 @@ interface PaymentRepository {
     suspend fun deletePayment(payment: Payment)
     suspend fun getPaymentById(id: String): Payment?
     suspend fun setPaidStatus(payment: Payment, isPaid: Boolean, date: LocalDate)
-    suspend fun getPendingPaymentsDueBetween(startDate: LocalDate, endDate: LocalDate): List<Payment>
+    suspend fun getPendingPaymentsDueOnOrBefore(endDate: LocalDate): List<Payment>
 }

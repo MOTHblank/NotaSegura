@@ -25,6 +25,23 @@ Image OCR now:
 
 Purchase search includes OCR text.
 
+### Senior-friendly UI baseline
+
+The primary flows now use explicit, large, labeled controls:
+
+- no swipe-only deletion;
+- no icon-only paid/unpaid action;
+- written status panels for warranties and payments;
+- clear empty-state actions;
+- large-text-safe vertical list cards;
+- explicit unsaved-change exit confirmation;
+- plain-language backup and reminder wording;
+- explained notification permission;
+- high-contrast light/dark themes;
+- document viewer guidance and visible remove actions.
+
+Android 8–12 notification delivery is also handled correctly, and overdue payments remain eligible for reminders.
+
 ### Portable backup / restore
 
 Backup format v1 is a ZIP-based `.notasegura` archive with:

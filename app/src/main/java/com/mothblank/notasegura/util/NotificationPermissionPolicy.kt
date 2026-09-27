@@ -8,9 +8,9 @@ import androidx.core.content.ContextCompat
 
 object NotificationPermissionPolicy {
     private const val PREFS = "notification_permission"
-    private const val PROMPTED = "prompted_after_save"
+    private const val OFFER_HANDLED = "offer_handled"
 
-    fun shouldRequestAfterSuccessfulSave(context: Context): Boolean {
+    fun shouldOfferAfterSuccessfulSave(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
         if (
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -19,10 +19,16 @@ object NotificationPermissionPolicy {
             return false
         }
 
-        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (preferences.getBoolean(PROMPTED, false)) return false
+        return !context
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(OFFER_HANDLED, false)
+    }
 
-        preferences.edit().putBoolean(PROMPTED, true).apply()
-        return true
+    fun markOfferHandled(context: Context) {
+        context
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(OFFER_HANDLED, true)
+            .apply()
     }
 }

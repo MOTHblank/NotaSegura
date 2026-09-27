@@ -52,8 +52,7 @@ class PaymentRepositoryImpl(
         dao.updatePaidState(updated, nextPayment)
     }
 
-    override suspend fun getPendingPaymentsDueBetween(
-        startDate: LocalDate,
+    override suspend fun getPendingPaymentsDueOnOrBefore(
         endDate: LocalDate
-    ): List<Payment> = dao.getPendingPaymentsDueBetween(startDate, endDate)
+    ): List<Payment> = dao.getPendingPaymentsDueOnOrBefore(endDate)
 }

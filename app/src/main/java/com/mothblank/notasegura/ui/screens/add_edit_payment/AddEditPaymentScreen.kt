@@ -1,6 +1,7 @@
 package com.mothblank.notasegura.ui.screens.add_edit_payment
 
 import android.Manifest
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,6 +65,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
+import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
 
@@ -83,17 +87,26 @@ fun AddEditPaymentScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var showDatePicker by remember { mutableStateOf(false) }
+    var showReminderPermissionDialog by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    BackHandler {
+        showExitDialog = true
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) {}
+    ) {
+        navController.popBackStack()
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.saved.collect {
-            if (NotificationPermissionPolicy.shouldRequestAfterSuccessfulSave(context)) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (NotificationPermissionPolicy.shouldOfferAfterSuccessfulSave(context)) {
+                showReminderPermissionDialog = true
+            } else {
+                navController.popBackStack()
             }
-            navController.popBackStack()
         }
     }
 
@@ -104,6 +117,12 @@ fun AddEditPaymentScreen(
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text(
+            "* Campos obrigatórios",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
         PaymentFormSection(
             title = "Pagamento",
             subtitle = "Dados principais da cobrança."
@@ -208,7 +227,7 @@ fun AddEditPaymentScreen(
             onClick = viewModel::savePayment,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp),
+                .heightIn(min = 64.dp),
             enabled = !uiState.isSaving &&
                 uiState.title.isNotBlank() &&
                 uiState.dueDate != null,
@@ -221,13 +240,38 @@ fun AddEditPaymentScreen(
                 )
             } else {
                 Text(
-                    "SALVAR PAGAMENTO",
+                    "Salvar pagamento",
                     style = MaterialTheme.typography.titleMedium
                 )
             }
         }
 
         Spacer(Modifier.height(12.dp))
+    }
+
+    if (showExitDialog) {
+        UnsavedExitDialog(
+            onKeepEditing = { showExitDialog = false },
+            onDiscardAndExit = {
+                showExitDialog = false
+                navController.popBackStack()
+            }
+        )
+    }
+
+    if (showReminderPermissionDialog) {
+        ReminderPermissionDialog(
+            onEnable = {
+                NotificationPermissionPolicy.markOfferHandled(context)
+                showReminderPermissionDialog = false
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            },
+            onNotNow = {
+                NotificationPermissionPolicy.markOfferHandled(context)
+                showReminderPermissionDialog = false
+                navController.popBackStack()
+            }
+        )
     }
 
     if (showDatePicker) {

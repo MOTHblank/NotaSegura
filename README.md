@@ -52,6 +52,22 @@ Restore copies the archive into staging, validates structure and checksums, prep
 
 The existing PDF export remains a human-readable report and is deliberately separate from backup/recovery.
 
+## Accessibility and senior-friendly UX
+
+The UI is deliberately optimized for clarity rather than density:
+
+- body text starts at 17–18sp and Material labels are never left at tiny defaults;
+- status is always written in text and reinforced by color/iconography, never encoded by color alone;
+- primary actions use large labeled buttons instead of gesture-only or icon-only controls;
+- deleting records always requires an explicit confirmation;
+- leaving an editor prompts before discarding unsaved work;
+- empty states contain a direct action instead of assuming the floating button will be discovered;
+- notification permission is explained before Android asks for it;
+- document thumbnails use fit presentation and document viewing explains pinch-to-zoom;
+- high-contrast light and dark palettes are defined explicitly.
+
+The list layouts avoid tight horizontal price/action rows so they remain usable with large system font scaling.
+
 ## Data and security model
 
 - Room stores structured data locally.

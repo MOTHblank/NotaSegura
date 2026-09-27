@@ -9,10 +9,10 @@ import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.domain.model.WarrantyItem
 
 @Database(
-    entities = [WarrantyItem::class, Payment::class], // Lista de todas as entidades (tabelas)
-    version = 2 // Incrementar a versão ao fazer mudanças no schema
+    entities = [WarrantyItem::class, Payment::class],
+    version = 3
 )
-@TypeConverters(Converters::class) // Registra nosso conversor de datas
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun warrantyItemDao(): WarrantyItemDao
@@ -21,11 +21,9 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Adiciona a coluna imagePath na tabela warranty_items
                 database.execSQL("ALTER TABLE warranty_items ADD COLUMN imagePath TEXT")
-                
-                // Cria a tabela payments
-                database.execSQL("""
+                database.execSQL(
+                    """
                     CREATE TABLE IF NOT EXISTS payments (
                         id TEXT NOT NULL PRIMARY KEY,
                         title TEXT NOT NULL,
@@ -34,10 +32,58 @@ abstract class AppDatabase : RoomDatabase() {
                         isPaid INTEGER NOT NULL,
                         isRecurring INTEGER NOT NULL
                     )
-                """.trimIndent())
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_payments_title_dueDate ON payments(title, dueDate)"
+                )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE payments_new (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        amountCents INTEGER NOT NULL,
+                        dueDate INTEGER NOT NULL,
+                        isPaid INTEGER NOT NULL,
+                        paidAt INTEGER,
+                        recurrenceMonths INTEGER,
+                        recurrenceAnchorDay INTEGER,
+                        seriesId TEXT,
+                        generatedFromId TEXT
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO payments_new (
+                        id, title, amountCents, dueDate, isPaid, paidAt,
+                        recurrenceMonths, recurrenceAnchorDay, seriesId, generatedFromId
+                    )
+                    SELECT
+                        id,
+                        title,
+                        CAST(ROUND(amount * 100.0) AS INTEGER),
+                        dueDate,
+                        isPaid,
+                        NULL,
+                        CASE WHEN isRecurring = 1 THEN 1 ELSE NULL END,
+                        NULL,
+                        CASE WHEN isRecurring = 1 THEN id ELSE NULL END,
+                        NULL
+                    FROM payments
+                    """.trimIndent()
+                )
+                database.execSQL("DROP TABLE payments")
+                database.execSQL("ALTER TABLE payments_new RENAME TO payments")
+                database.execSQL(
+                    "CREATE INDEX index_payments_seriesId_dueDate ON payments(seriesId, dueDate)"
+                )
             }
         }
     }
 }
-
-

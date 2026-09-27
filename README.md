@@ -1,51 +1,57 @@
-# NotaSegura 🛡️🧾
+# NotaSegura
 
-NotaSegura is an Android application designed to help users, especially the elderly, manage their physical and digital receipts, warranty expirations, and payment reminders in a simple, secure, and organized way.
+NotaSegura is an Android app for keeping proof-of-purchase documents, warranty dates, and payment reminders in one place.
 
-Built with modern Android standards (Jetpack Compose, Room, WorkManager).
+The app is local-first. Receipt images are copied into app-private storage, Room stores the structured records, and Android WorkManager handles reminder checks. NotaSegura does not currently provide cloud synchronization or application-level encrypted storage, so it should not be described as an encrypted vault.
 
-## 🌟 Key Features
+## Current features
 
-- **Warranty Tracking:** Store and monitor warranty expiration dates for your purchases.
-- **Receipt Management:** Save photos of physical receipts securely within the app's internal storage.
-- **Payment Reminders:** Keep track of upcoming bills and payments with a dedicated timeline.
-- **Smart Notifications:** Receive timely alerts for expiring warranties and upcoming payment due dates.
-- **PDF Export:** Generate comprehensive reports of all your warranties and payments for insurance or personal accounting.
-- **Accessible Design:** High-contrast UI with large touch targets and readable typography, optimized for ease of use.
+- Warranty tracking with purchase and expiration dates.
+- Receipt/photo attachment stored in app-private internal storage.
+- OCR assistance for likely purchase dates without inventing warranty dates.
+- Payment reminders with exact cent-based monetary storage.
+- Monthly recurring payments with stable billing-day anchoring.
+- Paid-date tracking for newly marked payments.
+- Search and filtering for warranties and payments.
+- Reminder notifications for warranties expiring within 30 days and unpaid payments due within 3 days.
+- Multi-page PDF summary export through Android's share sheet.
+- Large touch targets and high-contrast typography intended to remain usable for older users.
 
-## 🛠️ Built With
+## Data and security model
 
-- **[Kotlin](https://kotlinlang.org/):** Modern programming language for Android.
-- **[Jetpack Compose](https://developer.android.com/jetpack/compose):** Modern toolkit for building native UI.
-- **[Room Database](https://developer.android.com/training/data-storage/room):** Robust local data persistence.
-- **[WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager):** Reliable background task scheduling for notifications.
-- **[Coil](https://coil-kt.github.io/coil/):** Fast and lightweight image loading for receipts.
-- **[Coroutines & Flow](https://kotlinlang.org/docs/reference/coroutines/coroutines-guide.html):** Asynchronous programming model.
+- Structured data is stored locally in Room.
+- Attached receipt images are stored under the app's private files directory.
+- Android backup is disabled in the manifest.
+- PDF exports are temporary cache files shared only through a FileProvider grant.
+- There is no cloud backup or app-level database/file encryption yet.
 
-## 📂 Project Structure
+This means normal Android application sandboxing protects the data from ordinary other apps, but losing the device or uninstalling the app can still destroy local records unless the user exports them.
 
-- `app/src/main/java/com/mothblank/notasegura/`
-    - `data/`: Local database (Room), repositories, and background workers.
-    - `domain/`: Data models and business logic.
-    - `ui/`: Jetpack Compose screens, components, and themes.
-    - `util/`: Helper classes for file storage and PDF export.
+## Project structure
 
-## 🚀 Getting Started
+`app/src/main/java/com/mothblank/notasegura/`
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/MOTHblank/NotaSegura.git
-   ```
-2. **Open in Android Studio:**
-   Load the project using Android Studio Ladybug (or newer).
-3. **Build and Run:**
-   Sync Gradle and run the application on an emulator or physical device.
+- `data/local/`: Room database and DAOs.
+- `data/repository/`: repository implementations.
+- `data/storage/`: receipt/document persistence that coordinates Room and managed files.
+- `data/worker/`: scheduled reminder checks.
+- `domain/`: models and repository contracts.
+- `ui/`: Compose screens and ViewModels.
+- `util/`: date, money, export, notification-permission, and file helpers.
 
-## 🗺️ Roadmap & Future Features
+## Build
 
-Check out our detailed plans for the future:
-- [Project Roadmap](docs/ROADMAP.md)
-- [Future Features Ideas](docs/FUTURE_FEATURES.md)
+1. Clone the repository.
+2. Open it in Android Studio Ladybug or newer.
+3. Sync Gradle.
+4. Run the `app` configuration on Android 8.0 (API 26) or newer.
 
----
-*Created with ❤️ for financial organization and peace of mind.*
+## Next product work
+
+The strongest next additions are:
+
+- encrypted, user-controlled backup/restore with restore verification;
+- richer purchase metadata such as merchant, serial/model number, notes, and purchase value;
+- OCR suggestions for merchant/total/serial fields;
+- full PDF document attachments rather than image-only evidence;
+- explicit notification settings and reminder lead-time controls.

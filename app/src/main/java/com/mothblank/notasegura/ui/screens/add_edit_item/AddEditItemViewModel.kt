@@ -8,9 +8,11 @@ import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.mothblank.notasegura.data.storage.WarrantyDocumentStore
 import com.mothblank.notasegura.domain.model.WarrantyItem
-import com.mothblank.notasegura.domain.repository.WarrantyRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -20,31 +22,36 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.UUID
 
-import com.mothblank.notasegura.util.FileStorageManager
-
 data class AddEditUiState(
     val name: String = "",
     val category: String = "",
     val purchaseDate: LocalDate? = null,
     val expirationDate: LocalDate? = null,
     val imagePath: String? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val errorMessage: String? = null
 )
 
 class AddEditItemViewModel(
-    private val repository: WarrantyRepository,
+    private val documentStore: WarrantyDocumentStore,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddEditUiState())
     val uiState = _uiState.asStateFlow()
 
+    private val _saved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val saved = _saved.asSharedFlow()
+
     private val itemId: String? = savedStateHandle["itemId"]
+    private var originalImagePath: String? = null
+    private var stagedImagePath: String? = null
 
     init {
         if (itemId != null) {
             viewModelScope.launch {
-                repository.getItemById(itemId)?.let { item ->
+                documentStore.getItemById(itemId)?.let { item ->
+                    originalImagePath = item.imagePath
                     _uiState.update {
                         it.copy(
                             name = item.name,
@@ -59,93 +66,123 @@ class AddEditItemViewModel(
         }
     }
 
-    fun onNameChange(newName: String) {
-        _uiState.update { it.copy(name = newName) }
+    fun onNameChange(value: String) = _uiState.update {
+        it.copy(name = value, errorMessage = null)
     }
 
-    fun onCategoryChange(newCategory: String) {
-        _uiState.update { it.copy(category = newCategory) }
+    fun onCategoryChange(value: String) = _uiState.update {
+        it.copy(category = value, errorMessage = null)
     }
 
-    fun onPurchaseDateChange(newDate: LocalDate) {
-        _uiState.update { it.copy(purchaseDate = newDate) }
+    fun onPurchaseDateChange(value: LocalDate) = _uiState.update {
+        it.copy(purchaseDate = value, errorMessage = null)
     }
 
-    fun onExpirationDateChange(newDate: LocalDate) {
-        _uiState.update { it.copy(expirationDate = newDate) }
+    fun onExpirationDateChange(value: LocalDate) = _uiState.update {
+        it.copy(expirationDate = value, errorMessage = null)
     }
 
     fun onImageSelected(context: Context, uri: Uri) {
         viewModelScope.launch {
-            val savedPath = FileStorageManager.saveImageToInternalStorage(context, uri)
-            _uiState.update { it.copy(imagePath = savedPath) }
+            val newStagedPath = documentStore.stageImage(uri)
+            if (newStagedPath == null) {
+                _uiState.update { it.copy(errorMessage = "Não foi possível copiar a imagem selecionada.") }
+                return@launch
+            }
+
+            documentStore.discardStagedImage(stagedImagePath)
+            stagedImagePath = newStagedPath
+            _uiState.update { it.copy(imagePath = newStagedPath, errorMessage = null) }
             processImageForOcr(context, uri)
         }
     }
 
-    fun processImageForOcr(context: Context, imageUri: Uri) {
+    private fun processImageForOcr(context: Context, imageUri: Uri) {
         try {
             val image = InputImage.fromFilePath(context, imageUri)
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-
             recognizer.process(image)
-                .addOnSuccessListener { visionText ->
-                    parseTextAndFillForm(visionText.text)
-                }
-                .addOnFailureListener { e -> e.printStackTrace() }
-        } catch (e: IOException) {
-            e.printStackTrace()
+                .addOnSuccessListener { visionText -> parseReceiptDates(visionText.text) }
+                .addOnCompleteListener { recognizer.close() }
+        } catch (_: IOException) {
+            // The attachment is still valid even if OCR cannot read it.
         }
     }
 
-    private fun parseTextAndFillForm(text: String) {
+    private fun parseReceiptDates(text: String) {
         val dateRegex = """(\d{2}[/-]\d{2}[/-]\d{4})""".toRegex()
-        val foundDates = dateRegex.findAll(text)
-            .map { it.value.replace("-", "/") }
+        val dates = dateRegex.findAll(text)
+            .mapNotNull { match ->
+                try {
+                    LocalDate.parse(
+                        match.value.replace("-", "/"),
+                        DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                    )
+                } catch (_: DateTimeParseException) {
+                    null
+                }
+            }
+            .filter { !it.isAfter(LocalDate.now().plusDays(1)) }
             .toList()
 
-        val localDates = foundDates.mapNotNull { dateString ->
-            try {
-                LocalDate.parse(dateString, DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-            } catch (e: DateTimeParseException) {
-                null
-            }
-        }.sorted()
-
-        // Tenta extrair o nome da loja (geralmente nas primeiras linhas)
-        val lines = text.lines().filter { it.isNotBlank() }
-        val possibleStoreName = lines.take(3).firstOrNull { it.length > 3 && !it.any { char -> char.isDigit() } }
-
-        _uiState.update { currentState ->
-            currentState.copy(
-                name = possibleStoreName ?: currentState.name,
-                purchaseDate = localDates.getOrNull(0) ?: currentState.purchaseDate,
-                expirationDate = localDates.lastOrNull() ?: currentState.expirationDate
-            )
+        val likelyPurchaseDate = dates.maxOrNull() ?: return
+        _uiState.update { current ->
+            if (current.purchaseDate == null) current.copy(purchaseDate = likelyPurchaseDate)
+            else current
         }
     }
 
-    fun formatDate(date: LocalDate?): String {
-        return date?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: ""
-    }
+    fun formatDate(date: LocalDate?): String =
+        date?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: ""
 
     fun saveItem() {
-        val currentState = _uiState.value
-        if (currentState.name.isBlank() || currentState.purchaseDate == null || currentState.expirationDate == null) {
+        val state = _uiState.value
+        val purchaseDate = state.purchaseDate
+        val expirationDate = state.expirationDate
+
+        if (state.name.isBlank() || purchaseDate == null || expirationDate == null) return
+        if (expirationDate.isBefore(purchaseDate)) {
+            _uiState.update { it.copy(errorMessage = "O fim da garantia não pode ser anterior à compra.") }
             return
         }
+        if (state.isSaving) return
 
-        val itemToSave = WarrantyItem(
+        val item = WarrantyItem(
             id = itemId ?: UUID.randomUUID().toString(),
-            name = currentState.name.trim(),
-            category = currentState.category.trim(),
-            purchaseDate = currentState.purchaseDate,
-            expirationDate = currentState.expirationDate,
-            imagePath = currentState.imagePath
+            name = state.name.trim(),
+            category = state.category.trim(),
+            purchaseDate = purchaseDate,
+            expirationDate = expirationDate,
+            imagePath = null
         )
 
         viewModelScope.launch {
-            repository.insertItem(itemToSave)
+            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+            try {
+                val savedItem = documentStore.saveItem(
+                    item = item,
+                    stagedImagePath = stagedImagePath,
+                    previousImagePath = originalImagePath
+                )
+                originalImagePath = savedItem.imagePath
+                stagedImagePath = null
+                _uiState.update {
+                    it.copy(imagePath = savedItem.imagePath, isSaving = false)
+                }
+                _saved.emit(Unit)
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = error.message ?: "Não foi possível salvar o item."
+                    )
+                }
+            }
         }
+    }
+
+    override fun onCleared() {
+        documentStore.discardStagedImage(stagedImagePath)
+        super.onCleared()
     }
 }

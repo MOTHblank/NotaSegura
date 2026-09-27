@@ -1,29 +1,25 @@
-# Top 5 Missing Features for NotaSegura
+# Future feature ideas
 
-Based on the goal of facilitating financial organization for elderly users and modernizing the app for 2026, here are the top 5 missing features that would add the most value:
+## Encrypted backup and restore
 
-## 1. Cloud Backup & Sync (Data Safety)
-*   **Problem:** Currently, all data is stored locally. If the user loses their phone, they lose all receipts and payment records.
-*   **Solution:** Integrate **Google Drive API** or **Firebase** to allow users to back up their database and receipt images. For elderly users, this should be "set and forget."
+Local-only storage protects privacy but creates a device-loss risk. Add an explicit, user-controlled backup/restore flow. Prefer a portable encrypted archive over implicit account coupling.
 
-## 2. Advanced OCR for Payments (Automation)
-*   **Problem:** While warranties have OCR for dates, payments still require manual typing of the title and amount.
-*   **Solution:** Use ML Kit to scan **Boleto (Barcode/QR)** or utility bills (Light, Water, Internet). Extract the amount, due date, and company name automatically to minimize typing errors.
+## Better receipt understanding
 
-## 3. Recurring Payment Logic (Automation)
-*   **Problem:** Users have to manually create a new payment every month for recurring bills.
-*   **Solution:** Implement a logic where, upon marking a "Monthly" payment as paid, the app automatically generates the next month's entry.
+Expand OCR into structured suggestions for merchant, purchase total, product/model/serial identifiers, and purchase date. OCR output should always remain reviewable before it mutates saved data.
 
-## 4. Search, Filter & Statistics (Organization)
-*   **Problem:** As the list of receipts grows over the years, finding a specific one becomes difficult.
-*   **Solution:** 
-    *   Add a **Search Bar**.
-    *   Add **Filtering** (e.g., "Show only Electronics," "Show only unpaid bills").
-    *   Add a **Monthly Spending Summary** (simple pie chart or total sum) to help with financial awareness.
+## Multiple document attachments
 
-## 5. Export for Insurance/Accounting (Utility)
-*   **Problem:** If the user needs to provide proof of all assets for insurance or a tax audit, they can't easily get the data out of the app.
-*   **Solution:** A "Generate Report" button that creates a **PDF or CSV file** with all receipts and warranty status, which can be sent via email or WhatsApp.
+A purchase may have a receipt photo, invoice PDF, warranty certificate, and repair record. Model attachments as their own records rather than adding more nullable paths to `WarrantyItem`.
 
----
-*Generated: May 2026*
+## Reminder customization
+
+Allow users to choose reminder lead times and enable/disable warranty and payment reminder categories independently.
+
+## Searchable archive
+
+Index structured fields and OCR text so old proof-of-purchase records can be found by merchant, product, model, serial number, category, or recognized receipt text.
+
+## Export and recovery
+
+The existing PDF is a human-readable summary, not a backup. Keep report export and backup/restore as separate concepts with different formats and guarantees.

@@ -1,12 +1,12 @@
 package com.mothblank.notasegura.util
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
-import android.os.Environment
-import android.widget.Toast
+import androidx.core.content.FileProvider
 import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.domain.model.WarrantyItem
 import java.io.File
@@ -14,88 +14,174 @@ import java.io.FileOutputStream
 import java.time.format.DateTimeFormatter
 
 object ExportManager {
+    private const val PAGE_WIDTH = 595
+    private const val PAGE_HEIGHT = 842
+    private const val MARGIN = 40f
+    private const val BOTTOM = 802f
 
-    fun exportToPdf(
+    fun createPdf(
         context: Context,
         warranties: List<WarrantyItem>,
         payments: List<Payment>
-    ) {
-        val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size
-        val page = pdfDocument.startPage(pageInfo)
-        val canvas: Canvas = page.canvas
-        val paint = Paint()
+    ): File? {
+        val document = PdfDocument()
+        val writer = PdfWriter(document)
         val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
-        var y = 40f
+        return try {
+            writer.drawHeading("Relatório NotaSegura")
 
-        // Title
-        paint.textSize = 24f
-        paint.isFakeBoldText = true
-        canvas.drawText("Relatório Nota Segura", 40f, y, paint)
-        y += 40f
-
-        // Warranties Section
-        paint.textSize = 18f
-        paint.color = Color.BLUE
-        canvas.drawText("Garantias e Documentos", 40f, y, paint)
-        y += 30f
-
-        paint.textSize = 12f
-        paint.color = Color.BLACK
-        paint.isFakeBoldText = false
-
-        if (warranties.isEmpty()) {
-            canvas.drawText("Nenhuma garantia cadastrada.", 60f, y, paint)
-            y += 20f
-        } else {
-            warranties.forEach { item ->
-                if (y > 780) { // Very simple pagination check (doesn't actually create new page here for brevity)
-                   // In a real app, we'd finish the page and start a new one
+            writer.drawSection("Garantias e documentos")
+            if (warranties.isEmpty()) {
+                writer.drawBody("Nenhuma garantia cadastrada.")
+            } else {
+                warranties.forEach { item ->
+                    val attachment = if (item.imagePath != null) " • documento anexado" else ""
+                    writer.drawBody(
+                        "${item.name} • ${item.category.ifBlank { "Sem categoria" }} • " +
+                            "compra ${item.purchaseDate.format(dateFormatter)} • " +
+                            "garantia até ${item.expirationDate.format(dateFormatter)}$attachment"
+                    )
                 }
-                canvas.drawText("${item.name} (${item.category}) - Expira em: ${item.expirationDate.format(dateFormatter)}", 60f, y, paint)
-                y += 20f
             }
-        }
 
-        y += 20f
-
-        // Payments Section
-        paint.textSize = 18f
-        paint.color = Color.parseColor("#FF6200EE") // Primary color
-        paint.isFakeBoldText = true
-        canvas.drawText("Pagamentos e Contas", 40f, y, paint)
-        y += 30f
-
-        paint.textSize = 12f
-        paint.color = Color.BLACK
-        paint.isFakeBoldText = false
-
-        if (payments.isEmpty()) {
-            canvas.drawText("Nenhum pagamento cadastrado.", 60f, y, paint)
-            y += 20f
-        } else {
-            payments.forEach { payment ->
-                val status = if (payment.isPaid) "[PAGO]" else "[PENDENTE]"
-                canvas.drawText("$status ${payment.title} - R$ ${String.format("%.2f", payment.amount)} - Vence: ${payment.dueDate.format(dateFormatter)}", 60f, y, paint)
-                y += 20f
+            writer.addSpacing(14f)
+            writer.drawSection("Pagamentos")
+            if (payments.isEmpty()) {
+                writer.drawBody("Nenhum pagamento cadastrado.")
+            } else {
+                payments.forEach { payment ->
+                    val status = when {
+                        payment.isPaid && payment.paidAt != null ->
+                            "Pago em ${payment.paidAt.format(dateFormatter)}"
+                        payment.isPaid -> "Pago"
+                        else -> "Pendente"
+                    }
+                    val recurrence = if (payment.recurrenceMonths != null) " • recorrente" else ""
+                    writer.drawBody(
+                        "$status • ${payment.title} • ${CurrencyUtils.formatCents(payment.amountCents)} • " +
+                            "vence ${payment.dueDate.format(dateFormatter)}$recurrence"
+                    )
+                }
             }
-        }
 
-        pdfDocument.finishPage(page)
+            writer.finish()
 
-        // Save the file
-        val fileName = "Relatorio_NotaSegura_${System.currentTimeMillis()}.pdf"
-        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
-
-        try {
-            pdfDocument.writeTo(FileOutputStream(file))
-            Toast.makeText(context, "PDF salvo em: ${file.absolutePath}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(context, "Erro ao gerar PDF", Toast.LENGTH_SHORT).show()
+            val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+            val file = File(exportDir, "Relatorio_NotaSegura_${System.currentTimeMillis()}.pdf")
+            FileOutputStream(file).use { output -> document.writeTo(output) }
+            file
+        } catch (_: Exception) {
+            null
         } finally {
-            pdfDocument.close()
+            document.close()
+        }
+    }
+
+    fun sharePdf(context: Context, file: File) {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Compartilhar relatório"))
+    }
+
+    private class PdfWriter(
+        private val document: PdfDocument
+    ) {
+        private var pageNumber = 0
+        private var page: PdfDocument.Page? = null
+        private var canvas: Canvas? = null
+        private var y = MARGIN
+
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.BLACK
+        }
+
+        init {
+            startPage()
+        }
+
+        fun drawHeading(text: String) {
+            ensureSpace(42f)
+            paint.textSize = 24f
+            paint.isFakeBoldText = true
+            paint.color = Color.BLACK
+            canvas?.drawText(text, MARGIN, y, paint)
+            y += 42f
+        }
+
+        fun drawSection(text: String) {
+            ensureSpace(34f)
+            paint.textSize = 18f
+            paint.isFakeBoldText = true
+            paint.color = Color.rgb(13, 71, 161)
+            canvas?.drawText(text, MARGIN, y, paint)
+            y += 30f
+        }
+
+        fun drawBody(text: String) {
+            paint.textSize = 12f
+            paint.isFakeBoldText = false
+            paint.color = Color.BLACK
+            drawWrapped(text)
+            y += 5f
+        }
+
+        fun addSpacing(space: Float) {
+            ensureSpace(space)
+            y += space
+        }
+
+        fun finish() {
+            page?.let(document::finishPage)
+            page = null
+            canvas = null
+        }
+
+        private fun drawWrapped(text: String) {
+            var remaining = text.trim()
+            val maxWidth = PAGE_WIDTH - (MARGIN * 2)
+            val lineHeight = 18f
+
+            while (remaining.isNotEmpty()) {
+                ensureSpace(lineHeight)
+                val measured = paint.breakText(remaining, true, maxWidth, null).coerceAtLeast(1)
+                var end = measured
+                if (measured < remaining.length) {
+                    val whitespace = remaining.lastIndexOf(' ', measured - 1)
+                    if (whitespace > 0) end = whitespace + 1
+                }
+
+                val line = remaining.substring(0, end).trimEnd()
+                canvas?.drawText(line, MARGIN, y, paint)
+                y += lineHeight
+                remaining = remaining.substring(end).trimStart()
+            }
+        }
+
+        private fun ensureSpace(required: Float) {
+            if (y + required <= BOTTOM) return
+            page?.let(document::finishPage)
+            startPage()
+        }
+
+        private fun startPage() {
+            pageNumber += 1
+            val pageInfo = PdfDocument.PageInfo.Builder(
+                PAGE_WIDTH,
+                PAGE_HEIGHT,
+                pageNumber
+            ).create()
+            page = document.startPage(pageInfo)
+            canvas = page?.canvas
+            y = MARGIN
         }
     }
 }

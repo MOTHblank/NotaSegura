@@ -2,11 +2,13 @@ package com.mothblank.notasegura.domain.repository
 
 import com.mothblank.notasegura.domain.model.Payment
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 interface PaymentRepository {
     fun getAllPayments(): Flow<List<Payment>>
     suspend fun insertPayment(payment: Payment)
     suspend fun deletePayment(payment: Payment)
     suspend fun getPaymentById(id: String): Payment?
-    suspend fun existsPayment(title: String, dueDate: java.time.LocalDate): Boolean
+    suspend fun setPaidStatus(payment: Payment, isPaid: Boolean, date: LocalDate)
+    suspend fun getPendingPaymentsDueBetween(startDate: LocalDate, endDate: LocalDate): List<Payment>
 }

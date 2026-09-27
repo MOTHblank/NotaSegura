@@ -1,55 +1,53 @@
 package com.mothblank.notasegura
 
-import com.mothblank.notasegura.util.ExportManager
-import androidx.compose.ui.graphics.Color
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemScreen
+import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
+import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
 import com.mothblank.notasegura.ui.screens.timeline.TimelineScreen
 import com.mothblank.notasegura.ui.theme.NotaSeguraTheme
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.currentBackStackEntryAsState
-import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
-import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
+import com.mothblank.notasegura.util.ExportManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,21 +68,7 @@ class MainActivity : ComponentActivity() {
 fun NotaSeguraApp() {
     val context = LocalContext.current
     val app = context.applicationContext as NotaSeguraApplication
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        val launcher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission(),
-            onResult = { isGranted ->
-                if (isGranted) {
-                } else {
-                }
-            }
-        )
-        LaunchedEffect(key1 = true) {
-            launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
+    val coroutineScope = rememberCoroutineScope()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -92,22 +76,39 @@ fun NotaSeguraApp() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
-                        "Nota Segura", 
+                        "Nota Segura",
                         style = MaterialTheme.typography.headlineLarge,
                         modifier = Modifier.padding(vertical = 12.dp)
-                    ) 
+                    )
                 },
                 actions = {
-                    IconButton(onClick = {
-                        app.scope.launch {
-                            val warranties = app.repository.getAllItems().first()
-                            val payments = app.paymentRepository.getAllPayments().first()
-                            ExportManager.exportToPdf(context, warranties, payments)
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                val warranties = app.repository.getAllItems().first()
+                                val payments = app.paymentRepository.getAllPayments().first()
+                                val file = withContext(Dispatchers.IO) {
+                                    ExportManager.createPdf(context, warranties, payments)
+                                }
+                                if (file != null) {
+                                    ExportManager.sharePdf(context, file)
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Não foi possível gerar o PDF.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
                         }
-                    }) {
-                        Icon(Icons.Default.PictureAsPdf, contentDescription = "Exportar PDF", tint = Color.White)
+                    ) {
+                        Icon(
+                            Icons.Default.PictureAsPdf,
+                            contentDescription = "Exportar e compartilhar PDF",
+                            tint = Color.White
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -117,13 +118,16 @@ fun NotaSeguraApp() {
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
+            NavigationBar {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(32.dp)) },
-                    label = { Text("Garantias", style = MaterialTheme.typography.labelLarge) },
+                    icon = {
+                        Icon(
+                            Icons.Default.List,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    label = { Text("Garantias") },
                     selected = currentRoute == AppScreen.Timeline.route,
                     onClick = {
                         navController.navigate(AppScreen.Timeline.route) {
@@ -134,8 +138,14 @@ fun NotaSeguraApp() {
                     }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Payments, contentDescription = null, modifier = Modifier.size(32.dp)) },
-                    label = { Text("Pagamentos", style = MaterialTheme.typography.labelLarge) },
+                    icon = {
+                        Icon(
+                            Icons.Default.Payments,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    label = { Text("Pagamentos") },
                     selected = currentRoute == AppScreen.Payments.route,
                     onClick = {
                         navController.navigate(AppScreen.Payments.route) {
@@ -157,14 +167,21 @@ fun NotaSeguraApp() {
                             navController.navigate(AppScreen.AddEditPayment.createRoute())
                         }
                     },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    icon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(28.dp)) },
-                    text = { 
+                    icon = {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    },
+                    text = {
                         Text(
-                            if (currentRoute == AppScreen.Timeline.route) "Nova Garantia" else "Novo Pagamento",
-                            style = MaterialTheme.typography.titleMedium
-                        ) 
+                            if (currentRoute == AppScreen.Timeline.route) {
+                                "Nova Garantia"
+                            } else {
+                                "Novo Pagamento"
+                            }
+                        )
                     }
                 )
             }
@@ -175,10 +192,9 @@ fun NotaSeguraApp() {
             startDestination = AppScreen.Timeline.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(route = AppScreen.Timeline.route) {
-                TimelineScreen(navController = navController)
+            composable(AppScreen.Timeline.route) {
+                TimelineScreen(navController)
             }
-
             composable(
                 route = AppScreen.AddEditItem.route,
                 arguments = listOf(
@@ -188,13 +204,11 @@ fun NotaSeguraApp() {
                     }
                 )
             ) {
-                AddEditItemScreen(navController = navController)
+                AddEditItemScreen(navController)
             }
-
-            composable(route = AppScreen.Payments.route) {
-                PaymentsScreen(navController = navController)
+            composable(AppScreen.Payments.route) {
+                PaymentsScreen(navController)
             }
-
             composable(
                 route = AppScreen.AddEditPayment.route,
                 arguments = listOf(
@@ -204,16 +218,8 @@ fun NotaSeguraApp() {
                     }
                 )
             ) {
-                AddEditPaymentScreen(navController = navController)
+                AddEditPaymentScreen(navController)
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    NotaSeguraTheme {
-        NotaSeguraApp()
     }
 }

@@ -7,14 +7,18 @@ import java.time.LocalDate
 
 @Entity(
     tableName = "payments",
-    indices = [Index(value = ["title", "dueDate"])]
+    indices = [Index(value = ["seriesId", "dueDate"])]
 )
 data class Payment(
     @PrimaryKey
     val id: String,
     val title: String,
-    val amount: Double,
+    val amountCents: Long,
     val dueDate: LocalDate,
     val isPaid: Boolean = false,
-    val isRecurring: Boolean = false
+    val paidAt: LocalDate? = null,
+    val recurrenceMonths: Int? = null,
+    val recurrenceAnchorDay: Int? = null,
+    val seriesId: String? = null,
+    val generatedFromId: String? = null
 )

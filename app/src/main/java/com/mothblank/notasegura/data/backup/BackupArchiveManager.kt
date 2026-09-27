@@ -27,6 +27,17 @@ data class BackupSummary(
     val payments: Int
 )
 
+private data class BackupSnapshot(
+    val purchases: List<Purchase>,
+    val attachments: List<Attachment>,
+    val payments: List<Payment>
+)
+
+private data class CopiedEntry(
+    val sha256: String,
+    val bytes: Long
+)
+
 class BackupArchiveManager(
     private val context: Context,
     private val database: AppDatabase
@@ -42,11 +53,16 @@ class BackupArchiveManager(
     suspend fun createBackup(destination: Uri): Result<BackupSummary> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val purchaseDao = database.purchaseDao()
-                val paymentDao = database.paymentDao()
-                val purchases = purchaseDao.getPurchasesSnapshot()
-                val attachments = purchaseDao.getAttachmentsSnapshot()
-                val payments = paymentDao.getPaymentsSnapshot()
+                val snapshot = database.withTransaction {
+                    BackupSnapshot(
+                        purchases = database.purchaseDao().getPurchasesSnapshot(),
+                        attachments = database.purchaseDao().getAttachmentsSnapshot(),
+                        payments = database.paymentDao().getPaymentsSnapshot()
+                    )
+                }
+                val purchases = snapshot.purchases
+                val attachments = snapshot.attachments
+                val payments = snapshot.payments
 
                 val attachmentFiles = attachments.associateWith { attachment ->
                     val file = File(attachment.filePath)
@@ -154,17 +170,22 @@ class BackupArchiveManager(
                         val attachmentRecords = data.getJSONArray("attachments")
 
                         val purchaseIds = purchases.mapTo(hashSetOf()) { it.id }
-                        restoreDir.mkdirs()
+                        require(restoreDir.mkdirs() || restoreDir.isDirectory) {
+                            "Não foi possível preparar a área de restauração."
+                        }
+                        var extractedBytes = 0L
 
                         val restoredAttachments = buildList {
                             for (index in 0 until attachmentRecords.length()) {
                                 val item = attachmentRecords.getJSONObject(index)
                                 val purchaseId = item.getString("purchaseId")
+                                validateRecordId(purchaseId)
                                 require(purchaseId in purchaseIds) {
                                     "Documento aponta para uma compra inexistente."
                                 }
 
                                 val archiveEntry = item.getString("archiveEntry")
+                                validateEntryName(archiveEntry)
                                 val expectedChecksum = expectedChecksums[archiveEntry]
                                     ?: error("Checksum ausente para $archiveEntry.")
                                 val entry = zip.getEntry(archiveEntry)
@@ -174,9 +195,17 @@ class BackupArchiveManager(
                                 val displayName = item.optNullableString("displayName")
                                 val extension = FileStorageManager.extensionFor(mimeType, displayName)
                                 val id = item.getString("id")
+                                validateRecordId(id)
                                 val destination = File(restoreDir, "${UUID.randomUUID()}.$extension")
 
-                                val actualChecksum = copyEntryAndDigest(zip, entry, destination)
+                                val copied = copyEntryAndDigest(
+                                    zip = zip,
+                                    entry = entry,
+                                    destination = destination,
+                                    maxBytes = MAX_ARCHIVE_BYTES - extractedBytes
+                                )
+                                extractedBytes += copied.bytes
+                                val actualChecksum = copied.sha256
                                 require(actualChecksum == expectedChecksum) {
                                     "Documento corrompido no backup: ${displayName ?: id}."
                                 }
@@ -307,9 +336,11 @@ class BackupArchiveManager(
     private fun parsePurchases(array: JSONArray): List<Purchase> = buildList {
         for (index in 0 until array.length()) {
             val item = array.getJSONObject(index)
+            val id = item.getString("id")
+            validateRecordId(id)
             add(
                 Purchase(
-                    id = item.getString("id"),
+                    id = id,
                     productName = item.getString("productName"),
                     merchant = item.optNullableString("merchant"),
                     purchaseValueCents = item.optNullableLong("purchaseValueCents"),
@@ -329,9 +360,13 @@ class BackupArchiveManager(
     private fun parsePayments(array: JSONArray): List<Payment> = buildList {
         for (index in 0 until array.length()) {
             val item = array.getJSONObject(index)
+            val id = item.getString("id")
+            validateRecordId(id)
+            val seriesId = item.optNullableString("seriesId")?.also(::validateRecordId)
+            val generatedFromId = item.optNullableString("generatedFromId")?.also(::validateRecordId)
             add(
                 Payment(
-                    id = item.getString("id"),
+                    id = id,
                     title = item.getString("title"),
                     amountCents = item.getLong("amountCents"),
                     dueDate = LocalDate.ofEpochDay(item.getLong("dueDate")),
@@ -339,8 +374,8 @@ class BackupArchiveManager(
                     paidAt = item.optNullableLong("paidAt")?.let { LocalDate.ofEpochDay(it) },
                     recurrenceMonths = item.optNullableInt("recurrenceMonths"),
                     recurrenceAnchorDay = item.optNullableInt("recurrenceAnchorDay"),
-                    seriesId = item.optNullableString("seriesId"),
-                    generatedFromId = item.optNullableString("generatedFromId")
+                    seriesId = seriesId,
+                    generatedFromId = generatedFromId
                 )
             )
         }
@@ -348,26 +383,31 @@ class BackupArchiveManager(
 
     private fun copyBackupToCache(uri: Uri): File {
         val temp = File(context.cacheDir, "restore_${UUID.randomUUID()}.notasegura")
-        val input = context.contentResolver.openInputStream(uri)
-            ?: error("Não foi possível abrir o backup.")
+        try {
+            val input = context.contentResolver.openInputStream(uri)
+                ?: error("Não foi possível abrir o backup.")
 
-        input.use { source ->
-            FileOutputStream(temp).use { output ->
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                var total = 0L
-                while (true) {
-                    val count = source.read(buffer)
-                    if (count < 0) break
-                    if (count == 0) continue
-                    total += count
-                    require(total <= MAX_ARCHIVE_BYTES) {
-                        "Backup excede o tamanho máximo permitido."
+            input.use { source ->
+                FileOutputStream(temp).use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var total = 0L
+                    while (true) {
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        if (count == 0) continue
+                        total += count
+                        require(total <= MAX_ARCHIVE_BYTES) {
+                            "Backup excede o tamanho máximo permitido."
+                        }
+                        output.write(buffer, 0, count)
                     }
-                    output.write(buffer, 0, count)
                 }
             }
+            return temp
+        } catch (error: Throwable) {
+            temp.delete()
+            throw error
         }
-        return temp
     }
 
     private fun parseManifestChecksums(manifest: JSONObject): Map<String, String> {
@@ -390,6 +430,12 @@ class BackupArchiveManager(
             attachment.displayName
         )
         return "attachments/${attachment.id}.$extension"
+    }
+
+    private fun validateRecordId(id: String) {
+        require(id.matches(Regex("""[A-Za-z0-9._-]{1,128}"""))) {
+            "Identificador inválido no backup."
+        }
     }
 
     private fun validateEntryName(name: String) {
@@ -433,9 +479,14 @@ class BackupArchiveManager(
     private fun copyEntryAndDigest(
         zip: ZipFile,
         entry: ZipEntry,
-        destination: File
-    ): String {
+        destination: File,
+        maxBytes: Long
+    ): CopiedEntry {
+        require(maxBytes >= 0L) {
+            "Backup excede o tamanho máximo permitido."
+        }
         val digest = MessageDigest.getInstance("SHA-256")
+        var total = 0L
         zip.getInputStream(entry).use { input ->
             FileOutputStream(destination).use { output ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -443,12 +494,19 @@ class BackupArchiveManager(
                     val count = input.read(buffer)
                     if (count < 0) break
                     if (count == 0) continue
+                    total += count
+                    require(total <= maxBytes) {
+                        "Backup expandido excede o tamanho máximo permitido."
+                    }
                     output.write(buffer, 0, count)
                     digest.update(buffer, 0, count)
                 }
             }
         }
-        return digest.digest().toHex()
+        return CopiedEntry(
+            sha256 = digest.digest().toHex(),
+            bytes = total
+        )
     }
 
     private fun writeBytes(zip: ZipOutputStream, name: String, bytes: ByteArray) {

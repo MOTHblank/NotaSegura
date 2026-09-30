@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
+import com.mothblank.notasegura.domain.repository.PaymentRepository
+import com.mothblank.notasegura.util.CategoryNormalizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -12,9 +14,17 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+
+data class AttentionSummary(
+    val warrantiesExpiringSoon: Int = 0,
+    val overduePayments: Int = 0,
+    val paymentsDueThisWeek: Int = 0
+)
 
 class TimelineViewModel(
-    private val documentStore: PurchaseDocumentStore
+    private val documentStore: PurchaseDocumentStore,
+    private val paymentRepository: PaymentRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -46,7 +56,8 @@ class TimelineViewModel(
                         attachment.ocrText.orEmpty().contains(normalizedQuery, ignoreCase = true)
                     }
 
-                val matchesCategory = category == null || purchase.category == category
+                val matchesCategory = category == null ||
+                    CategoryNormalizer.key(purchase.category) == CategoryNormalizer.key(category)
                 matchesQuery && matchesCategory
             }
         }.stateIn(
@@ -58,16 +69,40 @@ class TimelineViewModel(
     val categories: StateFlow<List<String>> =
         allPurchases
             .map { items ->
-                items.map { it.purchase.category }
-                    .filter { it.isNotBlank() }
-                    .distinct()
-                    .sorted()
+                CategoryNormalizer.distinctDisplay(items.map { it.purchase.category })
             }
             .stateIn(
                 viewModelScope,
                 SharingStarted.WhileSubscribed(5_000L),
                 emptyList()
             )
+
+    val attentionSummary: StateFlow<AttentionSummary> =
+        combine(allPurchases, paymentRepository.getAllPayments()) { purchases, payments ->
+            val today = LocalDate.now()
+            val warrantyLimit = today.plusDays(30)
+            val paymentLimit = today.plusDays(7)
+
+            AttentionSummary(
+                warrantiesExpiringSoon = purchases.count { item ->
+                    item.purchase.warrantyEndDate?.let { date ->
+                        !date.isBefore(today) && !date.isAfter(warrantyLimit)
+                    } == true
+                },
+                overduePayments = payments.count { payment ->
+                    !payment.isPaid && payment.dueDate.isBefore(today)
+                },
+                paymentsDueThisWeek = payments.count { payment ->
+                    !payment.isPaid &&
+                        !payment.dueDate.isBefore(today) &&
+                        !payment.dueDate.isAfter(paymentLimit)
+                }
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = AttentionSummary()
+        )
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query

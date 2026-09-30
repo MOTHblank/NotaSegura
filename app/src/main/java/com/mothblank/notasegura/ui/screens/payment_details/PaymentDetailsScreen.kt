@@ -37,11 +37,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.navigation.AppScreen
@@ -80,7 +82,7 @@ fun PaymentDetailsScreen(
             ) {
                 CircularProgressIndicator()
                 Spacer(Modifier.height(12.dp))
-                Text("Carregando pagamento...")
+                Text(stringResource(R.string.payment_loading))
             }
         }
 
@@ -93,12 +95,12 @@ fun PaymentDetailsScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "Este pagamento não foi encontrado.",
+                    stringResource(R.string.payment_not_found),
                     style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { navController.popBackStack() }) {
-                    Text("Voltar para pagamentos")
+                    Text(stringResource(R.string.payment_back_to_list))
                 }
             }
         }
@@ -122,10 +124,10 @@ fun PaymentDetailsScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text("Excluir este pagamento?") },
+            title = { Text(stringResource(R.string.payment_delete_title)) },
             text = {
                 Text(
-                    "“$title” será apagado deste aparelho. Essa ação não pode ser desfeita."
+                    stringResource(R.string.payment_delete_body, title)
                 )
             },
             confirmButton = {
@@ -135,12 +137,12 @@ fun PaymentDetailsScreen(
                         viewModel.deletePayment()
                     }
                 ) {
-                    Text("Sim, excluir")
+                    Text(stringResource(R.string.common_delete_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -185,7 +187,10 @@ private fun PaymentDetailsContent(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Vencimento em ${payment.dueDate.format(formatter)}",
+                    stringResource(
+                        R.string.payment_due_on,
+                        payment.dueDate.format(formatter)
+                    ),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -200,7 +205,7 @@ private fun PaymentDetailsContent(
                 color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Text(
-                    "Pagamento mensal. Ao marcar como pago, o próximo mês é criado automaticamente.",
+                    stringResource(R.string.payment_monthly_explanation),
                     modifier = Modifier.padding(14.dp),
                     style = MaterialTheme.typography.bodyLarge
                 )
@@ -214,7 +219,7 @@ private fun PaymentDetailsContent(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
             ) {
-                Text("Marcar como pendente")
+                Text(stringResource(R.string.payment_mark_pending))
             }
         } else {
             Button(
@@ -225,7 +230,7 @@ private fun PaymentDetailsContent(
             ) {
                 Icon(Icons.Default.CheckCircle, contentDescription = null)
                 Text(
-                    "Marcar como pago",
+                    stringResource(R.string.payment_mark_paid),
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
@@ -239,7 +244,7 @@ private fun PaymentDetailsContent(
         ) {
             Icon(Icons.Default.Edit, contentDescription = null)
             Text(
-                "Editar pagamento",
+                stringResource(R.string.payment_edit),
                 modifier = Modifier.padding(start = 8.dp)
             )
         }
@@ -256,7 +261,7 @@ private fun PaymentDetailsContent(
                 tint = MaterialTheme.colorScheme.error
             )
             Text(
-                "Excluir pagamento",
+                stringResource(R.string.payment_delete),
                 modifier = Modifier.padding(start = 8.dp),
                 color = MaterialTheme.colorScheme.error
             )
@@ -283,30 +288,36 @@ private fun PaymentDetailsStatus(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             icon = Icons.Default.CheckCircle
-            title = "Pago"
+            title = stringResource(R.string.payment_status_paid)
             detail = payment.paidAt?.let {
-                "Pago em ${it.format(formatter)}."
-            } ?: "Pagamento concluído."
+                stringResource(R.string.payment_paid_on, it.format(formatter))
+            } ?: stringResource(R.string.payment_completed)
         }
         daysUntilDue < 0 -> {
             containerColor = MaterialTheme.colorScheme.errorContainer
             contentColor = MaterialTheme.colorScheme.onErrorContainer
             icon = Icons.Default.WarningAmber
-            title = "Pagamento atrasado"
-            detail = "Venceu em ${payment.dueDate.format(formatter)}."
+            title = stringResource(R.string.payment_status_overdue)
+            detail = stringResource(
+                R.string.payment_was_due_on,
+                payment.dueDate.format(formatter)
+            )
         }
         daysUntilDue <= 7 -> {
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
             contentColor = MaterialTheme.colorScheme.onTertiaryContainer
             icon = Icons.Default.WarningAmber
-            title = "Vence em breve"
-            detail = "Vencimento em ${payment.dueDate.format(formatter)}."
+            title = stringResource(R.string.payment_status_due_soon)
+            detail = stringResource(
+                R.string.payment_due_on,
+                payment.dueDate.format(formatter)
+            )
         }
         else -> {
             containerColor = MaterialTheme.colorScheme.primaryContainer
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             icon = Icons.Default.CheckCircle
-            title = "Pendente"
+            title = stringResource(R.string.payment_status_pending)
             detail = "Vencimento em ${payment.dueDate.format(formatter)}."
         }
     }

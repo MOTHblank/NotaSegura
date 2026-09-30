@@ -39,11 +39,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
@@ -86,7 +88,7 @@ fun PurchaseDetailsScreen(
                 ) {
                     CircularProgressIndicator()
                     Spacer(Modifier.height(12.dp))
-                    Text("Carregando compra...")
+                    Text(stringResource(R.string.purchase_loading))
                 }
             }
 
@@ -99,12 +101,12 @@ fun PurchaseDetailsScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        "Esta compra não foi encontrada.",
+                        stringResource(R.string.purchase_not_found),
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { navController.popBackStack() }) {
-                        Text("Voltar para compras")
+                        Text(stringResource(R.string.purchase_back_to_list))
                     }
                 }
             }
@@ -127,7 +129,7 @@ fun PurchaseDetailsScreen(
         DocumentViewerDialog(
             path = attachment.filePath,
             mimeType = attachment.mimeType,
-            displayName = attachment.displayName ?: "Documento",
+            displayName = attachment.displayName ?: stringResource(R.string.purchase_document_default_name),
             onDismiss = { previewAttachment = null }
         )
     }
@@ -137,11 +139,10 @@ fun PurchaseDetailsScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text("Excluir esta compra?") },
+            title = { Text(stringResource(R.string.purchase_delete_title)) },
             text = {
                 Text(
-                    "“$productName” e todos os documentos anexados serão apagados deste aparelho. " +
-                        "Essa ação não pode ser desfeita."
+                    stringResource(R.string.purchase_delete_body, productName)
                 )
             },
             confirmButton = {
@@ -151,12 +152,12 @@ fun PurchaseDetailsScreen(
                         viewModel.deletePurchase()
                     }
                 ) {
-                    Text("Sim, excluir")
+                    Text(stringResource(R.string.common_delete_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -198,7 +199,7 @@ private fun PurchaseDetailsContent(
                     fontWeight = FontWeight.Bold
                 )
                 purchase.merchant?.takeIf { it.isNotBlank() }?.let {
-                    Text("Comprado em $it", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.purchase_bought_at, it), style = MaterialTheme.typography.bodyLarge)
                 }
                 purchase.purchaseValueCents?.let {
                     Text(
@@ -208,7 +209,10 @@ private fun PurchaseDetailsContent(
                     )
                 }
                 Text(
-                    "Compra em ${purchase.purchaseDate.format(formatter)}",
+                    stringResource(
+                        R.string.purchase_summary_date,
+                        purchase.purchaseDate.format(formatter)
+                    ),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -216,7 +220,7 @@ private fun PurchaseDetailsContent(
 
         if (item.attachments.isNotEmpty()) {
             DetailsSection(
-                title = if (item.attachments.size == 1) "Comprovante / documento" else "Comprovantes / documentos"
+                title = if (item.attachments.size == 1) stringResource(R.string.purchase_documents_title_single) else stringResource(R.string.purchase_documents_title_multiple)
             ) {
                 item.attachments.forEach { attachment ->
                     OutlinedButton(
@@ -235,7 +239,7 @@ private fun PurchaseDetailsContent(
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            attachment.displayName ?: "Abrir documento",
+                            attachment.displayName ?: stringResource(R.string.purchase_open_document_default),
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }
@@ -243,7 +247,7 @@ private fun PurchaseDetailsContent(
             }
         }
 
-        DetailsSection(title = "Garantia") {
+        DetailsSection(title = stringResource(R.string.purchase_section_warranty)) {
             WarrantyDetails(purchase.warrantyEndDate, formatter)
         }
 
@@ -254,18 +258,18 @@ private fun PurchaseDetailsContent(
                 purchase.notes.isNotBlank()
 
         if (hasExtraDetails) {
-            DetailsSection(title = "Mais informações") {
+            DetailsSection(title = stringResource(R.string.purchase_more_information)) {
                 purchase.category.takeIf { it.isNotBlank() }?.let {
-                    DetailRow("Categoria", it)
+                    DetailRow(stringResource(R.string.purchase_detail_category), it)
                 }
                 purchase.modelNumber?.takeIf { it.isNotBlank() }?.let {
-                    DetailRow("Modelo", it)
+                    DetailRow(stringResource(R.string.purchase_detail_model), it)
                 }
                 purchase.serialNumber?.takeIf { it.isNotBlank() }?.let {
-                    DetailRow("Nº de série", it)
+                    DetailRow(stringResource(R.string.purchase_detail_serial), it)
                 }
                 purchase.notes.takeIf { it.isNotBlank() }?.let {
-                    DetailRow("Observações", it)
+                    DetailRow(stringResource(R.string.purchase_detail_notes), it)
                 }
             }
         }
@@ -277,7 +281,7 @@ private fun PurchaseDetailsContent(
                 .heightIn(min = 56.dp)
         ) {
             Icon(Icons.Default.Edit, contentDescription = null)
-            Text("Editar compra", modifier = Modifier.padding(start = 8.dp))
+            Text(stringResource(R.string.purchase_edit), modifier = Modifier.padding(start = 8.dp))
         }
 
         TextButton(
@@ -292,7 +296,7 @@ private fun PurchaseDetailsContent(
                 tint = MaterialTheme.colorScheme.error
             )
             Text(
-                "Excluir compra",
+                stringResource(R.string.purchase_delete),
                 modifier = Modifier.padding(start = 8.dp),
                 color = MaterialTheme.colorScheme.error
             )
@@ -344,7 +348,7 @@ private fun WarrantyDetails(
 ) {
     if (warrantyEndDate == null) {
         Text(
-            "Nenhuma garantia registrada.",
+            stringResource(R.string.purchase_warranty_none),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -362,12 +366,12 @@ private fun WarrantyDetails(
         daysRemaining <= 30 -> Triple(
             MaterialTheme.colorScheme.tertiaryContainer,
             MaterialTheme.colorScheme.onTertiaryContainer,
-            "Garantia termina em breve"
+            stringResource(R.string.warranty_ending_soon)
         )
         else -> Triple(
             MaterialTheme.colorScheme.secondaryContainer,
             MaterialTheme.colorScheme.onSecondaryContainer,
-            "Garantia ativa"
+            stringResource(R.string.warranty_active)
         )
     }
 
@@ -382,7 +386,10 @@ private fun WarrantyDetails(
         ) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = contentColor)
             Text(
-                "Até ${warrantyEndDate.format(formatter)}",
+                stringResource(
+                    R.string.warranty_until,
+                    warrantyEndDate.format(formatter)
+                ),
                 style = MaterialTheme.typography.bodyLarge,
                 color = contentColor
             )

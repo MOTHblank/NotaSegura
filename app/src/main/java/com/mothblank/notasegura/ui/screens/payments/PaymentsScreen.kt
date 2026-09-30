@@ -18,13 +18,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,13 +34,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -80,7 +73,6 @@ fun PaymentsScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val showOnlyPending by viewModel.showOnlyPending.collectAsState()
     val focusManager = LocalFocusManager.current
-    var pendingDelete by remember { mutableStateOf<Payment?>(null) }
 
     val hasFilters = searchQuery.isNotBlank() || showOnlyPending
 
@@ -170,48 +162,17 @@ fun PaymentsScreen(
                     PaymentCard(
                         payment = payment,
                         onTogglePaid = { viewModel.togglePaidStatus(payment) },
-                        onEdit = {
+                        onOpen = {
                             navController.navigate(
-                                AppScreen.AddEditPayment.editRoute(payment.id)
+                                AppScreen.PaymentDetails.createRoute(payment.id)
                             )
-                        },
-                        onDelete = { pendingDelete = payment }
+                        }
                     )
                 }
             }
         }
     }
 
-    pendingDelete?.let { payment ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            icon = {
-                Icon(Icons.Default.Delete, contentDescription = null)
-            },
-            title = { Text("Excluir este pagamento?") },
-            text = {
-                Text(
-                    "“${payment.title}” será apagado deste aparelho. " +
-                        "Essa ação não pode ser desfeita."
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deletePayment(payment)
-                        pendingDelete = null
-                    }
-                ) {
-                    Text("Sim, excluir")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
 }
 
 @Composable
@@ -273,12 +234,12 @@ private fun EmptyPaymentState(
 private fun PaymentCard(
     payment: Payment,
     onTogglePaid: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpen: () -> Unit
 ) {
     val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     Card(
+        onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = androidx.compose.foundation.BorderStroke(
@@ -351,34 +312,12 @@ private fun PaymentCard(
             }
 
             OutlinedButton(
-                onClick = onEdit,
+                onClick = onOpen,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
             ) {
-                Icon(Icons.Default.Edit, contentDescription = null)
-                Text(
-                    "Editar pagamento",
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
-
-            TextButton(
-                onClick = onDelete,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp)
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
-                )
-                Text(
-                    "Excluir pagamento",
-                    modifier = Modifier.padding(start = 8.dp),
-                    color = MaterialTheme.colorScheme.error
-                )
+                Text("Ver detalhes")
             }
         }
     }

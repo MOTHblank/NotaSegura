@@ -174,6 +174,19 @@ fun AddEditItemScreen(
         )
 
         FormSection(
+            title = "Comprovante / documento",
+            subtitle = "Comece por aqui: adicione uma foto ou imagem para extrair dados da compra. PDFs também podem ser anexados."
+        ) {
+            AttachmentSection(
+                attachments = uiState.attachments,
+                isAnalyzing = uiState.isAnalyzingDocument,
+                onAdd = { showAttachmentOptions = true },
+                onPreview = { previewAttachment = it },
+                onRemove = viewModel::removeAttachment
+            )
+        }
+
+        FormSection(
             title = "Compra",
             subtitle = "Quando e onde a compra foi feita."
         ) {
@@ -314,19 +327,6 @@ fun AddEditItemScreen(
                     Text("Remover garantia")
                 }
             }
-        }
-
-        FormSection(
-            title = "Documentos",
-            subtitle = "Guarde fotos de comprovantes, notas e arquivos PDF."
-        ) {
-            AttachmentSection(
-                attachments = uiState.attachments,
-                isAnalyzing = uiState.isAnalyzingDocument,
-                onAdd = { showAttachmentOptions = true },
-                onPreview = { previewAttachment = it },
-                onRemove = viewModel::removeAttachment
-            )
         }
 
         FormSection(
@@ -657,7 +657,7 @@ private fun AttachmentSection(
         ) {
             Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Adicionar documento")
+            Text("Adicionar foto ou documento")
         }
     }
 }

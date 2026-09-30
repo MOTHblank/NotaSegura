@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.navigation.AppScreen
@@ -89,8 +91,8 @@ fun PaymentsScreen(
                     value = searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Pesquisar pagamentos") },
-                    placeholder = { Text("Nome da conta ou cobrança") },
+                    label = { Text(stringResource(R.string.payment_search_label)) },
+                    placeholder = { Text(stringResource(R.string.payment_search_hint)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(
                         onSearch = { focusManager.clearFocus() }
@@ -103,7 +105,7 @@ fun PaymentsScreen(
                             IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
                                 Icon(
                                     Icons.Default.Close,
-                                    contentDescription = "Limpar pesquisa"
+                                    contentDescription = stringResource(R.string.search_clear)
                                 )
                             }
                         }
@@ -117,7 +119,7 @@ fun PaymentsScreen(
                 FilterChip(
                     selected = showOnlyPending,
                     onClick = viewModel::onToggleShowOnlyPending,
-                    label = { Text("Mostrar só pendentes") },
+                    label = { Text(stringResource(R.string.payment_filter_pending)) },
                     leadingIcon = if (showOnlyPending) {
                         {
                             Icon(
@@ -199,18 +201,18 @@ private fun EmptyPaymentState(
             )
             Text(
                 if (filtered) {
-                    "Nenhum pagamento encontrado"
+                    stringResource(R.string.payment_empty_filtered_title)
                 } else {
-                    "Você ainda não cadastrou nenhum pagamento"
+                    stringResource(R.string.payment_empty_title)
                 },
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center
             )
             Text(
                 if (filtered) {
-                    "Tente limpar a pesquisa ou mostrar todos os pagamentos."
+                    stringResource(R.string.payment_empty_filtered_body)
                 } else {
-                    "Cadastre contas e cobranças para acompanhar as datas de vencimento."
+                    stringResource(R.string.payment_empty_body)
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -223,7 +225,11 @@ private fun EmptyPaymentState(
                     .heightIn(min = 56.dp)
             ) {
                 Text(
-                    if (filtered) "Limpar pesquisa e filtros" else "Adicionar primeiro pagamento"
+                    if (filtered) {
+                        stringResource(R.string.purchase_clear_filters)
+                    } else {
+                        stringResource(R.string.payment_add_first)
+                    }
                 )
             }
         }
@@ -279,7 +285,7 @@ private fun PaymentCard(
                     color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
-                        "Pagamento mensal. Ao marcar como pago, o próximo mês é criado automaticamente.",
+                        stringResource(R.string.payment_monthly_explanation),
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -294,7 +300,7 @@ private fun PaymentCard(
                         .fillMaxWidth()
                         .heightIn(min = 56.dp)
                 ) {
-                    Text("Marcar como pendente")
+                    Text(stringResource(R.string.payment_mark_pending))
                 }
             } else {
                 Button(
@@ -305,7 +311,7 @@ private fun PaymentCard(
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null)
                     Text(
-                        "Marcar como pago",
+                        stringResource(R.string.payment_mark_paid),
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -317,7 +323,7 @@ private fun PaymentCard(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
             ) {
-                Text("Ver detalhes")
+                Text(stringResource(R.string.common_view_details))
             }
         }
     }
@@ -342,33 +348,39 @@ private fun PaymentStatus(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             icon = Icons.Default.CheckCircle
-            title = "Pago"
+            title = stringResource(R.string.payment_status_paid)
             detail = payment.paidAt?.let {
-                "Pago em ${it.format(formatter)}."
-            } ?: "Pagamento concluído."
+                stringResource(R.string.payment_paid_on, it.format(formatter))
+            } ?: stringResource(R.string.payment_completed)
         }
 
         daysUntilDue < 0 -> {
             containerColor = MaterialTheme.colorScheme.errorContainer
             contentColor = MaterialTheme.colorScheme.onErrorContainer
             icon = Icons.Default.WarningAmber
-            title = "Pagamento atrasado"
-            detail = "Venceu em ${payment.dueDate.format(formatter)}."
+            title = stringResource(R.string.payment_status_overdue)
+            detail = stringResource(
+                R.string.payment_was_due_on,
+                payment.dueDate.format(formatter)
+            )
         }
 
         daysUntilDue <= 7 -> {
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
             contentColor = MaterialTheme.colorScheme.onTertiaryContainer
             icon = Icons.Default.WarningAmber
-            title = "Vence em breve"
-            detail = "Vencimento em ${payment.dueDate.format(formatter)}."
+            title = stringResource(R.string.payment_status_due_soon)
+            detail = stringResource(
+                R.string.payment_due_on,
+                payment.dueDate.format(formatter)
+            )
         }
 
         else -> {
             containerColor = MaterialTheme.colorScheme.primaryContainer
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             icon = Icons.Default.Event
-            title = "Próximo vencimento"
+            title = stringResource(R.string.payment_status_next_due)
             detail = payment.dueDate.format(formatter)
         }
     }

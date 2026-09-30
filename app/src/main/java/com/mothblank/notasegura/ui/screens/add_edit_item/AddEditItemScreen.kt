@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -78,6 +79,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
@@ -172,14 +174,14 @@ fun AddEditItemScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            "* Campos obrigatórios",
+            stringResource(R.string.form_required_fields),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         FormSection(
-            title = "Comprovante / documento",
-            subtitle = "Comece por aqui: adicione uma foto ou imagem para extrair dados da compra. PDFs também podem ser anexados."
+            title = stringResource(R.string.purchase_section_document),
+            subtitle = stringResource(R.string.purchase_section_document_hint)
         ) {
             AttachmentSection(
                 attachments = uiState.attachments,
@@ -197,7 +199,7 @@ fun AddEditItemScreen(
                 color = MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Text(
-                    "Alguns dados foram preenchidos pelo comprovante. Confira antes de salvar.",
+                    stringResource(R.string.ocr_autofill_notice),
                     modifier = Modifier.padding(14.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -206,14 +208,14 @@ fun AddEditItemScreen(
         }
 
         FormSection(
-            title = "Compra",
-            subtitle = "Quando e onde a compra foi feita."
+            title = stringResource(R.string.purchase_section_purchase),
+            subtitle = stringResource(R.string.purchase_section_purchase_hint)
         ) {
             OutlinedTextField(
                 value = uiState.merchant,
                 onValueChange = viewModel::onMerchantChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Loja / vendedor") },
+                label = { Text(stringResource(R.string.field_merchant)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
@@ -231,7 +233,7 @@ fun AddEditItemScreen(
                 value = uiState.purchaseValue,
                 onValueChange = viewModel::onPurchaseValueChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Valor da compra (R$)") },
+                label = { Text(stringResource(R.string.field_purchase_value)) },
                 singleLine = true,
                 isError = uiState.purchaseValueError != null,
                 supportingText = {
@@ -253,9 +255,9 @@ fun AddEditItemScreen(
 
             DateField(
                 value = viewModel.formatDate(uiState.purchaseDate),
-                label = "Data da compra",
+                label = stringResource(R.string.field_purchase_date),
                 required = true,
-                clickLabel = "Selecionar data da compra",
+                clickLabel = stringResource(R.string.select_purchase_date),
                 onClick = { showPurchaseDatePicker = true }
             )
             uiState.ocrSuggestions?.purchaseDate?.let {
@@ -267,14 +269,14 @@ fun AddEditItemScreen(
         }
 
         FormSection(
-            title = "Produto",
-            subtitle = "Identifique o item para encontrá-lo depois."
+            title = stringResource(R.string.purchase_section_product),
+            subtitle = stringResource(R.string.purchase_section_product_hint)
         ) {
             OutlinedTextField(
                 value = uiState.productName,
                 onValueChange = viewModel::onProductNameChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { RequiredLabel("Produto") },
+                label = { RequiredLabel(stringResource(R.string.field_product)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
@@ -286,7 +288,7 @@ fun AddEditItemScreen(
                 value = uiState.category,
                 onValueChange = viewModel::onCategoryChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Categoria") },
+                label = { Text(stringResource(R.string.field_category)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
@@ -295,7 +297,7 @@ fun AddEditItemScreen(
             )
             if (categorySuggestions.isNotEmpty()) {
                 Text(
-                    "Categorias existentes",
+                    stringResource(R.string.category_existing),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -319,7 +321,7 @@ fun AddEditItemScreen(
                     value = uiState.modelNumber,
                     onValueChange = viewModel::onModelNumberChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Modelo") },
+                    label = { Text(stringResource(R.string.field_model)) },
                     singleLine = true
                 )
                 uiState.ocrSuggestions?.modelNumber?.let {
@@ -335,7 +337,7 @@ fun AddEditItemScreen(
                     value = uiState.serialNumber,
                     onValueChange = viewModel::onSerialNumberChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Nº de série") },
+                    label = { Text(stringResource(R.string.field_serial)) },
                     singleLine = true
                 )
                 uiState.ocrSuggestions?.serialNumber?.let {
@@ -348,14 +350,14 @@ fun AddEditItemScreen(
         }
 
         FormSection(
-            title = "Garantia",
-            subtitle = "Opcional. Deixe em branco se não houver garantia registrada."
+            title = stringResource(R.string.purchase_section_warranty),
+            subtitle = stringResource(R.string.purchase_section_warranty_hint)
         ) {
             DateField(
                 value = viewModel.formatDate(uiState.warrantyEndDate),
-                label = "Fim da garantia",
+                label = stringResource(R.string.field_warranty_end),
                 required = false,
-                clickLabel = "Selecionar fim da garantia",
+                clickLabel = stringResource(R.string.select_warranty_end),
                 onClick = { showWarrantyDatePicker = true }
             )
             if (uiState.warrantyEndDate != null) {
@@ -363,20 +365,20 @@ fun AddEditItemScreen(
                     onClick = { viewModel.onWarrantyEndDateChange(null) },
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Remover garantia")
+                    Text(stringResource(R.string.remove_warranty))
                 }
             }
         }
 
         FormSection(
-            title = "Observações",
-            subtitle = "Informações extras que não cabem nos campos acima."
+            title = stringResource(R.string.purchase_section_notes),
+            subtitle = stringResource(R.string.purchase_section_notes_hint)
         ) {
             OutlinedTextField(
                 value = uiState.notes,
                 onValueChange = viewModel::onNotesChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Observações") },
+                label = { Text(stringResource(R.string.field_notes)) },
                 minLines = 3,
                 maxLines = 6,
                 keyboardOptions = KeyboardOptions(
@@ -421,7 +423,7 @@ fun AddEditItemScreen(
                     strokeWidth = 3.dp
                 )
             } else {
-                Text("Salvar compra", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.save_purchase), style = MaterialTheme.typography.titleMedium)
             }
         }
 
@@ -454,8 +456,8 @@ fun AddEditItemScreen(
         ) {
             Column(modifier = Modifier.padding(bottom = 32.dp)) {
                 ListItem(
-                    headlineContent = { Text("Tirar foto") },
-                    supportingContent = { Text("Fotografe um comprovante ou certificado.") },
+                    headlineContent = { Text(stringResource(R.string.attachment_take_photo)) },
+                    supportingContent = { Text(stringResource(R.string.attachment_take_photo_hint)) },
                     leadingContent = {
                         Icon(Icons.Default.CameraAlt, contentDescription = null)
                     },
@@ -468,8 +470,8 @@ fun AddEditItemScreen(
                     }
                 )
                 ListItem(
-                    headlineContent = { Text("Escolher imagem ou PDF") },
-                    supportingContent = { Text("Selecione um documento já salvo no aparelho.") },
+                    headlineContent = { Text(stringResource(R.string.attachment_choose_file)) },
+                    supportingContent = { Text(stringResource(R.string.attachment_choose_file_hint)) },
                     leadingContent = {
                         Icon(Icons.Default.Description, contentDescription = null)
                     },
@@ -559,13 +561,13 @@ private fun FieldSuggestion(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Encontrado: $value",
+                text = stringResource(R.string.ocr_suggestion_found, value),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = onUse) {
-                Text("Usar")
+                Text(stringResource(R.string.common_use))
             }
         }
     }
@@ -590,7 +592,7 @@ private fun AttachmentSection(
                     strokeWidth = 2.dp
                 )
                 Text(
-                    "Lendo documento...",
+                    stringResource(R.string.attachment_reading),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -598,13 +600,13 @@ private fun AttachmentSection(
 
         if (attachments.isEmpty()) {
             Text(
-                "Nenhum documento anexado.",
+                stringResource(R.string.attachment_none),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             Text(
-                "Toque em um documento para abrir e ampliar.",
+                stringResource(R.string.attachment_open_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -629,7 +631,10 @@ private fun AttachmentSection(
                                 if (attachment.isImage) {
                                     AsyncImage(
                                         model = attachment.path,
-                                        contentDescription = "Abrir ${attachment.displayName}",
+                                        contentDescription = stringResource(
+                                            R.string.attachment_open_description,
+                                            attachment.displayName
+                                        ),
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(8.dp),
@@ -686,7 +691,7 @@ private fun AttachmentSection(
         ) {
             Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Adicionar foto ou documento")
+            Text(stringResource(R.string.attachment_add))
         }
     }
 }
@@ -758,12 +763,12 @@ private fun PurchaseDatePickerDialog(
                 },
                 enabled = confirmEnabled.value
             ) {
-                Text("OK")
+                Text(stringResource(R.string.common_ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     ) {

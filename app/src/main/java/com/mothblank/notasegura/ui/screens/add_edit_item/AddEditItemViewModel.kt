@@ -2,12 +2,14 @@ package com.mothblank.notasegura.ui.screens.add_edit_item
 
 import android.content.Context
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.data.storage.StagedAttachment
 import com.mothblank.notasegura.domain.model.Attachment
@@ -48,7 +50,7 @@ data class AddEditUiState(
     val productName: String = "",
     val merchant: String = "",
     val purchaseValue: String = "",
-    val purchaseValueError: String? = null,
+    @StringRes val purchaseValueErrorRes: Int? = null,
     val category: String = "",
     val modelNumber: String = "",
     val serialNumber: String = "",
@@ -60,7 +62,7 @@ data class AddEditUiState(
     val hasOcrAutofill: Boolean = false,
     val isAnalyzingDocument: Boolean = false,
     val isSaving: Boolean = false,
-    val errorMessage: String? = null
+    @StringRes val errorMessageRes: Int? = null
 )
 
 private enum class OcrEditableField {
@@ -166,7 +168,7 @@ class AddEditItemViewModel(
                                     id = attachment.id,
                                     path = attachment.filePath,
                                     mimeType = attachment.mimeType,
-                                    displayName = attachment.displayName ?: "Documento",
+                                    displayName = attachment.displayName.orEmpty(),
                                     isStaged = false
                                 )
                             }
@@ -209,8 +211,8 @@ class AddEditItemViewModel(
             _uiState.update {
                 it.copy(
                     purchaseValue = value,
-                    purchaseValueError = null,
-                    errorMessage = null
+                    purchaseValueErrorRes = null,
+                    errorMessageRes = null
                 )
             }
         }
@@ -218,11 +220,11 @@ class AddEditItemViewModel(
 
     fun onPurchaseDateChange(value: LocalDate) {
         userEditedOcrFields += OcrEditableField.PURCHASE_DATE
-        _uiState.update { it.copy(purchaseDate = value, errorMessage = null) }
+        _uiState.update { it.copy(purchaseDate = value, errorMessageRes = null) }
     }
 
     fun onWarrantyEndDateChange(value: LocalDate?) {
-        _uiState.update { it.copy(warrantyEndDate = value, errorMessage = null) }
+        _uiState.update { it.copy(warrantyEndDate = value, errorMessageRes = null) }
     }
 
     fun onAttachmentSelected(context: Context, uri: Uri) {
@@ -230,7 +232,7 @@ class AddEditItemViewModel(
             val staged = documentStore.stageAttachment(uri)
             if (staged == null) {
                 _uiState.update {
-                    it.copy(errorMessage = "Não foi possível copiar o documento selecionado.")
+                    it.copy(errorMessageRes = R.string.error_document_copy)
                 }
                 return@launch
             }
@@ -245,7 +247,7 @@ class AddEditItemViewModel(
                         displayName = staged.stagedFile.displayName,
                         isStaged = true
                     ),
-                    errorMessage = null
+                    errorMessageRes = null
                 )
             }
 
@@ -366,7 +368,7 @@ class AddEditItemViewModel(
 
         if (state.warrantyEndDate?.isBefore(purchaseDate) == true) {
             _uiState.update {
-                it.copy(errorMessage = "O fim da garantia não pode ser anterior à compra.")
+                it.copy(errorMessageRes = R.string.error_warranty_before_purchase)
             }
             return
         }
@@ -378,7 +380,7 @@ class AddEditItemViewModel(
         }
 
         if (state.purchaseValue.isNotBlank() && purchaseValueCents == null) {
-            _uiState.update { it.copy(purchaseValueError = "Valor inválido") }
+            _uiState.update { it.copy(purchaseValueErrorRes = R.string.error_invalid_value) }
             return
         }
 
@@ -403,7 +405,7 @@ class AddEditItemViewModel(
         )
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+            _uiState.update { it.copy(isSaving = true, errorMessageRes = null) }
             try {
                 documentStore.savePurchase(
                     purchase = purchase,
@@ -415,11 +417,11 @@ class AddEditItemViewModel(
                 _uiState.update { it.copy(isSaving = false) }
                 originalSnapshot.value = snapshotOf(_uiState.value)
                 _saved.emit(Unit)
-            } catch (error: Exception) {
+            } catch (_: Exception) {
                 _uiState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = error.message ?: "Não foi possível salvar a compra."
+                        errorMessageRes = R.string.error_save_purchase
                     )
                 }
             }
@@ -432,7 +434,7 @@ class AddEditItemViewModel(
     }
 
     private fun updateText(transform: AddEditUiState.() -> AddEditUiState) {
-        _uiState.update { it.transform().copy(errorMessage = null) }
+        _uiState.update { it.transform().copy(errorMessageRes = null) }
     }
 
     private fun snapshotOf(state: AddEditUiState) = PurchaseEditorSnapshot(
@@ -512,8 +514,8 @@ class AddEditItemViewModel(
             serialNumber = serialNumber,
             ocrSuggestions = remainingSuggestions,
             hasOcrAutofill = state.hasOcrAutofill || didAutoFill,
-            purchaseValueError = if (autoFillValue) null else state.purchaseValueError,
-            errorMessage = null
+            purchaseValueErrorRes = if (autoFillValue) null else state.purchaseValueError,
+            errorMessageRes = null
         )
     }
 

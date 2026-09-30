@@ -47,7 +47,9 @@ class TimelineViewModel(
                 val matchesQuery = normalizedQuery.isBlank() ||
                     purchase.productName.contains(normalizedQuery, ignoreCase = true) ||
                     purchase.merchant.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
-                    purchase.category.contains(normalizedQuery, ignoreCase = true) ||
+                    CategoryNormalizer.key(purchase.category).contains(
+                        CategoryNormalizer.key(normalizedQuery)
+                    ) ||
                     purchase.modelNumber.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
                     purchase.serialNumber.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
                     purchase.notes.contains(normalizedQuery, ignoreCase = true) ||

@@ -8,6 +8,10 @@ sealed class AppScreen(val route: String) {
         fun editRoute(itemId: String) = "add_edit_item_screen?itemId=$itemId"
     }
 
+    object PurchaseDetails : AppScreen("purchase_details_screen/{itemId}") {
+        fun createRoute(itemId: String) = "purchase_details_screen/$itemId"
+    }
+
     object Payments : AppScreen("payments_screen")
 
     object AddEditPayment : AppScreen("add_edit_payment_screen?paymentId={paymentId}") {

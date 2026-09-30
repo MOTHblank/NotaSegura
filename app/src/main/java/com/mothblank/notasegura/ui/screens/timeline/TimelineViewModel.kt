@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 data class AttentionSummary(
@@ -112,9 +111,4 @@ class TimelineViewModel(
         _selectedCategory.value = category
     }
 
-    fun deleteItem(item: PurchaseWithAttachments) {
-        viewModelScope.launch {
-            documentStore.deletePurchase(item)
-        }
-    }
 }

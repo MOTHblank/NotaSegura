@@ -42,10 +42,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import com.mothblank.notasegura.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -93,7 +95,7 @@ fun DocumentViewerDialog(
                         )
                     }
                     Text(
-                        "Use dois dedos para ampliar ou mover o documento.",
+                        stringResource(R.string.document_viewer_instruction),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -132,7 +134,7 @@ fun DocumentViewerDialog(
                                     contentDescription = null,
                                     modifier = Modifier.size(64.dp)
                                 )
-                                Text("Visualização indisponível para este tipo de documento.")
+                                Text(stringResource(R.string.document_viewer_unavailable))
                             }
                         }
                     }
@@ -256,7 +258,10 @@ private fun PdfDocumentViewer(
                 is PdfRenderState.Ready -> {
                     ZoomableBitmap(
                         bitmap = state.bitmap,
-                        contentDescription = "Página ${state.pageIndex + 1} do PDF",
+                        contentDescription = stringResource(
+                            R.string.document_pdf_page_description,
+                            state.pageIndex + 1
+                        ),
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -276,11 +281,15 @@ private fun PdfDocumentViewer(
                     onClick = { requestedPage = (ready.pageIndex - 1).coerceAtLeast(0) },
                     enabled = ready.pageIndex > 0
                 ) {
-                    Icon(Icons.Default.ChevronLeft, contentDescription = "Página anterior")
+                    Icon(Icons.Default.ChevronLeft, contentDescription = stringResource(R.string.document_previous_page))
                 }
 
                 Text(
-                    "${ready.pageIndex + 1} / ${ready.pageCount}",
+                    stringResource(
+                    R.string.document_page_number,
+                    ready.pageIndex + 1,
+                    ready.pageCount
+                ),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
@@ -292,7 +301,7 @@ private fun PdfDocumentViewer(
                     },
                     enabled = ready.pageIndex < ready.pageCount - 1
                 ) {
-                    Icon(Icons.Default.ChevronRight, contentDescription = "Próxima página")
+                    Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.document_next_page))
                 }
             }
         }

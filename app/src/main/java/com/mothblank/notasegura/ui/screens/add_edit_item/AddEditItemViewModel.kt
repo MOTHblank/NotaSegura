@@ -18,8 +18,12 @@ import com.mothblank.notasegura.util.ReceiptOcrParser
 import com.mothblank.notasegura.util.ReceiptOcrSuggestions
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -56,6 +60,19 @@ data class AddEditUiState(
     val errorMessage: String? = null
 )
 
+private data class PurchaseEditorSnapshot(
+    val productName: String,
+    val merchant: String,
+    val purchaseValue: String,
+    val category: String,
+    val modelNumber: String,
+    val serialNumber: String,
+    val notes: String,
+    val purchaseDate: LocalDate?,
+    val warrantyEndDate: LocalDate?,
+    val attachmentIds: List<String>
+)
+
 class AddEditItemViewModel(
     private val documentStore: PurchaseDocumentStore,
     savedStateHandle: SavedStateHandle
@@ -68,6 +85,17 @@ class AddEditItemViewModel(
     val saved = _saved.asSharedFlow()
 
     private val itemId: String? = savedStateHandle["itemId"]
+    private val originalSnapshot = MutableStateFlow<PurchaseEditorSnapshot?>(
+        if (itemId == null) snapshotOf(_uiState.value) else null
+    )
+    val isDirty: StateFlow<Boolean> = combine(_uiState, originalSnapshot) { state, baseline ->
+        baseline != null && snapshotOf(state) != baseline
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = false
+    )
+
     private var original: PurchaseWithAttachments? = null
     private val stagedAttachments = linkedMapOf<String, StagedAttachment>()
     private val removedAttachments = linkedMapOf<String, Attachment>()
@@ -102,6 +130,7 @@ class AddEditItemViewModel(
                             }
                         )
                     }
+                    originalSnapshot.value = snapshotOf(_uiState.value)
                 }
             }
         }
@@ -316,6 +345,7 @@ class AddEditItemViewModel(
                 stagedAttachments.clear()
                 removedAttachments.clear()
                 _uiState.update { it.copy(isSaving = false) }
+                originalSnapshot.value = snapshotOf(_uiState.value)
                 _saved.emit(Unit)
             } catch (error: Exception) {
                 _uiState.update {
@@ -336,6 +366,19 @@ class AddEditItemViewModel(
     private fun updateText(transform: AddEditUiState.() -> AddEditUiState) {
         _uiState.update { it.transform().copy(errorMessage = null) }
     }
+
+    private fun snapshotOf(state: AddEditUiState) = PurchaseEditorSnapshot(
+        productName = state.productName,
+        merchant = state.merchant,
+        purchaseValue = state.purchaseValue,
+        category = state.category,
+        modelNumber = state.modelNumber,
+        serialNumber = state.serialNumber,
+        notes = state.notes,
+        purchaseDate = state.purchaseDate,
+        warrantyEndDate = state.warrantyEndDate,
+        attachmentIds = state.attachments.map { it.id }
+    )
 
     private fun mergeSuggestions(
         current: ReceiptOcrSuggestions?,

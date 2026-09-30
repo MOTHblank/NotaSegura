@@ -443,7 +443,7 @@ private fun PurchaseCard(
                 ) {
                     Icon(Icons.Default.Description, contentDescription = null)
                     Text(
-                        "Abrir comprovante",
+                        stringResource(R.string.purchase_open_receipt),
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }

@@ -26,7 +26,7 @@ class ViewModelFactory(
 
         return when {
             modelClass.isAssignableFrom(TimelineViewModel::class.java) ->
-                TimelineViewModel(purchaseDocumentStore) as T
+                TimelineViewModel(purchaseDocumentStore, paymentRepository) as T
 
             modelClass.isAssignableFrom(AddEditItemViewModel::class.java) ->
                 AddEditItemViewModel(purchaseDocumentStore, savedStateHandle) as T

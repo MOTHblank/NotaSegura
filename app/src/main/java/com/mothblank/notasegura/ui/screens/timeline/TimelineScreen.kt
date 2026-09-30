@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -44,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -51,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
@@ -112,8 +116,8 @@ fun TimelineScreen(
                     value = searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Pesquisar compras") },
-                    placeholder = { Text("Produto, loja ou número de série") },
+                    label = { Text(stringResource(R.string.purchase_search_label)) },
+                    placeholder = { Text(stringResource(R.string.purchase_search_hint)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(
                         onSearch = { focusManager.clearFocus() }
@@ -126,7 +130,7 @@ fun TimelineScreen(
                             IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
                                 Icon(
                                     Icons.Default.Close,
-                                    contentDescription = "Limpar pesquisa"
+                                    contentDescription = stringResource(R.string.search_clear)
                                 )
                             }
                         }
@@ -139,7 +143,7 @@ fun TimelineScreen(
 
                 if (categories.isNotEmpty()) {
                     Text(
-                        "Filtrar por categoria",
+                        stringResource(R.string.purchase_filter_category),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -151,7 +155,7 @@ fun TimelineScreen(
                             FilterChip(
                                 selected = selectedCategory == null,
                                 onClick = { viewModel.onCategorySelected(null) },
-                                label = { Text("Todas") }
+                                label = { Text(stringResource(R.string.purchase_filter_all)) }
                             )
                         }
                         items(categories) { category ->
@@ -210,7 +214,7 @@ fun TimelineScreen(
         DocumentViewerDialog(
             path = attachment.filePath,
             mimeType = attachment.mimeType,
-            displayName = attachment.displayName ?: "Documento",
+            displayName = attachment.displayName ?: stringResource(R.string.purchase_document_default_name),
             onDismiss = { previewAttachment = null }
         )
     }
@@ -233,7 +237,7 @@ private fun AttentionOverview(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                "Atenção nos próximos dias",
+                stringResource(R.string.attention_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
@@ -249,11 +253,11 @@ private fun AttentionOverview(
                         tint = MaterialTheme.colorScheme.onTertiaryContainer
                     )
                     Text(
-                        if (summary.warrantiesExpiringSoon == 1) {
-                            "1 garantia termina nos próximos 30 dias"
-                        } else {
-                            "${summary.warrantiesExpiringSoon} garantias terminam nos próximos 30 dias"
-                        },
+                        pluralStringResource(
+                            R.plurals.attention_warranties_expiring,
+                            summary.warrantiesExpiringSoon,
+                            summary.warrantiesExpiringSoon
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onTertiaryContainer
                     )
@@ -262,6 +266,24 @@ private fun AttentionOverview(
 
             val paymentAttention =
                 summary.overduePayments + summary.paymentsDueThisWeek
+            val overdueLabel = if (summary.overduePayments > 0) {
+                pluralStringResource(
+                    R.plurals.attention_payments_overdue,
+                    summary.overduePayments,
+                    summary.overduePayments
+                )
+            } else {
+                ""
+            }
+            val dueWeekLabel = if (summary.paymentsDueThisWeek > 0) {
+                pluralStringResource(
+                    R.plurals.attention_payments_due_week,
+                    summary.paymentsDueThisWeek,
+                    summary.paymentsDueThisWeek
+                )
+            } else {
+                ""
+            }
             if (paymentAttention > 0) {
                 OutlinedButton(
                     onClick = onOpenPayments,
@@ -269,32 +291,9 @@ private fun AttentionOverview(
                 ) {
                     Icon(Icons.Default.WarningAmber, contentDescription = null)
                     Text(
-                        buildString {
-                            if (summary.overduePayments > 0) {
-                                append(
-                                    if (summary.overduePayments == 1) {
-                                        "1 pagamento atrasado"
-                                    } else {
-                                        "${summary.overduePayments} pagamentos atrasados"
-                                    }
-                                )
-                            }
-                            if (
-                                summary.overduePayments > 0 &&
-                                summary.paymentsDueThisWeek > 0
-                            ) {
-                                append(" • ")
-                            }
-                            if (summary.paymentsDueThisWeek > 0) {
-                                append(
-                                    if (summary.paymentsDueThisWeek == 1) {
-                                        "1 vence nesta semana"
-                                    } else {
-                                        "${summary.paymentsDueThisWeek} vencem nesta semana"
-                                    }
-                                )
-                            }
-                        },
+                        listOf(overdueLabel, dueWeekLabel)
+                            .filter { it.isNotBlank() }
+                            .joinToString(stringResource(R.string.attention_separator)),
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -327,18 +326,18 @@ private fun EmptyPurchaseState(
             )
             Text(
                 text = if (filtered) {
-                    "Nenhuma compra encontrada"
+                    stringResource(R.string.purchase_empty_filtered_title)
                 } else {
-                    "Você ainda não cadastrou nenhuma compra"
+                    stringResource(R.string.purchase_empty_title)
                 },
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = if (filtered) {
-                    "Tente limpar a pesquisa ou os filtros."
+                    stringResource(R.string.purchase_empty_filtered_body)
                 } else {
-                    "Cadastre uma compra para guardar comprovantes e acompanhar a garantia."
+                    stringResource(R.string.purchase_empty_body)
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -351,7 +350,11 @@ private fun EmptyPurchaseState(
                     .heightIn(min = 56.dp)
             ) {
                 Text(
-                    if (filtered) "Limpar pesquisa e filtros" else "Adicionar primeira compra"
+                    if (filtered) {
+                        stringResource(R.string.purchase_clear_filters)
+                    } else {
+                        stringResource(R.string.purchase_add_first)
+                    }
                 )
             }
         }
@@ -388,7 +391,7 @@ private fun PurchaseCard(
 
             purchase.merchant?.takeIf { it.isNotBlank() }?.let {
                 Text(
-                    "Comprado em $it",
+                    stringResource(R.string.purchase_bought_at, it),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -402,13 +405,16 @@ private fun PurchaseCard(
             }
 
             Text(
-                "Data da compra: ${purchase.purchaseDate.format(formatter)}",
+                stringResource(
+                    R.string.purchase_date,
+                    purchase.purchaseDate.format(formatter)
+                ),
                 style = MaterialTheme.typography.bodyMedium
             )
 
             if (purchase.category.isNotBlank()) {
                 Text(
-                    "Categoria: ${purchase.category}",
+                    stringResource(R.string.purchase_category, purchase.category),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -416,11 +422,11 @@ private fun PurchaseCard(
 
             if (item.attachments.isNotEmpty()) {
                 Text(
-                    if (item.attachments.size == 1) {
-                        "1 documento guardado"
-                    } else {
-                        "${item.attachments.size} documentos guardados"
-                    },
+                    pluralStringResource(
+                        R.plurals.purchase_documents_stored,
+                        item.attachments.size,
+                        item.attachments.size
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -449,7 +455,7 @@ private fun PurchaseCard(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
             ) {
-                Text("Ver detalhes")
+                Text(stringResource(R.string.common_view_details))
             }
         }
     }
@@ -470,30 +476,39 @@ private fun WarrantyStatus(
     if (warrantyEndDate == null) {
         containerColor = MaterialTheme.colorScheme.surfaceVariant
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        title = "Garantia não informada"
-        detail = "Você pode adicionar essa data ao editar a compra."
+        title = stringResource(R.string.warranty_not_informed)
+        detail = stringResource(R.string.warranty_not_informed_detail)
     } else {
         val days = ChronoUnit.DAYS.between(today, warrantyEndDate)
         when {
             days < 0 -> {
                 containerColor = MaterialTheme.colorScheme.errorContainer
                 contentColor = MaterialTheme.colorScheme.onErrorContainer
-                title = "Garantia encerrada"
-                detail = "Terminou em ${warrantyEndDate.format(formatter)}."
+                title = stringResource(R.string.warranty_ended)
+                detail = stringResource(
+                    R.string.warranty_ended_on,
+                    warrantyEndDate.format(formatter)
+                )
             }
 
             days <= 30 -> {
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                title = "Garantia perto do fim"
-                detail = "Termina em ${warrantyEndDate.format(formatter)}."
+                title = stringResource(R.string.warranty_ending_soon)
+                detail = stringResource(
+                    R.string.warranty_ends_on,
+                    warrantyEndDate.format(formatter)
+                )
             }
 
             else -> {
                 containerColor = MaterialTheme.colorScheme.primaryContainer
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                title = "Garantia ativa"
-                detail = "Até ${warrantyEndDate.format(formatter)}."
+                title = stringResource(R.string.warranty_active)
+                detail = stringResource(
+                    R.string.warranty_until,
+                    warrantyEndDate.format(formatter)
+                )
             }
         }
     }

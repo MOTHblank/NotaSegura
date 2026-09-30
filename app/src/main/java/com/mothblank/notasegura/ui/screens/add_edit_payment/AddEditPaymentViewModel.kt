@@ -8,8 +8,12 @@ import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.util.CurrencyUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -27,6 +31,14 @@ data class AddEditPaymentUiState(
     val errorMessage: String? = null
 )
 
+private data class PaymentEditorSnapshot(
+    val title: String,
+    val amount: String,
+    val dueDate: LocalDate?,
+    val isPaid: Boolean,
+    val isRecurring: Boolean
+)
+
 class AddEditPaymentViewModel(
     private val repository: PaymentRepository,
     savedStateHandle: SavedStateHandle
@@ -39,6 +51,17 @@ class AddEditPaymentViewModel(
     val saved = _saved.asSharedFlow()
 
     private val paymentId: String? = savedStateHandle["paymentId"]
+    private val originalSnapshot = MutableStateFlow<PaymentEditorSnapshot?>(
+        if (paymentId == null) snapshotOf(_uiState.value) else null
+    )
+    val isDirty: StateFlow<Boolean> = combine(_uiState, originalSnapshot) { state, baseline ->
+        baseline != null && snapshotOf(state) != baseline
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = false
+    )
+
     private var originalPayment: Payment? = null
 
     init {
@@ -55,6 +78,7 @@ class AddEditPaymentViewModel(
                             isRecurring = payment.recurrenceMonths != null
                         )
                     }
+                    originalSnapshot.value = snapshotOf(_uiState.value)
                 }
             }
         }
@@ -80,6 +104,14 @@ class AddEditPaymentViewModel(
 
     fun formatDate(date: LocalDate?): String =
         date?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: ""
+
+    private fun snapshotOf(state: AddEditPaymentUiState) = PaymentEditorSnapshot(
+        title = state.title,
+        amount = state.amount,
+        dueDate = state.dueDate,
+        isPaid = state.isPaid,
+        isRecurring = state.isRecurring
+    )
 
     fun savePayment() {
         val state = _uiState.value
@@ -136,6 +168,7 @@ class AddEditPaymentViewModel(
                 }
                 originalPayment = payment
                 _uiState.update { it.copy(isSaving = false) }
+                originalSnapshot.value = snapshotOf(_uiState.value)
                 _saved.emit(Unit)
             } catch (error: Exception) {
                 _uiState.update {

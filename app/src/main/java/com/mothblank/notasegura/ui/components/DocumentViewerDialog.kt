@@ -83,7 +83,7 @@ fun DocumentViewerDialog(
                         TextButton(onClick = onDismiss) {
                             Icon(Icons.Default.Close, contentDescription = null)
                             Text(
-                                "Fechar",
+                                stringResource(R.string.common_close),
                                 modifier = Modifier.padding(start = 4.dp)
                             )
                         }

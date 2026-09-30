@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -219,7 +220,7 @@ private sealed interface PdfRenderState {
         val pageCount: Int,
         val pageIndex: Int
     ) : PdfRenderState
-    data class Error(val message: String) : PdfRenderState
+    data class Error(@StringRes val messageRes: Int) : PdfRenderState
 }
 
 @Composable
@@ -251,7 +252,7 @@ private fun PdfDocumentViewer(
             when (val state = renderState) {
                 PdfRenderState.Loading -> CircularProgressIndicator()
                 is PdfRenderState.Error -> Text(
-                    state.message,
+                    stringResource(state.messageRes),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(24.dp)
                 )
@@ -312,7 +313,7 @@ private fun renderPdfPage(path: String, requestedPage: Int): PdfRenderState {
     return try {
         val file = File(path)
         if (!file.isFile) {
-            return PdfRenderState.Error("O arquivo deste documento não foi encontrado.")
+            return PdfRenderState.Error(R.string.document_file_missing)
         }
 
         ParcelFileDescriptor.open(
@@ -321,7 +322,7 @@ private fun renderPdfPage(path: String, requestedPage: Int): PdfRenderState {
         ).use { descriptor ->
             PdfRenderer(descriptor).use { renderer ->
                 if (renderer.pageCount <= 0) {
-                    return PdfRenderState.Error("Este PDF não contém páginas.")
+                    return PdfRenderState.Error(R.string.document_pdf_empty)
                 }
 
                 val pageIndex = requestedPage.coerceIn(0, renderer.pageCount - 1)
@@ -355,6 +356,6 @@ private fun renderPdfPage(path: String, requestedPage: Int): PdfRenderState {
             }
         }
     } catch (_: Exception) {
-        PdfRenderState.Error("Não foi possível abrir este PDF.")
+        PdfRenderState.Error(R.string.document_pdf_open_failed)
     }
 }

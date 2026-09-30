@@ -1,3 +1,197 @@
 <resources>
     <string name="app_name">NotaSegura</string>
+    <string name="app_display_name">Nota Segura</string>
+
+    <string name="common_back">Voltar</string>
+    <string name="common_cancel">Cancelar</string>
+    <string name="common_continue">Continuar</string>
+    <string name="common_close">Fechar</string>
+    <string name="common_ok">OK</string>
+    <string name="common_remove">Remover</string>
+    <string name="common_use">Usar</string>
+    <string name="common_view_details">Ver detalhes</string>
+    <string name="common_delete_confirm">Sim, excluir</string>
+    <string name="common_not_now">Agora não</string>
+
+    <string name="screen_add_purchase">Adicionar compra</string>
+    <string name="screen_edit_purchase">Editar compra</string>
+    <string name="screen_purchase_details">Detalhes da compra</string>
+    <string name="screen_add_payment">Adicionar pagamento</string>
+    <string name="screen_edit_payment">Editar pagamento</string>
+    <string name="screen_payment_details">Detalhes do pagamento</string>
+
+    <string name="menu_options">Opções</string>
+    <string name="menu_share_report">Compartilhar relatório</string>
+    <string name="menu_save_backup">Salvar cópia de segurança</string>
+    <string name="menu_restore_backup">Restaurar cópia de segurança</string>
+    <string name="menu_configure_notifications">Configurar notificações</string>
+    <string name="nav_purchases">Compras</string>
+    <string name="nav_payments">Pagamentos</string>
+    <string name="backup_restore_title">Restaurar cópia de segurança?</string>
+    <string name="backup_restore_body">Isso substituirá todas as compras, documentos e pagamentos que estão no aparelho. O arquivo será conferido antes de qualquer alteração.</string>
+    <string name="backup_saved_summary">Cópia de segurança salva: %1$d compras, %2$d documentos e %3$d pagamentos.</string>
+    <string name="backup_save_failed">Não foi possível salvar a cópia de segurança.</string>
+    <string name="backup_restored_summary">Dados restaurados: %1$d compras, %2$d documentos e %3$d pagamentos.</string>
+    <string name="backup_restore_failed">Não foi possível restaurar a cópia de segurança.</string>
+    <string name="report_generation_failed">Não foi possível gerar o PDF.</string>
+
+    <string name="unsaved_exit_title">Sair sem salvar?</string>
+    <string name="unsaved_exit_body">As alterações feitas nesta tela serão perdidas.</string>
+    <string name="unsaved_exit_keep_editing">Continuar editando</string>
+    <string name="unsaved_exit_discard">Sair sem salvar</string>
+
+    <string name="reminder_permission_title">Ativar lembretes?</string>
+    <string name="reminder_permission_body">O Nota Segura pode avisar antes do fim de uma garantia ou do vencimento de um pagamento. Você pode mudar essa opção depois nas configurações do celular.</string>
+    <string name="reminder_permission_enable">Ativar lembretes</string>
+
+    <string name="document_viewer_instruction">Use dois dedos para ampliar ou mover o documento.</string>
+    <string name="document_viewer_unavailable">Visualização indisponível para este tipo de documento.</string>
+    <string name="document_page_number">%1$d / %2$d</string>
+    <string name="document_pdf_page_description">Página %1$d do PDF</string>
+    <string name="document_previous_page">Página anterior</string>
+    <string name="document_next_page">Próxima página</string>
+
+    <string name="purchase_search_label">Pesquisar compras</string>
+    <string name="purchase_search_hint">Produto, loja ou número de série</string>
+    <string name="purchase_filter_category">Filtrar por categoria</string>
+    <string name="purchase_filter_all">Todas</string>
+    <string name="attention_title">Atenção nos próximos dias</string>
+    <plurals name="attention_warranties_expiring">
+        <item quantity="one">%d garantia termina nos próximos 30 dias</item>
+        <item quantity="other">%d garantias terminam nos próximos 30 dias</item>
+    </plurals>
+    <plurals name="attention_payments_overdue">
+        <item quantity="one">%d pagamento atrasado</item>
+        <item quantity="other">%d pagamentos atrasados</item>
+    </plurals>
+    <plurals name="attention_payments_due_week">
+        <item quantity="one">%d vence nesta semana</item>
+        <item quantity="other">%d vencem nesta semana</item>
+    </plurals>
+    <string name="attention_separator"> • </string>
+    <string name="purchase_empty_filtered_title">Nenhuma compra encontrada</string>
+    <string name="purchase_empty_title">Você ainda não cadastrou nenhuma compra</string>
+    <string name="purchase_empty_filtered_body">Tente limpar a pesquisa ou os filtros.</string>
+    <string name="purchase_empty_body">Cadastre uma compra para guardar comprovantes e acompanhar a garantia.</string>
+    <string name="purchase_clear_filters">Limpar pesquisa e filtros</string>
+    <string name="purchase_add_first">Adicionar primeira compra</string>
+    <string name="purchase_bought_at">Comprado em %1$s</string>
+    <string name="purchase_date">Data da compra: %1$s</string>
+    <string name="purchase_category">Categoria: %1$s</string>
+    <plurals name="purchase_documents_stored">
+        <item quantity="one">%d documento guardado</item>
+        <item quantity="other">%d documentos guardados</item>
+    </plurals>
+    <string name="purchase_open_receipt">Abrir comprovante</string>
+    <string name="search_clear">Limpar pesquisa</string>
+    <string name="warranty_not_informed">Garantia não informada</string>
+    <string name="warranty_not_informed_detail">Você pode adicionar essa data ao editar a compra.</string>
+    <string name="warranty_ended">Garantia encerrada</string>
+    <string name="warranty_ending_soon">Garantia perto do fim</string>
+    <string name="warranty_active">Garantia ativa</string>
+    <string name="warranty_ended_on">Terminou em %1$s.</string>
+    <string name="warranty_ends_on">Termina em %1$s.</string>
+    <string name="warranty_until">Até %1$s.</string>
+
+    <string name="payment_search_label">Pesquisar pagamentos</string>
+    <string name="payment_search_hint">Nome da conta ou cobrança</string>
+    <string name="payment_filter_pending">Mostrar só pendentes</string>
+    <string name="payment_empty_filtered_title">Nenhum pagamento encontrado</string>
+    <string name="payment_empty_title">Você ainda não cadastrou nenhum pagamento</string>
+    <string name="payment_empty_filtered_body">Tente limpar a pesquisa ou mostrar todos os pagamentos.</string>
+    <string name="payment_empty_body">Cadastre contas e cobranças para acompanhar as datas de vencimento.</string>
+    <string name="payment_add_first">Adicionar primeiro pagamento</string>
+    <string name="payment_monthly_explanation">Pagamento mensal. Ao marcar como pago, o próximo mês é criado automaticamente.</string>
+    <string name="payment_mark_pending">Marcar como pendente</string>
+    <string name="payment_mark_paid">Marcar como pago</string>
+    <string name="payment_status_paid">Pago</string>
+    <string name="payment_status_overdue">Pagamento atrasado</string>
+    <string name="payment_status_due_soon">Vence em breve</string>
+    <string name="payment_status_pending">Pendente</string>
+    <string name="payment_status_next_due">Próximo vencimento</string>
+    <string name="payment_paid_on">Pago em %1$s.</string>
+    <string name="payment_completed">Pagamento concluído.</string>
+    <string name="payment_was_due_on">Venceu em %1$s.</string>
+    <string name="payment_due_on">Vencimento em %1$s.</string>
+
+    <string name="form_required_fields">* Campos obrigatórios</string>
+    <string name="ocr_autofill_notice">Alguns dados foram preenchidos pelo comprovante. Confira antes de salvar.</string>
+    <string name="purchase_section_document">Comprovante / documento</string>
+    <string name="purchase_section_document_hint">Comece por aqui: adicione uma foto ou imagem para extrair dados da compra. PDFs também podem ser anexados.</string>
+    <string name="purchase_section_purchase">Compra</string>
+    <string name="purchase_section_purchase_hint">Quando e onde a compra foi feita.</string>
+    <string name="purchase_section_product">Produto</string>
+    <string name="purchase_section_product_hint">Identifique o item para encontrá-lo depois.</string>
+    <string name="purchase_section_warranty">Garantia</string>
+    <string name="purchase_section_warranty_hint">Opcional. Deixe em branco se não houver garantia registrada.</string>
+    <string name="purchase_section_notes">Observações</string>
+    <string name="purchase_section_notes_hint">Informações extras que não cabem nos campos acima.</string>
+    <string name="field_merchant">Loja / vendedor</string>
+    <string name="field_purchase_value">Valor da compra (R$)</string>
+    <string name="field_purchase_date">Data da compra</string>
+    <string name="field_product">Produto</string>
+    <string name="field_category">Categoria</string>
+    <string name="category_existing">Categorias existentes</string>
+    <string name="field_model">Modelo</string>
+    <string name="field_serial">Nº de série</string>
+    <string name="field_warranty_end">Fim da garantia</string>
+    <string name="field_notes">Observações</string>
+    <string name="select_purchase_date">Selecionar data da compra</string>
+    <string name="select_warranty_end">Selecionar fim da garantia</string>
+    <string name="remove_warranty">Remover garantia</string>
+    <string name="save_purchase">Salvar compra</string>
+    <string name="attachment_take_photo">Tirar foto</string>
+    <string name="attachment_take_photo_hint">Fotografe um comprovante ou certificado.</string>
+    <string name="attachment_choose_file">Escolher imagem ou PDF</string>
+    <string name="attachment_choose_file_hint">Selecione um documento já salvo no aparelho.</string>
+    <string name="ocr_suggestion_found">Encontrado: %1$s</string>
+    <string name="attachment_reading">Lendo documento...</string>
+    <string name="attachment_none">Nenhum documento anexado.</string>
+    <string name="attachment_open_hint">Toque em um documento para abrir e ampliar.</string>
+    <string name="attachment_add">Adicionar foto ou documento</string>
+    <string name="attachment_open_description">Abrir %1$s</string>
+
+    <string name="payment_section_main">Pagamento</string>
+    <string name="payment_section_main_hint">Dados principais da cobrança.</string>
+    <string name="payment_section_options">Opções</string>
+    <string name="payment_section_options_hint">Defina o estado atual e se a cobrança se repete.</string>
+    <string name="field_payment_name">Nome da conta</string>
+    <string name="field_payment_amount">Valor (R$)</string>
+    <string name="field_payment_due_date">Data de vencimento</string>
+    <string name="payment_already_paid">Já está pago</string>
+    <string name="payment_already_paid_hint">Registra este pagamento como concluído.</string>
+    <string name="payment_monthly">Pagamento mensal</string>
+    <string name="payment_monthly_hint">Cria a próxima ocorrência quando esta for marcada como paga.</string>
+    <string name="save_payment">Salvar pagamento</string>
+    <string name="select_payment_due_date">Selecionar data de vencimento</string>
+
+    <string name="purchase_loading">Carregando compra...</string>
+    <string name="purchase_not_found">Esta compra não foi encontrada.</string>
+    <string name="purchase_back_to_list">Voltar para compras</string>
+    <string name="purchase_delete_title">Excluir esta compra?</string>
+    <string name="purchase_delete_body">“%1$s” e todos os documentos anexados serão apagados deste aparelho. Essa ação não pode ser desfeita.</string>
+    <string name="purchase_edit">Editar compra</string>
+    <string name="purchase_delete">Excluir compra</string>
+    <string name="purchase_summary_date">Compra em %1$s</string>
+    <string name="purchase_documents_title_single">Comprovante / documento</string>
+    <string name="purchase_documents_title_multiple">Comprovantes / documentos</string>
+    <string name="purchase_document_default_name">Documento</string>
+    <string name="purchase_open_document_default">Abrir documento</string>
+    <string name="purchase_warranty_none">Nenhuma garantia registrada.</string>
+    <string name="purchase_more_information">Mais informações</string>
+    <string name="purchase_detail_category">Categoria</string>
+    <string name="purchase_detail_model">Modelo</string>
+    <string name="purchase_detail_serial">Nº de série</string>
+    <string name="purchase_detail_notes">Observações</string>
+
+    <string name="payment_loading">Carregando pagamento...</string>
+    <string name="payment_not_found">Este pagamento não foi encontrado.</string>
+    <string name="payment_back_to_list">Voltar para pagamentos</string>
+    <string name="payment_delete_title">Excluir este pagamento?</string>
+    <string name="payment_delete_body">“%1$s” será apagado deste aparelho. Essa ação não pode ser desfeita.</string>
+    <string name="payment_edit">Editar pagamento</string>
+    <string name="payment_delete">Excluir pagamento</string>
+
+    <string name="notification_channel_name">Lembretes NotaSegura</string>
+    <string name="notification_channel_description">Garantias prestes a expirar e pagamentos próximos do vencimento</string>
 </resources>

@@ -18,6 +18,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -76,6 +78,7 @@ fun TimelineScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val attentionSummary by viewModel.attentionSummary.collectAsState()
     val focusManager = LocalFocusManager.current
     var previewAttachment by remember { mutableStateOf<Attachment?>(null) }
 
@@ -90,6 +93,21 @@ fun TimelineScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                if (
+                    attentionSummary.warrantiesExpiringSoon > 0 ||
+                    attentionSummary.overduePayments > 0 ||
+                    attentionSummary.paymentsDueThisWeek > 0
+                ) {
+                    AttentionOverview(
+                        summary = attentionSummary,
+                        onOpenPayments = {
+                            navController.navigate(AppScreen.Payments.route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
@@ -195,6 +213,93 @@ fun TimelineScreen(
             displayName = attachment.displayName ?: "Documento",
             onDismiss = { previewAttachment = null }
         )
+    }
+}
+
+@Composable
+private fun AttentionOverview(
+    summary: AttentionSummary,
+    onOpenPayments: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Atenção nos próximos dias",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+
+            if (summary.warrantiesExpiringSoon > 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Event,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Text(
+                        if (summary.warrantiesExpiringSoon == 1) {
+                            "1 garantia termina nos próximos 30 dias"
+                        } else {
+                            "${summary.warrantiesExpiringSoon} garantias terminam nos próximos 30 dias"
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+
+            val paymentAttention =
+                summary.overduePayments + summary.paymentsDueThisWeek
+            if (paymentAttention > 0) {
+                OutlinedButton(
+                    onClick = onOpenPayments,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.WarningAmber, contentDescription = null)
+                    Text(
+                        buildString {
+                            if (summary.overduePayments > 0) {
+                                append(
+                                    if (summary.overduePayments == 1) {
+                                        "1 pagamento atrasado"
+                                    } else {
+                                        "${summary.overduePayments} pagamentos atrasados"
+                                    }
+                                )
+                            }
+                            if (
+                                summary.overduePayments > 0 &&
+                                summary.paymentsDueThisWeek > 0
+                            ) {
+                                append(" • ")
+                            }
+                            if (summary.paymentsDueThisWeek > 0) {
+                                append(
+                                    if (summary.paymentsDueThisWeek == 1) {
+                                        "1 vence nesta semana"
+                                    } else {
+                                        "${summary.paymentsDueThisWeek} vencem nesta semana"
+                                    }
+                                )
+                            }
+                        },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

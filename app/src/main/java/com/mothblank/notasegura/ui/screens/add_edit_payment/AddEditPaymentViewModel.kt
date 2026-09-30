@@ -1,8 +1,10 @@
 package com.mothblank.notasegura.ui.screens.add_edit_payment
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.util.CurrencyUtils
@@ -23,12 +25,12 @@ import java.util.UUID
 data class AddEditPaymentUiState(
     val title: String = "",
     val amount: String = "",
-    val amountError: String? = null,
+    @StringRes val amountErrorRes: Int? = null,
     val dueDate: LocalDate? = null,
     val isPaid: Boolean = false,
     val isRecurring: Boolean = false,
     val isSaving: Boolean = false,
-    val errorMessage: String? = null
+    @StringRes val errorMessageRes: Int? = null
 )
 
 private data class PaymentEditorSnapshot(
@@ -85,17 +87,17 @@ class AddEditPaymentViewModel(
     }
 
     fun onTitleChange(value: String) = _uiState.update {
-        it.copy(title = value, errorMessage = null)
+        it.copy(title = value, errorMessageRes = null)
     }
 
     fun onAmountChange(value: String) {
         if (CurrencyUtils.isValidEditableAmount(value)) {
-            _uiState.update { it.copy(amount = value, amountError = null, errorMessage = null) }
+            _uiState.update { it.copy(amount = value, amountErrorRes = null, errorMessageRes = null) }
         }
     }
 
     fun onDueDateChange(value: LocalDate) = _uiState.update {
-        it.copy(dueDate = value, errorMessage = null)
+        it.copy(dueDate = value, errorMessageRes = null)
     }
 
     fun onPaidChange(value: Boolean) = _uiState.update { it.copy(isPaid = value) }
@@ -120,7 +122,7 @@ class AddEditPaymentViewModel(
 
         val amountCents = CurrencyUtils.parseToCents(state.amount)
         if (amountCents == null) {
-            _uiState.update { it.copy(amountError = "Valor inválido") }
+            _uiState.update { it.copy(amountErrorRes = R.string.error_invalid_value) }
             return
         }
 
@@ -155,7 +157,7 @@ class AddEditPaymentViewModel(
         )
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+            _uiState.update { it.copy(isSaving = true, errorMessageRes = null) }
             try {
                 if (payment.isPaid && payment.recurrenceMonths != null) {
                     repository.setPaidStatus(
@@ -170,11 +172,11 @@ class AddEditPaymentViewModel(
                 _uiState.update { it.copy(isSaving = false) }
                 originalSnapshot.value = snapshotOf(_uiState.value)
                 _saved.emit(Unit)
-            } catch (error: Exception) {
+            } catch (_: Exception) {
                 _uiState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = error.message ?: "Não foi possível salvar o pagamento."
+                        errorMessageRes = R.string.error_save_payment
                     )
                 }
             }

@@ -47,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -104,20 +105,20 @@ fun NotaSeguraApp() {
     val editorTitle = when {
         isPurchaseEditor -> {
             if (navBackStackEntry?.arguments?.getString("itemId").isNullOrBlank()) {
-                "Adicionar compra"
+                stringResource(R.string.screen_add_purchase)
             } else {
-                "Editar compra"
+                stringResource(R.string.screen_edit_purchase)
             }
         }
         isPaymentEditor -> {
             if (navBackStackEntry?.arguments?.getString("paymentId").isNullOrBlank()) {
-                "Adicionar pagamento"
+                stringResource(R.string.screen_add_payment)
             } else {
-                "Editar pagamento"
+                stringResource(R.string.screen_edit_payment)
             }
         }
-        isPurchaseDetails -> "Detalhes da compra"
-        isPaymentDetails -> "Detalhes do pagamento"
+        isPurchaseDetails -> stringResource(R.string.screen_purchase_details)
+        isPaymentDetails -> stringResource(R.string.screen_payment_details)
         else -> null
     }
 
@@ -148,15 +149,19 @@ fun NotaSeguraApp() {
                     .onSuccess { summary ->
                         Toast.makeText(
                             context,
-                            "Cópia de segurança salva: ${summary.purchases} compras, " +
-                                "${summary.attachments} documentos e ${summary.payments} pagamentos.",
+                            context.getString(
+                                R.string.backup_saved_summary,
+                                summary.purchases,
+                                summary.attachments,
+                                summary.payments
+                            ),
                             Toast.LENGTH_LONG
                         ).show()
                     }
                     .onFailure { error ->
                         Toast.makeText(
                             context,
-                            error.message ?: "Não foi possível salvar a cópia de segurança.",
+                            error.message ?: context.getString(R.string.backup_save_failed),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -192,7 +197,7 @@ fun NotaSeguraApp() {
                         ) {
                             Icon(
                                 Icons.Default.ArrowBack,
-                                contentDescription = "Voltar"
+                                contentDescription = stringResource(R.string.common_back)
                             )
                         }
                     }
@@ -201,7 +206,7 @@ fun NotaSeguraApp() {
                 TopAppBar(
                     title = {
                         Text(
-                            "Nota Segura",
+                            stringResource(R.string.app_display_name),
                             style = MaterialTheme.typography.headlineSmall
                         )
                     },
@@ -217,7 +222,7 @@ fun NotaSeguraApp() {
                                 contentDescription = null
                             )
                             Text(
-                                "Opções",
+                                stringResource(R.string.menu_options),
                                 modifier = Modifier.padding(start = 4.dp)
                             )
                         }
@@ -227,7 +232,7 @@ fun NotaSeguraApp() {
                             onDismissRequest = { menuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Compartilhar relatório") },
+                                text = { Text(stringResource(R.string.menu_share_report)) },
                                 leadingIcon = {
                                     Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                                 },
@@ -252,7 +257,7 @@ fun NotaSeguraApp() {
                                         } else {
                                             Toast.makeText(
                                                 context,
-                                                "Não foi possível gerar o PDF.",
+                                                context.getString(R.string.report_generation_failed),
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         }
@@ -261,7 +266,7 @@ fun NotaSeguraApp() {
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Salvar cópia de segurança") },
+                                text = { Text(stringResource(R.string.menu_save_backup)) },
                                 leadingIcon = {
                                     Icon(Icons.Default.Backup, contentDescription = null)
                                 },
@@ -274,7 +279,7 @@ fun NotaSeguraApp() {
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Restaurar cópia de segurança") },
+                                text = { Text(stringResource(R.string.menu_restore_backup)) },
                                 leadingIcon = {
                                     Icon(Icons.Default.Restore, contentDescription = null)
                                 },
@@ -285,7 +290,7 @@ fun NotaSeguraApp() {
                             )
 
                             DropdownMenuItem(
-                                text = { Text("Configurar lembretes") },
+                                text = { Text(stringResource(R.string.menu_configure_notifications)) },
                                 leadingIcon = {
                                     Icon(Icons.Default.Notifications, contentDescription = null)
                                 },
@@ -319,7 +324,7 @@ fun NotaSeguraApp() {
                                 modifier = Modifier.size(30.dp)
                             )
                         },
-                        label = { Text("Compras") },
+                        label = { Text(stringResource(R.string.nav_purchases)) },
                         selected = currentRoute == AppScreen.Timeline.route,
                         onClick = {
                             navController.navigate(AppScreen.Timeline.route) {
@@ -339,7 +344,7 @@ fun NotaSeguraApp() {
                                 modifier = Modifier.size(30.dp)
                             )
                         },
-                        label = { Text("Pagamentos") },
+                        label = { Text(stringResource(R.string.nav_payments)) },
                         selected = currentRoute == AppScreen.Payments.route,
                         onClick = {
                             navController.navigate(AppScreen.Payments.route) {
@@ -374,9 +379,9 @@ fun NotaSeguraApp() {
                     text = {
                         Text(
                             if (currentRoute == AppScreen.Timeline.route) {
-                                "Adicionar compra"
+                                stringResource(R.string.screen_add_purchase)
                             } else {
-                                "Adicionar pagamento"
+                                stringResource(R.string.screen_add_payment)
                             }
                         )
                     }
@@ -461,11 +466,10 @@ fun NotaSeguraApp() {
     pendingRestoreUri?.let { uri ->
         AlertDialog(
             onDismissRequest = { pendingRestoreUri = null },
-            title = { Text("Restaurar cópia de segurança?") },
+            title = { Text(stringResource(R.string.backup_restore_title)) },
             text = {
                 Text(
-                    "Isso substituirá todas as compras, documentos e pagamentos que estão no aparelho. " +
-                        "O arquivo será conferido antes de qualquer alteração."
+                    stringResource(R.string.backup_restore_body)
                 )
             },
             confirmButton = {
@@ -477,27 +481,31 @@ fun NotaSeguraApp() {
                                 .onSuccess { summary ->
                                     Toast.makeText(
                                         context,
-                                        "Dados restaurados: ${summary.purchases} compras, " +
-                                            "${summary.attachments} documentos e ${summary.payments} pagamentos.",
+                                        context.getString(
+                                            R.string.backup_restored_summary,
+                                            summary.purchases,
+                                            summary.attachments,
+                                            summary.payments
+                                        ),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
                                 .onFailure { error ->
                                     Toast.makeText(
                                         context,
-                                        error.message ?: "Não foi possível restaurar a cópia de segurança.",
+                                        error.message ?: context.getString(R.string.backup_restore_failed),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
                         }
                     }
                 ) {
-                    Text("Continuar")
+                    Text(stringResource(R.string.common_continue))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingRestoreUri = null }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )

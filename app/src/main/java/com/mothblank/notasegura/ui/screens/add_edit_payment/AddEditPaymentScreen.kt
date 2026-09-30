@@ -158,10 +158,13 @@ fun AddEditPaymentScreen(
                     onDone = { focusManager.clearFocus() }
                 ),
                 singleLine = true,
-                isError = uiState.amountError != null,
+                isError = uiState.amountErrorRes != null,
                 supportingText = {
-                    uiState.amountError?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error)
+                    uiState.amountErrorRes?.let { messageRes ->
+                        Text(
+                            stringResource(messageRes),
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             )
@@ -212,14 +215,14 @@ fun AddEditPaymentScreen(
             )
         }
 
-        uiState.errorMessage?.let {
+        uiState.errorMessageRes?.let { messageRes ->
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.errorContainer
             ) {
                 Text(
-                    it,
+                    stringResource(messageRes),
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(16.dp)

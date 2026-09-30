@@ -58,6 +58,7 @@ import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemScreen
 import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
+import com.mothblank.notasegura.ui.screens.payment_details.PaymentDetailsScreen
 import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
 import com.mothblank.notasegura.ui.screens.purchase_details.PurchaseDetailsScreen
 import com.mothblank.notasegura.ui.screens.timeline.TimelineScreen
@@ -96,6 +97,7 @@ fun NotaSeguraApp() {
     val isPurchaseEditor = currentRoute == AppScreen.AddEditItem.route
     val isPaymentEditor = currentRoute == AppScreen.AddEditPayment.route
     val isPurchaseDetails = currentRoute == AppScreen.PurchaseDetails.route
+    val isPaymentDetails = currentRoute == AppScreen.PaymentDetails.route
     val showPrimaryNavigation =
         currentRoute == AppScreen.Timeline.route || currentRoute == AppScreen.Payments.route
 
@@ -115,6 +117,7 @@ fun NotaSeguraApp() {
             }
         }
         isPurchaseDetails -> "Detalhes da compra"
+        isPaymentDetails -> "Detalhes do pagamento"
         else -> null
     }
 
@@ -416,6 +419,16 @@ fun NotaSeguraApp() {
             }
             composable(AppScreen.Payments.route) {
                 PaymentsScreen(navController)
+            }
+            composable(
+                route = AppScreen.PaymentDetails.route,
+                arguments = listOf(
+                    navArgument("paymentId") {
+                        type = NavType.StringType
+                    }
+                )
+            ) {
+                PaymentDetailsScreen(navController)
             }
             composable(
                 route = AppScreen.AddEditPayment.route,

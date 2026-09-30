@@ -55,10 +55,19 @@ data class AddEditUiState(
     val warrantyEndDate: LocalDate? = null,
     val attachments: List<PurchaseAttachmentUi> = emptyList(),
     val ocrSuggestions: ReceiptOcrSuggestions? = null,
+    val hasOcrAutofill: Boolean = false,
     val isAnalyzingDocument: Boolean = false,
     val isSaving: Boolean = false,
     val errorMessage: String? = null
 )
+
+private enum class OcrEditableField {
+    MERCHANT,
+    PURCHASE_VALUE,
+    PURCHASE_DATE,
+    MODEL_NUMBER,
+    SERIAL_NUMBER
+}
 
 private data class PurchaseEditorSnapshot(
     val productName: String,
@@ -99,6 +108,7 @@ class AddEditItemViewModel(
     private var original: PurchaseWithAttachments? = null
     private val stagedAttachments = linkedMapOf<String, StagedAttachment>()
     private val removedAttachments = linkedMapOf<String, Attachment>()
+    private val userEditedOcrFields = mutableSetOf<OcrEditableField>()
     private var pendingOcrCount = 0
 
     init {
@@ -137,13 +147,28 @@ class AddEditItemViewModel(
     }
 
     fun onProductNameChange(value: String) = updateText { copy(productName = value) }
-    fun onMerchantChange(value: String) = updateText { copy(merchant = value) }
+
+    fun onMerchantChange(value: String) {
+        userEditedOcrFields += OcrEditableField.MERCHANT
+        updateText { copy(merchant = value) }
+    }
+
     fun onCategoryChange(value: String) = updateText { copy(category = value) }
-    fun onModelNumberChange(value: String) = updateText { copy(modelNumber = value) }
-    fun onSerialNumberChange(value: String) = updateText { copy(serialNumber = value) }
+
+    fun onModelNumberChange(value: String) {
+        userEditedOcrFields += OcrEditableField.MODEL_NUMBER
+        updateText { copy(modelNumber = value) }
+    }
+
+    fun onSerialNumberChange(value: String) {
+        userEditedOcrFields += OcrEditableField.SERIAL_NUMBER
+        updateText { copy(serialNumber = value) }
+    }
+
     fun onNotesChange(value: String) = updateText { copy(notes = value) }
 
     fun onPurchaseValueChange(value: String) {
+        userEditedOcrFields += OcrEditableField.PURCHASE_VALUE
         if (CurrencyUtils.isValidEditableAmount(value)) {
             _uiState.update {
                 it.copy(
@@ -156,6 +181,7 @@ class AddEditItemViewModel(
     }
 
     fun onPurchaseDateChange(value: LocalDate) {
+        userEditedOcrFields += OcrEditableField.PURCHASE_DATE
         _uiState.update { it.copy(purchaseDate = value, errorMessage = null) }
     }
 
@@ -222,9 +248,7 @@ class AddEditItemViewModel(
                     }
                     val parsed = ReceiptOcrParser.parse(visionText.text)
                     _uiState.update { state ->
-                        state.copy(
-                            ocrSuggestions = mergeSuggestions(state.ocrSuggestions, parsed)
-                        )
+                        applyOcrResult(state, parsed)
                     }
                 }
                 .addOnCompleteListener {
@@ -243,6 +267,7 @@ class AddEditItemViewModel(
 
     fun applyMerchantSuggestion() {
         val suggestion = _uiState.value.ocrSuggestions?.merchant ?: return
+        userEditedOcrFields += OcrEditableField.MERCHANT
         _uiState.update {
             it.copy(
                 merchant = suggestion,
@@ -253,6 +278,7 @@ class AddEditItemViewModel(
 
     fun applyPurchaseDateSuggestion() {
         val suggestion = _uiState.value.ocrSuggestions?.purchaseDate ?: return
+        userEditedOcrFields += OcrEditableField.PURCHASE_DATE
         _uiState.update {
             it.copy(
                 purchaseDate = suggestion,
@@ -263,6 +289,7 @@ class AddEditItemViewModel(
 
     fun applyPurchaseValueSuggestion() {
         val suggestion = _uiState.value.ocrSuggestions?.purchaseValueCents ?: return
+        userEditedOcrFields += OcrEditableField.PURCHASE_VALUE
         _uiState.update {
             it.copy(
                 purchaseValue = CurrencyUtils.centsToEditable(suggestion),
@@ -273,6 +300,7 @@ class AddEditItemViewModel(
 
     fun applyModelSuggestion() {
         val suggestion = _uiState.value.ocrSuggestions?.modelNumber ?: return
+        userEditedOcrFields += OcrEditableField.MODEL_NUMBER
         _uiState.update {
             it.copy(
                 modelNumber = suggestion,
@@ -283,6 +311,7 @@ class AddEditItemViewModel(
 
     fun applySerialSuggestion() {
         val suggestion = _uiState.value.ocrSuggestions?.serialNumber ?: return
+        userEditedOcrFields += OcrEditableField.SERIAL_NUMBER
         _uiState.update {
             it.copy(
                 serialNumber = suggestion,
@@ -379,6 +408,78 @@ class AddEditItemViewModel(
         warrantyEndDate = state.warrantyEndDate,
         attachmentIds = state.attachments.map { it.id }
     )
+
+    private fun applyOcrResult(
+        state: AddEditUiState,
+        parsed: ReceiptOcrSuggestions
+    ): AddEditUiState {
+        val merged = mergeSuggestions(state.ocrSuggestions, parsed)
+
+        val autoFillMerchant =
+            state.merchant.isBlank() &&
+                OcrEditableField.MERCHANT !in userEditedOcrFields &&
+                merged.merchant != null
+        val autoFillValue =
+            state.purchaseValue.isBlank() &&
+                OcrEditableField.PURCHASE_VALUE !in userEditedOcrFields &&
+                merged.purchaseValueCents != null
+        val autoFillDate =
+            state.purchaseDate == null &&
+                OcrEditableField.PURCHASE_DATE !in userEditedOcrFields &&
+                merged.purchaseDate != null
+        val autoFillModel =
+            state.modelNumber.isBlank() &&
+                OcrEditableField.MODEL_NUMBER !in userEditedOcrFields &&
+                merged.modelNumber != null
+        val autoFillSerial =
+            state.serialNumber.isBlank() &&
+                OcrEditableField.SERIAL_NUMBER !in userEditedOcrFields &&
+                merged.serialNumber != null
+
+        val merchant = if (autoFillMerchant) merged.merchant.orEmpty() else state.merchant
+        val purchaseValue = if (autoFillValue) {
+            CurrencyUtils.centsToEditable(checkNotNull(merged.purchaseValueCents))
+        } else {
+            state.purchaseValue
+        }
+        val purchaseDate = if (autoFillDate) merged.purchaseDate else state.purchaseDate
+        val modelNumber = if (autoFillModel) merged.modelNumber.orEmpty() else state.modelNumber
+        val serialNumber = if (autoFillSerial) merged.serialNumber.orEmpty() else state.serialNumber
+
+        val remainingSuggestions = merged.copy(
+            merchant = merged.merchant
+                ?.takeUnless { autoFillMerchant || sameTextValue(state.merchant, it) },
+            purchaseDate = merged.purchaseDate
+                ?.takeUnless { autoFillDate || state.purchaseDate == it },
+            purchaseValueCents = merged.purchaseValueCents
+                ?.takeUnless {
+                    autoFillValue ||
+                        CurrencyUtils.parseToCents(state.purchaseValue) == it
+                },
+            modelNumber = merged.modelNumber
+                ?.takeUnless { autoFillModel || sameTextValue(state.modelNumber, it) },
+            serialNumber = merged.serialNumber
+                ?.takeUnless { autoFillSerial || sameTextValue(state.serialNumber, it) }
+        )
+
+        val didAutoFill =
+            autoFillMerchant || autoFillValue || autoFillDate || autoFillModel || autoFillSerial
+
+        return state.copy(
+            merchant = merchant,
+            purchaseValue = purchaseValue,
+            purchaseDate = purchaseDate,
+            modelNumber = modelNumber,
+            serialNumber = serialNumber,
+            ocrSuggestions = remainingSuggestions,
+            hasOcrAutofill = state.hasOcrAutofill || didAutoFill,
+            purchaseValueError = if (autoFillValue) null else state.purchaseValueError,
+            errorMessage = null
+        )
+    }
+
+    private fun sameTextValue(current: String, suggestion: String): Boolean =
+        current.trim().equals(suggestion.trim(), ignoreCase = true)
 
     private fun mergeSuggestions(
         current: ReceiptOcrSuggestions?,

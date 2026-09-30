@@ -675,7 +675,7 @@ private fun AttachmentSection(
                                 tint = MaterialTheme.colorScheme.error
                             )
                             Text(
-                                "Remover",
+                                stringResource(R.string.common_remove),
                                 modifier = Modifier.padding(start = 6.dp),
                                 color = MaterialTheme.colorScheme.error
                             )

@@ -158,10 +158,10 @@ fun NotaSeguraApp() {
                             Toast.LENGTH_LONG
                         ).show()
                     }
-                    .onFailure { error ->
+                    .onFailure {
                         Toast.makeText(
                             context,
-                            error.message ?: context.getString(R.string.backup_save_failed),
+                            context.getString(R.string.backup_save_failed),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -493,7 +493,7 @@ fun NotaSeguraApp() {
                                 .onFailure { error ->
                                     Toast.makeText(
                                         context,
-                                        error.message ?: context.getString(R.string.backup_restore_failed),
+                                        context.getString(R.string.backup_restore_failed),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }

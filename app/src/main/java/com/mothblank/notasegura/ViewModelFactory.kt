@@ -9,6 +9,7 @@ import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemViewModel
 import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentViewModel
 import com.mothblank.notasegura.ui.screens.payments.PaymentsViewModel
+import com.mothblank.notasegura.ui.screens.purchase_details.PurchaseDetailsViewModel
 import com.mothblank.notasegura.ui.screens.timeline.TimelineViewModel
 
 @Suppress("UNCHECKED_CAST")
@@ -29,6 +30,9 @@ class ViewModelFactory(
 
             modelClass.isAssignableFrom(AddEditItemViewModel::class.java) ->
                 AddEditItemViewModel(purchaseDocumentStore, savedStateHandle) as T
+
+            modelClass.isAssignableFrom(PurchaseDetailsViewModel::class.java) ->
+                PurchaseDetailsViewModel(purchaseDocumentStore, savedStateHandle) as T
 
             modelClass.isAssignableFrom(PaymentsViewModel::class.java) ->
                 PaymentsViewModel(paymentRepository) as T

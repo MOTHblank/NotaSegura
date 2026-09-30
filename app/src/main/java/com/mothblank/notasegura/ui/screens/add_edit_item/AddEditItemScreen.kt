@@ -114,6 +114,7 @@ fun AddEditItemScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isDirty by viewModel.isDirty.collectAsState()
+    val categorySuggestions by viewModel.categorySuggestions.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
@@ -187,6 +188,21 @@ fun AddEditItemScreen(
                 onPreview = { previewAttachment = it },
                 onRemove = viewModel::removeAttachment
             )
+        }
+
+        if (uiState.hasOcrAutofill) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Text(
+                    "Alguns dados foram preenchidos pelo comprovante. Confira antes de salvar.",
+                    modifier = Modifier.padding(14.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         }
 
         FormSection(
@@ -277,6 +293,26 @@ fun AddEditItemScreen(
                     imeAction = ImeAction.Next
                 )
             )
+            if (categorySuggestions.isNotEmpty()) {
+                Text(
+                    "Categorias existentes",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(categorySuggestions) { category ->
+                        TextButton(
+                            onClick = {
+                                viewModel.onCategorySuggestionSelected(category)
+                            }
+                        ) {
+                            Text(category)
+                        }
+                    }
+                }
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedTextField(

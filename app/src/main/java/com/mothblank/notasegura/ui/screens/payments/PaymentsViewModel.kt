@@ -44,12 +44,6 @@ class PaymentsViewModel(
         _showOnlyPending.value = !_showOnlyPending.value
     }
 
-    fun deletePayment(payment: Payment) {
-        viewModelScope.launch {
-            repository.deletePayment(payment)
-        }
-    }
-
     fun togglePaidStatus(payment: Payment) {
         viewModelScope.launch {
             repository.setPaidStatus(

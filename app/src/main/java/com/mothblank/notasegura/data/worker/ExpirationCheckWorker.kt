@@ -36,42 +36,58 @@ class ExpirationCheckWorker(
         if (expiringPurchases.isNotEmpty()) {
             showNotification(
                 101,
-                "Lembrete de Garantia",
-                if (expiringPurchases.size == 1) {
-                    "Você tem 1 garantia terminando nos próximos 30 dias."
-                } else {
-                    "Você tem ${expiringPurchases.size} garantias terminando nos próximos 30 dias."
-                }
+                applicationContext.getString(R.string.notification_warranty_title),
+                applicationContext.resources.getQuantityString(
+                    R.plurals.notification_warranty_expiring,
+                    expiringPurchases.size,
+                    expiringPurchases.size
+                )
             )
         }
 
         if (pendingPayments.isNotEmpty()) {
             val overdue = pendingPayments.count { it.dueDate.isBefore(today) }
             val dueSoon = pendingPayments.size - overdue
-            val message = when {
-                overdue > 0 && dueSoon > 0 ->
-                    "Você tem ${countPayments(overdue)} atrasado${if (overdue == 1) "" else "s"} e " +
-                        "${countPayments(dueSoon)} vencendo nos próximos 3 dias."
-                overdue > 0 ->
-                    "Você tem ${countPayments(overdue)} atrasado${if (overdue == 1) "" else "s"}."
-                pendingPayments.size == 1 ->
-                    "Você tem 1 pagamento vencendo nos próximos 3 dias."
-                else ->
-                    "Você tem ${pendingPayments.size} pagamentos vencendo nos próximos 3 dias."
+            val overdueLabel = if (overdue > 0) {
+                applicationContext.resources.getQuantityString(
+                    R.plurals.notification_payment_overdue_fragment,
+                    overdue,
+                    overdue
+                )
+            } else {
+                ""
+            }
+            val dueSoonLabel = if (dueSoon > 0) {
+                applicationContext.resources.getQuantityString(
+                    R.plurals.notification_payment_due_fragment,
+                    dueSoon,
+                    dueSoon
+                )
+            } else {
+                ""
+            }
+            val message = if (overdue > 0 && dueSoon > 0) {
+                applicationContext.getString(
+                    R.string.notification_payment_combined,
+                    overdueLabel,
+                    dueSoonLabel
+                )
+            } else {
+                applicationContext.getString(
+                    R.string.notification_payment_single,
+                    if (overdue > 0) overdueLabel else dueSoonLabel
+                )
             }
 
             showNotification(
                 102,
-                "Lembrete de pagamento",
+                applicationContext.getString(R.string.notification_payment_title),
                 message
             )
         }
 
         return Result.success()
     }
-
-    private fun countPayments(count: Int): String =
-        if (count == 1) "1 pagamento" else "$count pagamentos"
 
     private fun showNotification(id: Int, title: String, contentText: String) {
         val openAppIntent = Intent(applicationContext, MainActivity::class.java).apply {

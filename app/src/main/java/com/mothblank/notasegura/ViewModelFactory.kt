@@ -8,6 +8,7 @@ import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemViewModel
 import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentViewModel
+import com.mothblank.notasegura.ui.screens.payment_details.PaymentDetailsViewModel
 import com.mothblank.notasegura.ui.screens.payments.PaymentsViewModel
 import com.mothblank.notasegura.ui.screens.purchase_details.PurchaseDetailsViewModel
 import com.mothblank.notasegura.ui.screens.timeline.TimelineViewModel
@@ -33,6 +34,9 @@ class ViewModelFactory(
 
             modelClass.isAssignableFrom(PurchaseDetailsViewModel::class.java) ->
                 PurchaseDetailsViewModel(purchaseDocumentStore, savedStateHandle) as T
+
+            modelClass.isAssignableFrom(PaymentDetailsViewModel::class.java) ->
+                PaymentDetailsViewModel(paymentRepository, savedStateHandle) as T
 
             modelClass.isAssignableFrom(PaymentsViewModel::class.java) ->
                 PaymentsViewModel(paymentRepository) as T

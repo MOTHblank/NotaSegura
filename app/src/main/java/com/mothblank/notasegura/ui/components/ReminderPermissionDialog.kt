@@ -7,6 +7,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.mothblank.notasegura.R
 
 @Composable
 fun ReminderPermissionDialog(
@@ -21,21 +23,20 @@ fun ReminderPermissionDialog(
                 contentDescription = null
             )
         },
-        title = { Text("Ativar lembretes?") },
+        title = { Text(stringResource(R.string.reminder_permission_title)) },
         text = {
             Text(
-                "O Nota Segura pode avisar antes do fim de uma garantia ou do vencimento " +
-                    "de um pagamento. Você pode mudar essa opção depois nas configurações do celular."
+                stringResource(R.string.reminder_permission_body)
             )
         },
         confirmButton = {
             TextButton(onClick = onEnable) {
-                Text("Ativar lembretes")
+                Text(stringResource(R.string.reminder_permission_enable))
             }
         },
         dismissButton = {
             TextButton(onClick = onNotNow) {
-                Text("Agora não")
+                Text(stringResource(R.string.common_not_now))
             }
         }
     )

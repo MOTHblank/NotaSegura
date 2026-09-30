@@ -64,10 +64,10 @@ class NotaSeguraApplication : Application() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             "REMINDERS",
-            "Lembretes NotaSegura",
+            getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Garantias prestes a expirar e pagamentos próximos do vencimento"
+            description = getString(R.string.notification_channel_description)
         }
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

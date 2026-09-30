@@ -192,6 +192,32 @@
     <string name="payment_edit">Editar pagamento</string>
     <string name="payment_delete">Excluir pagamento</string>
 
+    <string name="error_document_copy">Não foi possível copiar o documento selecionado.</string>
+    <string name="error_warranty_before_purchase">O fim da garantia não pode ser anterior à compra.</string>
+    <string name="error_invalid_value">Valor inválido</string>
+    <string name="error_save_purchase">Não foi possível salvar a compra.</string>
+    <string name="error_save_payment">Não foi possível salvar o pagamento.</string>
+    <string name="document_file_missing">O arquivo deste documento não foi encontrado.</string>
+    <string name="document_pdf_empty">Este PDF não contém páginas.</string>
+    <string name="document_pdf_open_failed">Não foi possível abrir este PDF.</string>
+
+    <string name="notification_warranty_title">Lembrete de garantia</string>
+    <plurals name="notification_warranty_expiring">
+        <item quantity="one">Você tem %d garantia terminando nos próximos 30 dias.</item>
+        <item quantity="other">Você tem %d garantias terminando nos próximos 30 dias.</item>
+    </plurals>
+    <string name="notification_payment_title">Lembrete de pagamento</string>
+    <plurals name="notification_payment_overdue_fragment">
+        <item quantity="one">%d pagamento atrasado</item>
+        <item quantity="other">%d pagamentos atrasados</item>
+    </plurals>
+    <plurals name="notification_payment_due_fragment">
+        <item quantity="one">%d pagamento vencendo nos próximos 3 dias</item>
+        <item quantity="other">%d pagamentos vencendo nos próximos 3 dias</item>
+    </plurals>
+    <string name="notification_payment_single">Você tem %1$s.</string>
+    <string name="notification_payment_combined">Você tem %1$s e %2$s.</string>
+
     <string name="notification_channel_name">Lembretes NotaSegura</string>
     <string name="notification_channel_description">Garantias prestes a expirar e pagamentos próximos do vencimento</string>
 </resources>

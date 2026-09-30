@@ -40,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +59,7 @@ import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemScreen
 import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
 import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
+import com.mothblank.notasegura.ui.screens.purchase_details.PurchaseDetailsScreen
 import com.mothblank.notasegura.ui.screens.timeline.TimelineScreen
 import com.mothblank.notasegura.ui.theme.NotaSeguraTheme
 import com.mothblank.notasegura.util.ExportManager
@@ -93,6 +95,7 @@ fun NotaSeguraApp() {
 
     val isPurchaseEditor = currentRoute == AppScreen.AddEditItem.route
     val isPaymentEditor = currentRoute == AppScreen.AddEditPayment.route
+    val isPurchaseDetails = currentRoute == AppScreen.PurchaseDetails.route
     val showPrimaryNavigation =
         currentRoute == AppScreen.Timeline.route || currentRoute == AppScreen.Payments.route
 
@@ -111,12 +114,27 @@ fun NotaSeguraApp() {
                 "Editar pagamento"
             }
         }
+        isPurchaseDetails -> "Detalhes da compra"
         else -> null
     }
 
     var menuExpanded by remember { mutableStateOf(false) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     var pendingEditorExit by remember { mutableStateOf(false) }
+    var editorHasUnsavedChanges by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentRoute) {
+        editorHasUnsavedChanges = false
+        pendingEditorExit = false
+    }
+
+    val requestEditorExit: () -> Unit = {
+        if (editorHasUnsavedChanges) {
+            pendingEditorExit = true
+        } else {
+            navController.popBackStack()
+        }
+    }
 
     val createBackupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
@@ -160,7 +178,15 @@ fun NotaSeguraApp() {
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { pendingEditorExit = true }) {
+                        IconButton(
+                            onClick = {
+                                if (isPurchaseEditor || isPaymentEditor) {
+                                    requestEditorExit()
+                                } else {
+                                    navController.popBackStack()
+                                }
+                            }
+                        ) {
                             Icon(
                                 Icons.Default.ArrowBack,
                                 contentDescription = "Voltar"
@@ -168,7 +194,7 @@ fun NotaSeguraApp() {
                         }
                     }
                 )
-            } else {
+            } else if (showPrimaryNavigation) {
                 TopAppBar(
                     title = {
                         Text(
@@ -372,7 +398,21 @@ fun NotaSeguraApp() {
                     }
                 )
             ) {
-                AddEditItemScreen(navController)
+                AddEditItemScreen(
+                    navController = navController,
+                    onDirtyStateChanged = { editorHasUnsavedChanges = it },
+                    onRequestExit = requestEditorExit
+                )
+            }
+            composable(
+                route = AppScreen.PurchaseDetails.route,
+                arguments = listOf(
+                    navArgument("itemId") {
+                        type = NavType.StringType
+                    }
+                )
+            ) {
+                PurchaseDetailsScreen(navController)
             }
             composable(AppScreen.Payments.route) {
                 PaymentsScreen(navController)
@@ -386,7 +426,11 @@ fun NotaSeguraApp() {
                     }
                 )
             ) {
-                AddEditPaymentScreen(navController)
+                AddEditPaymentScreen(
+                    navController = navController,
+                    onDirtyStateChanged = { editorHasUnsavedChanges = it },
+                    onRequestExit = requestEditorExit
+                )
             }
         }
     }

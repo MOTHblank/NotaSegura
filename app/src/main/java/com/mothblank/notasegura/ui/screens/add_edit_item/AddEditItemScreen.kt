@@ -81,7 +81,6 @@ import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
-import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
@@ -102,6 +101,8 @@ private fun createCameraUri(context: Context): Uri {
 @Composable
 fun AddEditItemScreen(
     navController: NavController,
+    onDirtyStateChanged: (Boolean) -> Unit = {},
+    onRequestExit: () -> Unit = { navController.popBackStack() },
     viewModel: AddEditItemViewModel = viewModel(
         factory = (LocalContext.current.applicationContext as NotaSeguraApplication).let { app ->
             ViewModelFactory(
@@ -112,6 +113,7 @@ fun AddEditItemScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isDirty by viewModel.isDirty.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
@@ -121,7 +123,6 @@ fun AddEditItemScreen(
     var showWarrantyDatePicker by remember { mutableStateOf(false) }
     var previewAttachment by remember { mutableStateOf<PurchaseAttachmentUi?>(null) }
     var showReminderPermissionDialog by remember { mutableStateOf(false) }
-    var showExitDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -139,9 +140,11 @@ fun AddEditItemScreen(
         }
     }
 
-    BackHandler {
-        showExitDialog = true
+    LaunchedEffect(isDirty) {
+        onDirtyStateChanged(isDirty)
     }
+
+    BackHandler(onBack = onRequestExit)
 
     val documentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -441,16 +444,6 @@ fun AddEditItemScreen(
                 )
             }
         }
-    }
-
-    if (showExitDialog) {
-        UnsavedExitDialog(
-            onKeepEditing = { showExitDialog = false },
-            onDiscardAndExit = {
-                showExitDialog = false
-                navController.popBackStack()
-            }
-        )
     }
 
     if (showReminderPermissionDialog) {

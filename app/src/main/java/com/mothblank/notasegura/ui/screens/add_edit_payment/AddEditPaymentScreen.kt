@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
+import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
 import com.mothblank.notasegura.util.DateUtils
@@ -120,20 +122,20 @@ fun AddEditPaymentScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            "* Campos obrigatórios",
+            stringResource(R.string.form_required_fields),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         PaymentFormSection(
-            title = "Pagamento",
-            subtitle = "Dados principais da cobrança."
+            title = stringResource(R.string.payment_section_main),
+            subtitle = stringResource(R.string.payment_section_main_hint)
         ) {
             OutlinedTextField(
                 value = uiState.title,
                 onValueChange = viewModel::onTitleChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { RequiredPaymentLabel("Nome da conta") },
+                label = { RequiredPaymentLabel(stringResource(R.string.field_payment_name)) },
                 textStyle = MaterialTheme.typography.bodyLarge,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
@@ -146,7 +148,7 @@ fun AddEditPaymentScreen(
                 value = uiState.amount,
                 onValueChange = viewModel::onAmountChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { RequiredPaymentLabel("Valor (R$)") },
+                label = { RequiredPaymentLabel(stringResource(R.string.field_payment_amount)) },
                 textStyle = MaterialTheme.typography.bodyLarge,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
@@ -169,7 +171,7 @@ fun AddEditPaymentScreen(
                     value = viewModel.formatDate(uiState.dueDate),
                     onValueChange = {},
                     modifier = Modifier.fillMaxWidth(),
-                    label = { RequiredPaymentLabel("Data de vencimento") },
+                    label = { RequiredPaymentLabel(stringResource(R.string.field_payment_due_date)) },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     readOnly = true,
                     trailingIcon = {
@@ -184,7 +186,7 @@ fun AddEditPaymentScreen(
                     modifier = Modifier
                         .matchParentSize()
                         .clickable(
-                            onClickLabel = "Selecionar data de vencimento",
+                            onClickLabel = stringResource(R.string.select_payment_due_date),
                             role = Role.Button
                         ) { showDatePicker = true }
                 )
@@ -192,20 +194,20 @@ fun AddEditPaymentScreen(
         }
 
         PaymentFormSection(
-            title = "Opções",
-            subtitle = "Defina o estado atual e se a cobrança se repete."
+            title = stringResource(R.string.payment_section_options),
+            subtitle = stringResource(R.string.payment_section_options_hint)
         ) {
             PaymentCheckboxRow(
                 checked = uiState.isPaid,
-                title = "Já está pago",
-                supportingText = "Registra este pagamento como concluído.",
+                title = stringResource(R.string.payment_already_paid),
+                supportingText = stringResource(R.string.payment_already_paid_hint),
                 onClick = { viewModel.onPaidChange(!uiState.isPaid) }
             )
 
             PaymentCheckboxRow(
                 checked = uiState.isRecurring,
-                title = "Pagamento mensal",
-                supportingText = "Cria a próxima ocorrência quando esta for marcada como paga.",
+                title = stringResource(R.string.payment_monthly),
+                supportingText = stringResource(R.string.payment_monthly_hint),
                 onClick = { viewModel.onRecurringChange(!uiState.isRecurring) }
             )
         }
@@ -242,7 +244,7 @@ fun AddEditPaymentScreen(
                 )
             } else {
                 Text(
-                    "Salvar pagamento",
+                    stringResource(R.string.save_payment),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -284,12 +286,12 @@ fun AddEditPaymentScreen(
                     },
                     enabled = confirmEnabled.value
                 ) {
-                    Text("OK")
+                    Text(stringResource(R.string.common_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         ) {

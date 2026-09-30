@@ -235,10 +235,13 @@ fun AddEditItemScreen(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.field_purchase_value)) },
                 singleLine = true,
-                isError = uiState.purchaseValueError != null,
+                isError = uiState.purchaseValueErrorRes != null,
                 supportingText = {
-                    uiState.purchaseValueError?.let { message ->
-                        Text(message, color = MaterialTheme.colorScheme.error)
+                    uiState.purchaseValueErrorRes?.let { messageRes ->
+                        Text(
+                            stringResource(messageRes),
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -391,14 +394,14 @@ fun AddEditItemScreen(
             )
         }
 
-        uiState.errorMessage?.let {
+        uiState.errorMessageRes?.let { messageRes ->
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.errorContainer
             ) {
                 Text(
-                    text = it,
+                    text = stringResource(messageRes),
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(16.dp)
@@ -503,7 +506,9 @@ fun AddEditItemScreen(
         DocumentViewerDialog(
             path = attachment.path,
             mimeType = attachment.mimeType,
-            displayName = attachment.displayName,
+            displayName = attachment.displayName.ifBlank {
+                stringResource(R.string.purchase_document_default_name)
+            },
             onDismiss = { previewAttachment = null }
         )
     }
@@ -612,6 +617,9 @@ private fun AttachmentSection(
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(attachments, key = { it.id }) { attachment ->
+                    val displayName = attachment.displayName.ifBlank {
+                        stringResource(R.string.purchase_document_default_name)
+                    }
                     Column(
                         modifier = Modifier.width(156.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -633,7 +641,7 @@ private fun AttachmentSection(
                                         model = attachment.path,
                                         contentDescription = stringResource(
                                             R.string.attachment_open_description,
-                                            attachment.displayName
+                                            displayName
                                         ),
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -656,7 +664,7 @@ private fun AttachmentSection(
                                         )
                                         Spacer(Modifier.height(8.dp))
                                         Text(
-                                            attachment.displayName,
+                                            displayName,
                                             style = MaterialTheme.typography.bodyMedium,
                                             maxLines = 3
                                         )

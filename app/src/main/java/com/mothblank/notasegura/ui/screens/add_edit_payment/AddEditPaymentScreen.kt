@@ -65,7 +65,6 @@ import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
-import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
 
@@ -73,6 +72,8 @@ import com.mothblank.notasegura.util.NotificationPermissionPolicy
 @Composable
 fun AddEditPaymentScreen(
     navController: NavController,
+    onDirtyStateChanged: (Boolean) -> Unit = {},
+    onRequestExit: () -> Unit = { navController.popBackStack() },
     viewModel: AddEditPaymentViewModel = viewModel(
         factory = (LocalContext.current.applicationContext as NotaSeguraApplication).let { app ->
             ViewModelFactory(
@@ -83,15 +84,17 @@ fun AddEditPaymentScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isDirty by viewModel.isDirty.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var showDatePicker by remember { mutableStateOf(false) }
     var showReminderPermissionDialog by remember { mutableStateOf(false) }
-    var showExitDialog by remember { mutableStateOf(false) }
 
-    BackHandler {
-        showExitDialog = true
+    LaunchedEffect(isDirty) {
+        onDirtyStateChanged(isDirty)
     }
+
+    BackHandler(onBack = onRequestExit)
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -246,16 +249,6 @@ fun AddEditPaymentScreen(
         }
 
         Spacer(Modifier.height(12.dp))
-    }
-
-    if (showExitDialog) {
-        UnsavedExitDialog(
-            onKeepEditing = { showExitDialog = false },
-            onDiscardAndExit = {
-                showExitDialog = false
-                navController.popBackStack()
-            }
-        )
     }
 
     if (showReminderPermissionDialog) {

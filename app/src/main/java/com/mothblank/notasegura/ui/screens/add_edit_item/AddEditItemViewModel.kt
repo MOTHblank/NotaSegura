@@ -13,6 +13,7 @@ import com.mothblank.notasegura.data.storage.StagedAttachment
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.Purchase
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
+import com.mothblank.notasegura.util.CategoryNormalizer
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.ReceiptOcrParser
 import com.mothblank.notasegura.util.ReceiptOcrSuggestions
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -105,6 +107,36 @@ class AddEditItemViewModel(
         initialValue = false
     )
 
+    val categoryOptions: StateFlow<List<String>> =
+        documentStore.getAllPurchases()
+            .map { items ->
+                CategoryNormalizer.distinctDisplay(items.map { it.purchase.category })
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = emptyList()
+            )
+
+    val categorySuggestions: StateFlow<List<String>> =
+        combine(categoryOptions, _uiState) { categories, state ->
+            val queryKey = CategoryNormalizer.key(state.category)
+            if (queryKey.isBlank()) {
+                emptyList()
+            } else {
+                categories
+                    .filter {
+                        val categoryKey = CategoryNormalizer.key(it)
+                        categoryKey != queryKey && categoryKey.contains(queryKey)
+                    }
+                    .take(5)
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = emptyList()
+        )
+
     private var original: PurchaseWithAttachments? = null
     private val stagedAttachments = linkedMapOf<String, StagedAttachment>()
     private val removedAttachments = linkedMapOf<String, Attachment>()
@@ -154,6 +186,10 @@ class AddEditItemViewModel(
     }
 
     fun onCategoryChange(value: String) = updateText { copy(category = value) }
+
+    fun onCategorySuggestionSelected(value: String) {
+        updateText { copy(category = value) }
+    }
 
     fun onModelNumberChange(value: String) {
         userEditedOcrFields += OcrEditableField.MODEL_NUMBER
@@ -355,7 +391,10 @@ class AddEditItemViewModel(
             purchaseValueCents = purchaseValueCents,
             purchaseDate = purchaseDate,
             warrantyEndDate = state.warrantyEndDate,
-            category = state.category.trim(),
+            category = CategoryNormalizer.canonicalDisplay(
+                state.category,
+                categoryOptions.value
+            ),
             modelNumber = state.modelNumber.trim().ifBlank { null },
             serialNumber = state.serialNumber.trim().ifBlank { null },
             notes = state.notes.trim(),

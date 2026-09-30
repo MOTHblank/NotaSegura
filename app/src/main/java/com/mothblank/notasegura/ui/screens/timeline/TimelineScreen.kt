@@ -17,11 +17,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,7 +32,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,8 +50,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.navigation.AppScreen
+import com.mothblank.notasegura.ui.components.DocumentViewerDialog
 import com.mothblank.notasegura.util.CurrencyUtils
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -78,7 +77,7 @@ fun TimelineScreen(
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val focusManager = LocalFocusManager.current
-    var pendingDelete by remember { mutableStateOf<PurchaseWithAttachments?>(null) }
+    var previewAttachment by remember { mutableStateOf<Attachment?>(null) }
 
     val hasFilters = searchQuery.isNotBlank() || selectedCategory != null
 
@@ -175,46 +174,26 @@ fun TimelineScreen(
                 items(purchases, key = { it.purchase.id }) { purchaseItem ->
                     PurchaseCard(
                         item = purchaseItem,
-                        onEdit = {
+                        onOpen = {
                             navController.navigate(
-                                AppScreen.AddEditItem.editRoute(purchaseItem.purchase.id)
+                                AppScreen.PurchaseDetails.createRoute(purchaseItem.purchase.id)
                             )
                         },
-                        onDelete = { pendingDelete = purchaseItem }
+                        onOpenReceipt = {
+                            previewAttachment = purchaseItem.attachments.firstOrNull()
+                        }
                     )
                 }
             }
         }
     }
 
-    pendingDelete?.let { purchaseItem ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            icon = {
-                Icon(Icons.Default.Delete, contentDescription = null)
-            },
-            title = { Text("Excluir esta compra?") },
-            text = {
-                Text(
-                    "“${purchaseItem.purchase.productName}” e todos os documentos anexados serão " +
-                        "apagados deste aparelho. Essa ação não pode ser desfeita."
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteItem(purchaseItem)
-                        pendingDelete = null
-                    }
-                ) {
-                    Text("Sim, excluir")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text("Cancelar")
-                }
-            }
+    previewAttachment?.let { attachment ->
+        DocumentViewerDialog(
+            path = attachment.filePath,
+            mimeType = attachment.mimeType,
+            displayName = attachment.displayName ?: "Documento",
+            onDismiss = { previewAttachment = null }
         )
     }
 }
@@ -277,13 +256,14 @@ private fun EmptyPurchaseState(
 @Composable
 private fun PurchaseCard(
     item: PurchaseWithAttachments,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onOpen: () -> Unit,
+    onOpenReceipt: () -> Unit
 ) {
     val purchase = item.purchase
     val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     Card(
+        onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = androidx.compose.foundation.BorderStroke(
@@ -343,35 +323,28 @@ private fun PurchaseCard(
 
             WarrantyStatus(purchase.warrantyEndDate, formatter)
 
+            if (item.attachments.isNotEmpty()) {
+                Button(
+                    onClick = onOpenReceipt,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                ) {
+                    Icon(Icons.Default.Description, contentDescription = null)
+                    Text(
+                        "Abrir comprovante",
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+
             OutlinedButton(
-                onClick = onEdit,
+                onClick = onOpen,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
             ) {
-                Icon(Icons.Default.Edit, contentDescription = null)
-                Text(
-                    "Editar compra",
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-            }
-
-            TextButton(
-                onClick = onDelete,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp)
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
-                )
-                Text(
-                    "Excluir compra",
-                    modifier = Modifier.padding(start = 8.dp),
-                    color = MaterialTheme.colorScheme.error
-                )
+                Text("Ver detalhes")
             }
         }
     }

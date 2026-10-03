@@ -10,6 +10,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mothblank.notasegura.data.backup.BackupArchiveManager
 import com.mothblank.notasegura.data.local.AppDatabase
+import com.mothblank.notasegura.data.ocr.ReceiptOcrEngine
 import com.mothblank.notasegura.data.repository.PaymentRepositoryImpl
 import com.mothblank.notasegura.data.repository.PurchaseRepositoryImpl
 import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
@@ -39,6 +40,10 @@ class NotaSeguraApplication : Application() {
 
     val purchaseDocumentStore: PurchaseDocumentStore by lazy {
         PurchaseDocumentStore(applicationContext, purchaseRepository)
+    }
+
+    val receiptOcrEngine: ReceiptOcrEngine by lazy {
+        ReceiptOcrEngine(applicationContext)
     }
 
     val backupArchiveManager: BackupArchiveManager by lazy {

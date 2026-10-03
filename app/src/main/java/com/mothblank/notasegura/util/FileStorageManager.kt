@@ -43,7 +43,8 @@ object FileStorageManager {
     fun stageUri(context: Context, uri: Uri): StageFileResult {
         val resolver = context.contentResolver
         val metadata = queryMetadata(context, uri)
-        val declaredMimeType = resolver.getType(uri)
+        val declaredMimeType = runCatching { resolver.getType(uri) }
+            .getOrNull()
             ?.substringBefore(';')
             ?.trim()
             ?.lowercase()
@@ -235,9 +236,16 @@ object FileStorageManager {
     private fun hasPdfSignature(file: File): Boolean {
         if (file.length() < 5L) return false
         return file.inputStream().use { input ->
-            val header = ByteArray(5)
-            input.read(header) == header.size &&
-                header.contentEquals("%PDF-".toByteArray(Charsets.US_ASCII))
+            val probe = ByteArray(1024)
+            val count = input.read(probe)
+            if (count < 5) return@use false
+
+            val marker = "%PDF-".toByteArray(Charsets.US_ASCII)
+            (0..count - marker.size).any { offset ->
+                marker.indices.all { index ->
+                    probe[offset + index] == marker[index]
+                }
+            }
         }
     }
 

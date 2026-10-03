@@ -102,6 +102,10 @@ class AccessibilityRegressionTest {
         composeRule.onNodeWithTag(AccessibilityTags.PRIMARY_ADD_ACTION).performClick()
         composeRule.onNodeWithContentDescription(string(R.string.common_back))
             .assertHasClickAction()
+        composeRule.onNodeWithContentDescription(string(R.string.field_purchase_date))
+            .assertHasClickAction()
+        composeRule.onNodeWithContentDescription(string(R.string.field_warranty_end))
+            .assertHasClickAction()
 
         assertClickableSemanticsAreNamed()
     }
@@ -164,7 +168,7 @@ class AccessibilityRegressionTest {
                 }
 
                 DeviceConfigurationOverride(
-                    DeviceConfigurationOverride.FontScale(1.5f)
+                    DeviceConfigurationOverride.FontScale(2f)
                 ) {
                     NotaSeguraTheme {
                         Text(
@@ -213,6 +217,8 @@ class AccessibilityRegressionTest {
         composeRule.onNodeWithContentDescription(string(R.string.common_back)).performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENTS_TAB).performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithContentDescription(string(R.string.field_payment_due_date))
+            .assertHasClickAction()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_TITLE_FIELD)
             .performScrollTo()
             .assertIsDisplayed()

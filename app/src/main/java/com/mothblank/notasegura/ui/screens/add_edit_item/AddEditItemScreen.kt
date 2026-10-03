@@ -395,6 +395,21 @@ fun AddEditItemScreen(
             )
         }
 
+        uiState.infoMessageRes?.let { messageRes ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Text(
+                    text = stringResource(messageRes),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+
         uiState.errorMessageRes?.let { messageRes ->
             Surface(
                 modifier = Modifier.fillMaxWidth(),

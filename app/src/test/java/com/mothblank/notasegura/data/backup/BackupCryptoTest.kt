@@ -38,6 +38,16 @@ class BackupCryptoTest {
     }
 
     @Test
+    fun encryptedBackup_rejectsTruncatedCiphertext() {
+        val encrypted = encrypt("sensitive receipt data".toByteArray(), "correct password")
+        val truncated = encrypted.copyOf(encrypted.size - 8)
+
+        assertThrows(BackupAuthenticationException::class.java) {
+            decrypt(truncated, "correct password", 1024)
+        }
+    }
+
+    @Test
     fun encryptedBackup_rejectsUnknownEnvelope() {
         val encrypted = encrypt("data".toByteArray(), "correct password")
         encrypted[0] = 'X'.code.toByte()

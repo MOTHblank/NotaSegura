@@ -48,6 +48,7 @@ import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.Attachment
+import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
@@ -227,7 +228,7 @@ private fun PurchaseDetailsContent(
                         onClick = { onOpenDocument(attachment) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 56.dp)
+                            .heightIn(min = 64.dp)
                     ) {
                         Icon(
                             if (attachment.mimeType == "application/pdf") {
@@ -238,10 +239,20 @@ private fun PurchaseDetailsContent(
                             contentDescription = null,
                             modifier = Modifier.size(24.dp)
                         )
-                        Text(
-                            attachment.displayName ?: stringResource(R.string.purchase_open_document_default),
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
+                        Column(
+                            modifier = Modifier.padding(start = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                attachmentTypeLabel(attachment.type),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                            Text(
+                                attachment.displayName
+                                    ?: stringResource(R.string.purchase_open_document_default),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }
@@ -340,6 +351,16 @@ private fun DetailRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
 }
+
+@Composable
+private fun attachmentTypeLabel(type: String): String =
+    when (AttachmentType.normalize(type)) {
+        AttachmentType.RECEIPT -> stringResource(R.string.attachment_type_receipt)
+        AttachmentType.INVOICE -> stringResource(R.string.attachment_type_invoice)
+        AttachmentType.WARRANTY -> stringResource(R.string.attachment_type_warranty)
+        AttachmentType.MANUAL -> stringResource(R.string.attachment_type_manual)
+        else -> stringResource(R.string.attachment_type_other)
+    }
 
 @Composable
 private fun WarrantyDetails(

@@ -1,3 +1,2 @@
-# PaddleOCR's Android SDK uses ONNX Runtime and OpenCV through JNI/reflection boundaries.
--keep class com.paddle.ocr.** { *; }
+# ONNX Runtime uses JNI/reflection boundaries that R8 must preserve.
 -keep class ai.onnxruntime.** { *; }

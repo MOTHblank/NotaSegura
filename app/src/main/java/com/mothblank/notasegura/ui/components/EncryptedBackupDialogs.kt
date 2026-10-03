@@ -2,7 +2,13 @@ package com.mothblank.notasegura.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -12,8 +18,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.mothblank.notasegura.R
 
@@ -25,6 +38,8 @@ fun CreateEncryptedBackupDialog(
 ) {
     var password by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmationVisible by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<PasswordValidationError?>(null) }
 
     AlertDialog(
@@ -43,8 +58,26 @@ fun CreateEncryptedBackupDialog(
                         password = it
                         error = null
                     },
+                    modifier = Modifier.semantics {
+                        contentType = ContentType.NewPassword
+                    },
                     label = { Text(stringResource(R.string.backup_password_label)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        PasswordVisibilityButton(
+                            visible = passwordVisible,
+                            onToggle = { passwordVisible = !passwordVisible }
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        autoCorrectEnabled = false,
+                        imeAction = ImeAction.Next
+                    ),
                     singleLine = true,
                     isError = error == PasswordValidationError.TOO_SHORT
                 )
@@ -54,8 +87,26 @@ fun CreateEncryptedBackupDialog(
                         confirmation = it
                         error = null
                     },
+                    modifier = Modifier.semantics {
+                        contentType = ContentType.NewPassword
+                    },
                     label = { Text(stringResource(R.string.backup_password_confirm_label)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (confirmationVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        PasswordVisibilityButton(
+                            visible = confirmationVisible,
+                            onToggle = { confirmationVisible = !confirmationVisible }
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        autoCorrectEnabled = false,
+                        imeAction = ImeAction.Done
+                    ),
                     singleLine = true,
                     isError = error == PasswordValidationError.MISMATCH
                 )
@@ -103,6 +154,7 @@ fun RestoreEncryptedBackupDialog(
     onConfirm: (String) -> Unit
 ) {
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var tooShort by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -118,8 +170,26 @@ fun RestoreEncryptedBackupDialog(
                         password = it
                         tooShort = false
                     },
+                    modifier = Modifier.semantics {
+                        contentType = ContentType.Password
+                    },
                     label = { Text(stringResource(R.string.backup_password_label)) },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        PasswordVisibilityButton(
+                            visible = passwordVisible,
+                            onToggle = { passwordVisible = !passwordVisible }
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        autoCorrectEnabled = false,
+                        imeAction = ImeAction.Done
+                    ),
                     singleLine = true,
                     isError = tooShort
                 )
@@ -148,6 +218,21 @@ fun RestoreEncryptedBackupDialog(
             }
         }
     )
+}
+
+@Composable
+private fun PasswordVisibilityButton(
+    visible: Boolean,
+    onToggle: () -> Unit
+) {
+    IconButton(onClick = onToggle) {
+        Icon(
+            imageVector = if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+            contentDescription = stringResource(
+                if (visible) R.string.password_hide else R.string.password_show
+            )
+        )
+    }
 }
 
 private enum class PasswordValidationError {

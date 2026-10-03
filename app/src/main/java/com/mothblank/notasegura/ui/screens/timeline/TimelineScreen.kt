@@ -45,8 +45,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +59,7 @@ import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.navigation.AppScreen
@@ -114,7 +118,9 @@ fun TimelineScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(AccessibilityTags.PURCHASE_SEARCH),
                     label = { Text(stringResource(R.string.purchase_search_label)) },
                     placeholder = { Text(stringResource(R.string.purchase_search_hint)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -231,7 +237,9 @@ private fun AttentionOverview(
     val visibleWarranties = dashboard.warrantiesExpiringSoon.take(2)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(AccessibilityTags.DASHBOARD),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -244,6 +252,7 @@ private fun AttentionOverview(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     stringResource(R.string.dashboard_title),
+                    modifier = Modifier.semantics { heading() },
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -470,6 +479,7 @@ private fun EmptyPurchaseState(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
+                    .testTag(AccessibilityTags.PURCHASE_EMPTY_ACTION)
             ) {
                 Text(
                     if (filtered) {

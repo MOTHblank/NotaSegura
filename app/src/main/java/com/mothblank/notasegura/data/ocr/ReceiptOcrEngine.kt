@@ -111,7 +111,7 @@ class ReceiptOcrEngine(
 
     private fun applyExifRotation(file: File, bitmap: Bitmap): Bitmap {
         val rotation = runCatching {
-            ExifInterface(file).rotationDegrees
+            ExifInterface(file.absolutePath).rotationDegrees
         }.getOrDefault(0)
 
         if (rotation == 0) return bitmap
@@ -132,6 +132,6 @@ class ReceiptOcrEngine(
     }
 
     companion object {
-        private const val MAX_DECODE_SIDE = 2560
+        private const val MAX_DECODE_SIDE = 2048
     }
 }

@@ -8,6 +8,7 @@ import com.mothblank.notasegura.domain.model.Purchase
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.domain.repository.PurchaseRepository
 import com.mothblank.notasegura.util.FileStorageManager
+import com.mothblank.notasegura.util.StageFileResult
 import com.mothblank.notasegura.util.StagedFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +20,15 @@ data class StagedAttachment(
     val ocrText: String? = null
 )
 
+sealed interface StageAttachmentResult {
+    data class Success(val attachment: StagedAttachment) : StageAttachmentResult
+    data object UnsupportedType : StageAttachmentResult
+    data object TooLarge : StageAttachmentResult
+    data object Empty : StageAttachmentResult
+    data object InvalidContent : StageAttachmentResult
+    data object ReadError : StageAttachmentResult
+}
+
 class PurchaseDocumentStore(
     private val context: Context,
     private val repository: PurchaseRepository
@@ -29,8 +39,16 @@ class PurchaseDocumentStore(
     suspend fun getPurchaseById(id: String): PurchaseWithAttachments? =
         repository.getPurchaseById(id)
 
-    suspend fun stageAttachment(uri: Uri): StagedAttachment? = withContext(Dispatchers.IO) {
-        FileStorageManager.stageUri(context, uri)?.let(::StagedAttachment)
+    suspend fun stageAttachment(uri: Uri): StageAttachmentResult = withContext(Dispatchers.IO) {
+        when (val result = FileStorageManager.stageUri(context, uri)) {
+            is StageFileResult.Success ->
+                StageAttachmentResult.Success(StagedAttachment(result.file))
+            StageFileResult.UnsupportedType -> StageAttachmentResult.UnsupportedType
+            StageFileResult.TooLarge -> StageAttachmentResult.TooLarge
+            StageFileResult.Empty -> StageAttachmentResult.Empty
+            StageFileResult.InvalidContent -> StageAttachmentResult.InvalidContent
+            StageFileResult.ReadError -> StageAttachmentResult.ReadError
+        }
     }
 
     fun discardStagedAttachment(staged: StagedAttachment?) {

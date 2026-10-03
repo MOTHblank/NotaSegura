@@ -91,7 +91,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 private fun createCameraUri(context: Context): Uri {
-    val imageFile = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+    val cameraDir = File(context.cacheDir, "camera").apply { mkdirs() }
+    val imageFile = File(cameraDir, "camera_${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(
         context,
         "${context.packageName}.provider",

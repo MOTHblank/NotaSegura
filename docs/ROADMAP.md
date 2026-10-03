@@ -44,24 +44,20 @@ Android 8–12 notification delivery is also handled correctly, and overdue paym
 
 ### Portable backup / restore
 
-Backup format v1 is a ZIP-based `.notasegura` archive with:
+Backup format v1 keeps the validated ZIP payload internally:
 
 - `manifest.json`;
 - `data.json`;
 - original managed attachment files;
 - SHA-256 integrity records.
 
-Restore validates the archive and all attachment checksums before replacing Room data. Database replacement is transactional and old document files are only removed after a successful restore.
+Before export, that payload is wrapped in a versioned encrypted envelope using AES-256-GCM. A 256-bit key is derived from the user-controlled password using PBKDF2-HMAC-SHA256 with 600,000 iterations and a unique random salt per backup. The password is never stored or recoverable by NotaSegura.
 
-The archive is currently integrity-protected but **not encrypted**.
+Restore authenticates and decrypts the envelope first, then validates the archive and all attachment checksums before replacing Room data. Database replacement is transactional and old document files are only removed after a successful restore.
 
 ## Next priorities
 
-### 1. Encrypt backups
-
-Add passphrase/recovery-key encryption using an explicit versioned cryptographic envelope. Keep checksum/integrity validation inside the encrypted payload and define password-loss behavior clearly.
-
-### 2. Reminder model
+### 1. Reminder model
 
 Replace fixed worker windows with reminder state:
 
@@ -71,7 +67,7 @@ Replace fixed worker windows with reminder state:
 - notification deep links to the exact record;
 - optional "Marcar como pago" action.
 
-### 3. Home / Today screen
+### 2. Home / Today screen
 
 Add a simple operational landing screen rather than a chart-heavy finance dashboard:
 
@@ -81,7 +77,7 @@ Add a simple operational landing screen rather than a chart-heavy finance dashbo
 - scan/add/search shortcuts;
 - recent purchases.
 
-### 4. Attachment capabilities
+### 3. Attachment capabilities
 
 - explicit attachment type editing;
 - PDF text extraction;
@@ -90,7 +86,7 @@ Add a simple operational landing screen rather than a chart-heavy finance dashbo
 - optional additional OCR languages;
 - duplicate-document detection using SHA-256.
 
-### 5. Recovery and test hardening
+### 4. Recovery and test hardening
 
 - backup corruption/rollback tests;
 - large archive tests;

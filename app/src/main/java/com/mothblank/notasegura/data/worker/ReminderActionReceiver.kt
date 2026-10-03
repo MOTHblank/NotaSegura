@@ -34,6 +34,8 @@ class ReminderActionReceiver : BroadcastReceiver() {
                 }
                 NotificationManagerCompat.from(context)
                     .cancel(ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID)
+            } catch (_: Exception) {
+                // Keep the notification visible so the user can retry or open the payment.
             } finally {
                 pendingResult.finish()
             }

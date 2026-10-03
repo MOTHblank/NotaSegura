@@ -76,6 +76,9 @@ class ExpirationCheckWorker(
                     }
                 )
             )
+        } else {
+            NotificationManagerCompat.from(applicationContext)
+                .cancel(WARRANTY_NOTIFICATION_ID)
         }
 
         if (pendingPayments.isNotEmpty()) {
@@ -136,6 +139,9 @@ class ExpirationCheckWorker(
                     }
                 )
             )
+        } else {
+            NotificationManagerCompat.from(applicationContext)
+                .cancel(PAYMENT_NOTIFICATION_ID)
         }
 
         return Result.success()

@@ -46,11 +46,15 @@ interface PurchaseDao {
     suspend fun savePurchase(
         purchase: Purchase,
         newAttachments: List<Attachment>,
+        updatedAttachments: List<Attachment>,
         attachmentIdsToDelete: List<String>
     ) {
         insertPurchase(purchase)
         if (newAttachments.isNotEmpty()) {
             insertAttachments(newAttachments)
+        }
+        if (updatedAttachments.isNotEmpty()) {
+            insertAttachments(updatedAttachments)
         }
         if (attachmentIdsToDelete.isNotEmpty()) {
             deleteAttachmentsById(attachmentIdsToDelete)

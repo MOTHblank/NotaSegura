@@ -106,3 +106,14 @@ Once a production release has real user data, schema changes must use explicit R
 - add reminder thresholds/deep links/actions;
 - add attachment types/editing and PDF text extraction;
 - add backup/restore and persistence tests for the supported baseline.
+
+
+## License
+
+NotaSegura is free software licensed under the **GNU General Public License v3.0 only** (`GPL-3.0-only`).
+
+You may use, study, modify, and redistribute the software under the GPLv3 terms. Distributed derivative works based on the GPL-covered program must remain under GPLv3 and provide the corresponding source as required by the license.
+
+Third-party components retain their respective licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The GPL copyright license does not grant trademark rights in the **NotaSegura** or **MOTHblank** names or branding. Unofficial distributions should use distinct branding so they are not confused with official releases. See [TRADEMARKS.md](TRADEMARKS.md).

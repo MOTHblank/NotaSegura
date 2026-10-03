@@ -14,6 +14,7 @@ ksp = "2.3.12"
 onnxruntime = "1.21.1"
 opencv = "4.5.3"
 kotlinx-coroutines = "1.9.0"
+exifinterface = "1.4.2"
 workmanager = "2.12.0"
 coil = "3.6.3"
 
@@ -44,6 +45,7 @@ room-compiler = { group = "androidx.room", name = "room-compiler", version.ref =
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 opencv-android = { group = "com.quickbirdstudios", name = "opencv", version.ref = "opencv" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 androidx-work-manager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }

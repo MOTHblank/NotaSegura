@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 data class StagedAttachment(
     val stagedFile: StagedFile,
     val type: String = AttachmentType.RECEIPT,
+    val displayName: String = stagedFile.displayName,
     val ocrText: String? = null
 )
 
@@ -58,6 +59,7 @@ class PurchaseDocumentStore(
     suspend fun savePurchase(
         purchase: Purchase,
         stagedAttachments: List<StagedAttachment>,
+        updatedAttachments: List<Attachment>,
         removedAttachments: List<Attachment>
     ) = withContext(Dispatchers.IO) {
         val committed = mutableListOf<Pair<StagedAttachment, String>>()
@@ -75,9 +77,9 @@ class PurchaseDocumentStore(
                     id = staged.stagedFile.id,
                     purchaseId = purchase.id,
                     mimeType = staged.stagedFile.mimeType,
-                    type = staged.type,
+                    type = AttachmentType.normalize(staged.type),
                     filePath = managedPath,
-                    displayName = staged.stagedFile.displayName,
+                    displayName = staged.displayName.trim().ifBlank { null },
                     sha256 = staged.stagedFile.sha256,
                     ocrText = staged.ocrText,
                     createdAt = System.currentTimeMillis()
@@ -87,6 +89,12 @@ class PurchaseDocumentStore(
             repository.savePurchase(
                 purchase = purchase,
                 newAttachments = newAttachments,
+                updatedAttachments = updatedAttachments.map { attachment ->
+                    attachment.copy(
+                        type = AttachmentType.normalize(attachment.type),
+                        displayName = attachment.displayName?.trim()?.ifBlank { null }
+                    )
+                },
                 attachmentIdsToDelete = removedAttachments.map { it.id }
             )
             databaseSaved = true

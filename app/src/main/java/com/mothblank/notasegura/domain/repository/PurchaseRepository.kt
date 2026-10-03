@@ -14,6 +14,7 @@ interface PurchaseRepository {
     suspend fun savePurchase(
         purchase: Purchase,
         newAttachments: List<Attachment>,
+        updatedAttachments: List<Attachment>,
         attachmentIdsToDelete: List<String>
     )
 

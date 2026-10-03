@@ -165,6 +165,7 @@
     <string name="attachment_open_hint">Toque em um documento para abrir e ampliar.</string>
     <string name="attachment_add">Adicionar foto ou documento</string>
     <string name="attachment_open_description">Abrir %1$s</string>
+    <string name="attachment_duplicate_ignored">Este documento já está anexado a esta compra. Nenhuma cópia extra foi criada.</string>
 
     <string name="payment_section_main">Pagamento</string>
     <string name="payment_section_main_hint">Dados principais da cobrança.</string>
@@ -238,15 +239,13 @@
     <string name="notification_payment_combined">Você tem %1$s e %2$s.</string>
 
     <string name="security_screen_title">Segurança e privacidade</string>
-    <string name="security_intro">Veja como o Nota Segura protege seus registros e o que acontece quando você exporta informações.</string>
-    <string name="security_local_title">Seus registros ficam no aparelho</string>
-    <string name="security_local_body">Compras, pagamentos e documentos são armazenados no espaço privado do aplicativo. O backup automático do Android e a transferência automática desses dados entre aparelhos estão desativados.</string>
-    <string name="security_backup_title">Backups portáteis são criptografados</string>
-    <string name="security_backup_body">Arquivos .notasegura usam criptografia autenticada AES-256-GCM e uma senha escolhida por você. A senha não é salva pelo aplicativo e não pode ser recuperada pela MOTHblank.</string>
-    <string name="security_exports_title">Você controla o que sai do aplicativo</string>
-    <string name="security_exports_body">Backups e relatórios só são exportados quando você pede. Relatórios PDF são legíveis e não são criptografados, portanto compartilhe-os apenas com destinos de sua confiança.</string>
-    <string name="security_ocr_title">OCR local</string>
-    <string name="security_ocr_body">O conteúdo dos comprovantes é reconhecido no dispositivo e não é enviado à MOTHblank. O Google ML Kit pode tratar telemetria operacional limitada conforme descrito na política de privacidade.</string>
+    <string name="security_intro">Resumo rápido de como seus dados são tratados.</string>
+    <string name="security_local_title">Local</string>
+    <string name="security_local_body">Compras e documentos ficam no armazenamento privado do app. O backup automático do Android está desativado.</string>
+    <string name="security_backup_title">Backups</string>
+    <string name="security_backup_body">Arquivos .notasegura são criptografados e protegidos pela senha que você escolher.</string>
+    <string name="security_exports_title">Exportações e OCR</string>
+    <string name="security_exports_body">PDFs exportados são legíveis. O OCR acontece no aparelho e o conteúdo não é enviado à MOTHblank.</string>
     <string name="security_open_privacy_policy">Abrir política de privacidade</string>
 
     <string name="notification_channel_name">Lembretes NotaSegura</string>

@@ -34,7 +34,7 @@ sealed interface StageFileResult {
 }
 
 object FileStorageManager {
-    const val MAX_ATTACHMENT_BYTES = 25L * 1024L * 1024L
+    const val MAX_ATTACHMENT_BYTES = 100L * 1024L * 1024L
 
     private const val ATTACHMENTS_DIR = "attachments"
     private const val STAGING_DIR = "attachment_staging"

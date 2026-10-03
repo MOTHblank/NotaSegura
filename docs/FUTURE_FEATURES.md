@@ -1,9 +1,5 @@
 # Future feature ideas
 
-## Encrypted portable backups
-
-The versioned backup format now exists and verifies integrity. The next security step is encryption with a user-controlled recovery secret. Do not make recovery depend exclusively on the device Keystore, because backups must survive device loss.
-
 ## Smarter reminders
 
 Model reminder thresholds and delivery state rather than sending generic summaries from fixed windows. Deep-link notifications to individual purchases/payments and support direct payment completion actions.

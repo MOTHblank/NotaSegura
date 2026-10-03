@@ -40,5 +40,11 @@ object AttachmentType {
     const val RECEIPT = "RECEIPT"
     const val INVOICE = "INVOICE"
     const val WARRANTY = "WARRANTY"
+    const val MANUAL = "MANUAL"
     const val OTHER = "OTHER"
+
+    val supported = setOf(RECEIPT, INVOICE, WARRANTY, MANUAL, OTHER)
+
+    fun normalize(value: String): String =
+        value.takeIf { it in supported } ?: OTHER
 }

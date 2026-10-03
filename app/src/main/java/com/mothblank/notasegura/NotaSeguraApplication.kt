@@ -16,6 +16,7 @@ import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.data.worker.ExpirationCheckWorker
 import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.domain.repository.PurchaseRepository
+import com.mothblank.notasegura.util.TemporaryFileMaintenance
 import java.util.concurrent.TimeUnit
 
 class NotaSeguraApplication : Application() {
@@ -46,6 +47,7 @@ class NotaSeguraApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        TemporaryFileMaintenance.cleanup(applicationContext)
         createNotificationChannel()
         scheduleDailyExpirationCheck()
     }

@@ -71,7 +71,7 @@
     <string name="purchase_filter_category">Filtrar por categoria</string>
     <string name="purchase_filter_all">Todas</string>
     <string name="dashboard_title">Próximos prazos</string>
-    <string name="dashboard_subtitle">Pagamentos pendentes dos próximos 7 dias e garantias que terminam em até 30 dias.</string>
+    <string name="dashboard_subtitle">Pagamentos atrasados ou dos próximos 7 dias e garantias que terminam em até 30 dias.</string>
     <string name="dashboard_clear_title">Nenhum prazo próximo</string>
     <string name="dashboard_clear_body">Não há pagamentos pendentes nesta semana nem garantias terminando nos próximos 30 dias.</string>
     <string name="dashboard_payments_title">Obrigações</string>

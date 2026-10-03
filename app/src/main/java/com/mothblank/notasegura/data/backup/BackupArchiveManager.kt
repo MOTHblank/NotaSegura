@@ -131,6 +131,7 @@ class BackupArchiveManager(
                         }
                     }
                 }
+            }
 
                 BackupSummary(
                     purchases = purchases.size,

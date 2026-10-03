@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -64,6 +65,7 @@ import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
 import com.mothblank.notasegura.ui.screens.payment_details.PaymentDetailsScreen
 import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
 import com.mothblank.notasegura.ui.screens.purchase_details.PurchaseDetailsScreen
+import com.mothblank.notasegura.ui.screens.security.SecurityPrivacyScreen
 import com.mothblank.notasegura.ui.screens.timeline.TimelineScreen
 import com.mothblank.notasegura.ui.theme.NotaSeguraTheme
 import com.mothblank.notasegura.util.ExportManager
@@ -101,6 +103,7 @@ fun NotaSeguraApp() {
     val isPaymentEditor = currentRoute == AppScreen.AddEditPayment.route
     val isPurchaseDetails = currentRoute == AppScreen.PurchaseDetails.route
     val isPaymentDetails = currentRoute == AppScreen.PaymentDetails.route
+    val isSecurityPrivacy = currentRoute == AppScreen.SecurityPrivacy.route
     val showPrimaryNavigation =
         currentRoute == AppScreen.Timeline.route || currentRoute == AppScreen.Payments.route
 
@@ -121,6 +124,7 @@ fun NotaSeguraApp() {
         }
         isPurchaseDetails -> stringResource(R.string.screen_purchase_details)
         isPaymentDetails -> stringResource(R.string.screen_payment_details)
+        isSecurityPrivacy -> stringResource(R.string.security_screen_title)
         else -> null
     }
 
@@ -310,6 +314,17 @@ fun NotaSeguraApp() {
                             )
 
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_security_privacy)) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Security, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    navController.navigate(AppScreen.SecurityPrivacy.route)
+                                }
+                            )
+
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.menu_privacy_policy)) },
                                 onClick = {
                                     menuExpanded = false
@@ -450,6 +465,26 @@ fun NotaSeguraApp() {
             }
             composable(AppScreen.Payments.route) {
                 PaymentsScreen(navController)
+            }
+            composable(AppScreen.SecurityPrivacy.route) {
+                SecurityPrivacyScreen(
+                    onOpenPrivacyPolicy = {
+                        val privacyPolicyUri = Uri.parse(
+                            context.getString(R.string.privacy_policy_url)
+                        )
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, privacyPolicyUri)
+                            )
+                        }.onFailure {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.privacy_policy_open_failed),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                )
             }
             composable(
                 route = AppScreen.PaymentDetails.route,

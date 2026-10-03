@@ -19,6 +19,7 @@
     <string name="screen_add_payment">Adicionar pagamento</string>
     <string name="screen_edit_payment">Editar pagamento</string>
     <string name="screen_payment_details">Detalhes do pagamento</string>
+    <string name="reminder_settings_title">Lembretes</string>
 
     <string name="menu_options">Opções</string>
     <string name="menu_share_report">Compartilhar relatório</string>
@@ -27,6 +28,23 @@
     <string name="menu_configure_notifications">Configurar notificações</string>
     <string name="menu_privacy_policy">Política de privacidade</string>
     <string name="menu_security_privacy">Segurança e privacidade</string>
+
+    <string name="reminder_settings_intro">Escolha com quanta antecedência o Nota Segura deve avisar. As alterações são salvas imediatamente.</string>
+    <string name="reminder_payment_title">Pagamentos</string>
+    <string name="reminder_payment_body">Avisa sobre cobranças pendentes antes do vencimento. Pagamentos já atrasados continuam aparecendo no mesmo lembrete.</string>
+    <string name="reminder_warranty_title">Garantias</string>
+    <string name="reminder_warranty_body">Avisa quando uma garantia registrada estiver perto da data final.</string>
+    <string name="reminder_disabled">Desativado</string>
+    <plurals name="reminder_days_before">
+        <item quantity="one">%d dia antes</item>
+        <item quantity="other">%d dias antes</item>
+    </plurals>
+    <plurals name="reminder_window">
+        <item quantity="one">no próximo dia</item>
+        <item quantity="other">nos próximos %d dias</item>
+    </plurals>
+    <string name="reminder_open_android_settings">Configurações de notificações do Android</string>
+    <string name="reminder_settings_note">O Android ainda pode bloquear notificações do app. Use a opção acima para conferir a permissão e o canal de lembretes.</string>
     <string name="privacy_policy_open_failed">Não foi possível abrir a política de privacidade.</string>
     <string name="privacy_policy_url" translatable="false">https://mothblank.github.io/pt-BR/privacy-notasegura.html</string>
     <string name="nav_purchases">Compras</string>
@@ -170,6 +188,15 @@
     <string name="attachment_none">Nenhum documento anexado.</string>
     <string name="attachment_open_hint">Toque em um documento para abrir e ampliar.</string>
     <string name="attachment_add">Adicionar foto ou documento</string>
+    <string name="attachment_edit">Editar</string>
+    <string name="attachment_edit_title">Editar documento</string>
+    <string name="attachment_name_label">Nome do documento</string>
+    <string name="attachment_type_label">Tipo de documento</string>
+    <string name="attachment_type_receipt">Comprovante</string>
+    <string name="attachment_type_invoice">Nota fiscal / fatura</string>
+    <string name="attachment_type_warranty">Certificado de garantia</string>
+    <string name="attachment_type_manual">Manual</string>
+    <string name="attachment_type_other">Outro</string>
     <string name="attachment_open_description">Abrir %1$s</string>
     <string name="attachment_duplicate_ignored">Este documento já está anexado a esta compra. Nenhuma cópia extra foi criada.</string>
 
@@ -229,8 +256,8 @@
 
     <string name="notification_warranty_title">Lembrete de garantia</string>
     <plurals name="notification_warranty_expiring">
-        <item quantity="one">Você tem %d garantia terminando nos próximos 30 dias.</item>
-        <item quantity="other">Você tem %d garantias terminando nos próximos 30 dias.</item>
+        <item quantity="one">Você tem %1$d garantia terminando %2$s.</item>
+        <item quantity="other">Você tem %1$d garantias terminando %2$s.</item>
     </plurals>
     <string name="notification_payment_title">Lembrete de pagamento</string>
     <plurals name="notification_payment_overdue_fragment">
@@ -238,11 +265,15 @@
         <item quantity="other">%d pagamentos atrasados</item>
     </plurals>
     <plurals name="notification_payment_due_fragment">
-        <item quantity="one">%d pagamento vencendo nos próximos 3 dias</item>
-        <item quantity="other">%d pagamentos vencendo nos próximos 3 dias</item>
+        <item quantity="one">%1$d pagamento vencendo %2$s</item>
+        <item quantity="other">%1$d pagamentos vencendo %2$s</item>
     </plurals>
     <string name="notification_payment_single">Você tem %1$s.</string>
     <string name="notification_payment_combined">Você tem %1$s e %2$s.</string>
+    <string name="notification_action_view_purchase">Ver compra</string>
+    <string name="notification_action_view_purchases">Ver compras</string>
+    <string name="notification_action_view_payment">Ver pagamento</string>
+    <string name="notification_action_view_payments">Ver pagamentos</string>
 
     <string name="security_screen_title">Segurança e privacidade</string>
     <string name="security_intro">Resumo rápido de como seus dados são tratados.</string>

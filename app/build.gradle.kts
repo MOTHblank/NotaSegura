@@ -52,7 +52,7 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
-    implementation(libs.google.mlkit.text.recognition)
+    implementation(project(":ppocr-sdk"))
     implementation(libs.androidx.work.manager.ktx)
     implementation(libs.coil.compose)
 

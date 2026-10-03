@@ -274,6 +274,7 @@
     <string name="notification_action_view_purchases">Ver compras</string>
     <string name="notification_action_view_payment">Ver pagamento</string>
     <string name="notification_action_view_payments">Ver pagamentos</string>
+    <string name="notification_action_mark_paid">Marcar como pago</string>
 
     <string name="security_screen_title">Segurança e privacidade</string>
     <string name="security_intro">Resumo rápido de como seus dados são tratados.</string>

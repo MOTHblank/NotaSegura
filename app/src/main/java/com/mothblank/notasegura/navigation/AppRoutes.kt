@@ -14,6 +14,8 @@ sealed class AppScreen(val route: String) {
 
     object Payments : AppScreen("payments_screen")
 
+    object SecurityPrivacy : AppScreen("security_privacy_screen")
+
     object PaymentDetails : AppScreen("payment_details_screen/{paymentId}") {
         fun createRoute(paymentId: String) = "payment_details_screen/$paymentId"
     }

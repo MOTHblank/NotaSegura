@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "NotaSegura"
 include(":app")
+include(":ppocr-sdk")
  

@@ -86,6 +86,7 @@ import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
+import com.mothblank.notasegura.ui.components.attachmentTypeLabel
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.DateUtils
@@ -825,16 +826,6 @@ private fun AttachmentMetadataDialog(
         }
     )
 }
-
-@Composable
-private fun attachmentTypeLabel(type: String): String =
-    when (AttachmentType.normalize(type)) {
-        AttachmentType.RECEIPT -> stringResource(R.string.attachment_type_receipt)
-        AttachmentType.INVOICE -> stringResource(R.string.attachment_type_invoice)
-        AttachmentType.WARRANTY -> stringResource(R.string.attachment_type_warranty)
-        AttachmentType.MANUAL -> stringResource(R.string.attachment_type_manual)
-        else -> stringResource(R.string.attachment_type_other)
-    }
 
 @Composable
 private fun RequiredLabel(text: String) {

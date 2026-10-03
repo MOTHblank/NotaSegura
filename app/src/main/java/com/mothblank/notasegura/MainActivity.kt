@@ -47,6 +47,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
@@ -58,6 +61,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.mothblank.notasegura.data.backup.BackupArchiveManager
 import com.mothblank.notasegura.navigation.AppScreen
+import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.ui.components.CreateEncryptedBackupDialog
 import com.mothblank.notasegura.ui.components.RestoreEncryptedBackupDialog
 import com.mothblank.notasegura.ui.components.UnsavedExitDialog
@@ -212,6 +216,7 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
                     title = {
                         Text(
                             editorTitle,
+                            modifier = Modifier.semantics { heading() },
                             style = MaterialTheme.typography.titleLarge
                         )
                     },
@@ -237,12 +242,16 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
                     title = {
                         Text(
                             stringResource(R.string.app_display_name),
+                            modifier = Modifier
+                                .testTag(AccessibilityTags.APP_TITLE)
+                                .semantics { heading() },
                             style = MaterialTheme.typography.headlineSmall
                         )
                     },
                     actions = {
                         TextButton(
                             onClick = { menuExpanded = true },
+                            modifier = Modifier.testTag(AccessibilityTags.OPTIONS_MENU),
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = MaterialTheme.colorScheme.onPrimary
                             )
@@ -373,6 +382,7 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
             if (showPrimaryNavigation) {
                 NavigationBar {
                     NavigationBarItem(
+                        modifier = Modifier.testTag(AccessibilityTags.PURCHASES_TAB),
                         icon = {
                             Icon(
                                 Icons.Default.Inventory2,
@@ -393,6 +403,7 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
                         }
                     )
                     NavigationBarItem(
+                        modifier = Modifier.testTag(AccessibilityTags.PAYMENTS_TAB),
                         icon = {
                             Icon(
                                 Icons.Default.Payments,
@@ -418,6 +429,7 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
         floatingActionButton = {
             if (showPrimaryNavigation) {
                 ExtendedFloatingActionButton(
+                    modifier = Modifier.testTag(AccessibilityTags.PRIMARY_ADD_ACTION),
                     onClick = {
                         if (currentRoute == AppScreen.Timeline.route) {
                             navController.navigate(AppScreen.AddEditItem.createRoute())

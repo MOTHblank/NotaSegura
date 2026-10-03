@@ -122,6 +122,7 @@
     </plurals>
     <string name="purchase_open_receipt">Abrir comprovante</string>
     <string name="search_clear">Limpar pesquisa</string>
+    <string name="accessibility_date_not_selected">Não selecionada</string>
     <string name="warranty_not_informed">Garantia não informada</string>
     <string name="warranty_not_informed_detail">Você pode adicionar essa data ao editar a compra.</string>
     <string name="warranty_ended">Garantia encerrada</string>

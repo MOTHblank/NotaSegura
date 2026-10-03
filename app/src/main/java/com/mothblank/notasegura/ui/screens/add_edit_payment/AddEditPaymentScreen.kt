@@ -51,8 +51,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +69,7 @@ import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
@@ -118,7 +122,8 @@ fun AddEditPaymentScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .testTag(AccessibilityTags.PAYMENT_FORM),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
@@ -134,7 +139,9 @@ fun AddEditPaymentScreen(
             OutlinedTextField(
                 value = uiState.title,
                 onValueChange = viewModel::onTitleChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(AccessibilityTags.PAYMENT_TITLE_FIELD),
                 label = { RequiredPaymentLabel(stringResource(R.string.field_payment_name)) },
                 textStyle = MaterialTheme.typography.bodyLarge,
                 singleLine = true,
@@ -234,7 +241,8 @@ fun AddEditPaymentScreen(
             onClick = viewModel::savePayment,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 64.dp),
+                .heightIn(min = 64.dp)
+                .testTag(AccessibilityTags.PAYMENT_SAVE),
             enabled = !uiState.isSaving &&
                 uiState.title.isNotBlank() &&
                 uiState.dueDate != null,
@@ -327,6 +335,7 @@ private fun PaymentFormSection(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     title,
+                    modifier = Modifier.semantics { heading() },
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(

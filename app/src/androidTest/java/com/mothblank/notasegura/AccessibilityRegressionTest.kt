@@ -204,7 +204,10 @@ class AccessibilityRegressionTest {
 
         setAppContent(constrainedLargeText)
 
-        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_EMPTY_ACTION)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_PRODUCT_FIELD)
             .performScrollTo()
             .assertIsDisplayed()
@@ -214,7 +217,10 @@ class AccessibilityRegressionTest {
 
         composeRule.onNodeWithContentDescription(string(R.string.common_back)).performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENTS_TAB).performClick()
-        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
         composeRule.onNodeWithContentDescription(string(R.string.field_payment_due_date))
             .assertHasClickAction()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_TITLE_FIELD)

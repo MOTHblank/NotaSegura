@@ -36,7 +36,11 @@ class ORTSessionManager(
 
     fun loadModels(detAssetPath: String, recAssetPath: String) {
         val loadStart = System.currentTimeMillis()
-        env = OrtEnvironment.getEnvironment()
+        env = OrtEnvironment.getEnvironment().apply {
+            // NotaSegura is intentionally network-free. Disable ORT telemetry in addition
+            // to stripping INTERNET/ACCESS_NETWORK_STATE from the merged app manifest.
+            setTelemetry(false)
+        }
         val opts = OrtSession.SessionOptions().apply {
             setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
             setIntraOpNumThreads(config.numThreads)

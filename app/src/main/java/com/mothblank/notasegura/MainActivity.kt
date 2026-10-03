@@ -303,6 +303,27 @@ fun NotaSeguraApp() {
                                     )
                                 }
                             )
+
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_privacy_policy)) },
+                                onClick = {
+                                    menuExpanded = false
+                                    val privacyPolicyUri = Uri.parse(
+                                        context.getString(R.string.privacy_policy_url)
+                                    )
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, privacyPolicyUri)
+                                        )
+                                    }.onFailure {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.privacy_policy_open_failed),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

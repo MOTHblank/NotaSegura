@@ -25,6 +25,9 @@
     <string name="menu_save_backup">Salvar cópia de segurança</string>
     <string name="menu_restore_backup">Restaurar cópia de segurança</string>
     <string name="menu_configure_notifications">Configurar notificações</string>
+    <string name="menu_privacy_policy">Política de privacidade</string>
+    <string name="privacy_policy_open_failed">Não foi possível abrir a política de privacidade.</string>
+    <string name="privacy_policy_url" translatable="false">https://mothblank.github.io/pt-BR/privacy-notasegura.html</string>
     <string name="nav_purchases">Compras</string>
     <string name="nav_payments">Pagamentos</string>
     <string name="backup_restore_title">Restaurar cópia de segurança?</string>

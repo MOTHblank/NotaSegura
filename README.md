@@ -37,7 +37,7 @@ Search covers structured purchase fields and stored OCR text, so an old receipt 
 
 ## Backup and restore
 
-The app can create a portable versioned `.notasegura` archive containing:
+The app can create a portable password-protected, versioned `.notasegura` backup containing:
 
 - purchases;
 - attachment metadata;
@@ -46,9 +46,9 @@ The app can create a portable versioned `.notasegura` archive containing:
 - a format/schema manifest;
 - SHA-256 checksums for data and every document.
 
-Restore copies the archive into staging, validates structure and checksums, prepares replacement documents, and only then replaces Room data in a transaction. A malformed or incomplete archive is rejected before the live database is changed.
+The ZIP payload is wrapped in a versioned encrypted envelope before export. NotaSegura derives a 256-bit key from the user-provided password with PBKDF2-HMAC-SHA256 (600,000 iterations and a unique 16-byte random salt per backup), then encrypts and authenticates the archive with AES-256-GCM using a unique 12-byte IV. The password is never stored and cannot be recovered by the app.
 
-**Current limitation:** backup archives provide integrity checking but are not yet encrypted. Treat exported backup files as sensitive documents.
+Restore authenticates and decrypts the envelope into private staging, validates the inner archive structure and SHA-256 checksums, prepares replacement documents, and only then replaces Room data in a transaction. A wrong password, tampered file, malformed archive, or incomplete backup is rejected before the live database is changed.
 
 The existing PDF export remains a human-readable report and is deliberately separate from backup/recovery.
 
@@ -74,8 +74,8 @@ The list layouts avoid tight horizontal price/action rows so they remain usable 
 - Managed documents live under app-private internal storage.
 - Android backup remains disabled.
 - Shared PDF reports are temporary cache files exposed through FileProvider grants.
-- Portable backups are explicitly created by the user through Android's document picker.
-- There is no cloud sync or app-level database/file encryption yet.
+- Portable backups are explicitly created by the user through Android's document picker and encrypted with a user-controlled password.
+- There is no cloud sync; live Room/database files remain protected by Android app-private storage rather than a separate app-level database-encryption layer.
 
 ## Project structure
 
@@ -98,7 +98,6 @@ Once a production release has real user data, schema changes must use explicit R
 
 ## Next work
 
-- encrypt portable backups with a user-controlled recovery secret;
 - add a dashboard for upcoming obligations and expiring warranties;
 - add reminder thresholds/deep links/actions;
 - add attachment types/editing and PDF text extraction;

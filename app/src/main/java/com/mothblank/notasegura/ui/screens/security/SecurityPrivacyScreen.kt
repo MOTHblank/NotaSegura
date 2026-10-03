@@ -48,10 +48,6 @@ fun SecurityPrivacyScreen(
             title = stringResource(R.string.security_exports_title),
             body = stringResource(R.string.security_exports_body)
         )
-        SecurityInfoCard(
-            title = stringResource(R.string.security_ocr_title),
-            body = stringResource(R.string.security_ocr_body)
-        )
 
         Button(
             onClick = onOpenPrivacyPolicy,

@@ -68,8 +68,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
@@ -84,6 +87,7 @@ import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
 import com.mothblank.notasegura.ui.components.attachmentTypeLabel
@@ -178,7 +182,8 @@ fun AddEditItemScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .testTag(AccessibilityTags.PURCHASE_FORM),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
@@ -287,7 +292,9 @@ fun AddEditItemScreen(
             OutlinedTextField(
                 value = uiState.productName,
                 onValueChange = viewModel::onProductNameChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(AccessibilityTags.PURCHASE_PRODUCT_FIELD),
                 label = { RequiredLabel(stringResource(R.string.field_product)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
@@ -437,7 +444,8 @@ fun AddEditItemScreen(
             onClick = viewModel::saveItem,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 64.dp),
+                .heightIn(min = 64.dp)
+                .testTag(AccessibilityTags.PURCHASE_SAVE),
             enabled = !uiState.isSaving &&
                 !uiState.isAnalyzingDocument &&
                 uiState.productName.isNotBlank() &&
@@ -577,6 +585,7 @@ private fun FormSection(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     title,
+                    modifier = Modifier.semantics { heading() },
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(

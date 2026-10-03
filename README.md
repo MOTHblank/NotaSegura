@@ -71,6 +71,8 @@ The UI is deliberately optimized for clarity rather than density:
 
 The list layouts avoid tight horizontal price/action rows so they remain usable with large system font scaling.
 
+Accessibility is also treated as a regression-tested product constraint. Instrumented Compose tests cover 48dp touch targets, accessible names/content descriptions, heading and reading order semantics, typography response to Android font scaling, and the purchase/payment workflows under 200% font scaling with a constrained logical display size. On API 34+, the suite also runs Android's Accessibility Test Framework against critical screens.
+
 ## Data and security model
 
 - Room stores structured data locally.

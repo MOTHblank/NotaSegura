@@ -162,7 +162,7 @@ fun AddEditItemScreen(
     ) { success ->
         if (success) {
             tempImageUri?.let(Uri::parse)?.let {
-                viewModel.onAttachmentSelected(context, it)
+                viewModel.onAttachmentSelected(it)
             }
         }
         tempImageUri = null

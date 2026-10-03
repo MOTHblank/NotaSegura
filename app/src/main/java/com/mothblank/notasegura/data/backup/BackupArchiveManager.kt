@@ -43,6 +43,8 @@ class BackupArchiveManager(
     private val database: AppDatabase
 ) {
     companion object {
+        const val MIN_PASSWORD_LENGTH = MIN_BACKUP_PASSWORD_LENGTH
+
         private const val FORMAT_NAME = "NotaSeguraBackup"
         private const val FORMAT_VERSION = 1
         private const val SCHEMA_VERSION = 1
@@ -50,9 +52,15 @@ class BackupArchiveManager(
         private const val MAX_JSON_BYTES = 8 * 1024 * 1024
     }
 
-    suspend fun createBackup(destination: Uri): Result<BackupSummary> =
+    suspend fun createBackup(
+        destination: Uri,
+        password: String
+    ): Result<BackupSummary> =
         withContext(Dispatchers.IO) {
             runCatching {
+                require(password.length >= MIN_PASSWORD_LENGTH) {
+                    "A senha do backup deve ter pelo menos $MIN_PASSWORD_LENGTH caracteres."
+                }
                 val snapshot = database.withTransaction {
                     BackupSnapshot(
                         purchases = database.purchaseDao().getPurchasesSnapshot(),
@@ -105,7 +113,11 @@ class BackupArchiveManager(
                     ?: error("Não foi possível abrir o destino do backup.")
 
                 output.use { raw ->
-                    ZipOutputStream(raw.buffered()).use { zip ->
+                    BackupCrypto.openEncryptedOutput(
+                        raw.buffered(),
+                        password.toCharArray()
+                    ).use { encrypted ->
+                        ZipOutputStream(encrypted).use { zip ->
                         writeBytes(zip, "manifest.json", manifest.toString().toByteArray(Charsets.UTF_8))
                         writeBytes(zip, "data.json", dataBytes)
 
@@ -128,10 +140,16 @@ class BackupArchiveManager(
             }
         }
 
-    suspend fun restoreBackup(source: Uri): Result<BackupSummary> =
+    suspend fun restoreBackup(
+        source: Uri,
+        password: String
+    ): Result<BackupSummary> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val tempArchive = copyBackupToCache(source)
+                require(password.length >= MIN_PASSWORD_LENGTH) {
+                    "A senha do backup deve ter pelo menos $MIN_PASSWORD_LENGTH caracteres."
+                }
+                val tempArchive = copyBackupToCache(source, password)
                 val restoreDir = File(
                     context.filesDir,
                     "attachments/restore_${System.currentTimeMillis()}_${UUID.randomUUID()}"
@@ -381,26 +399,20 @@ class BackupArchiveManager(
         }
     }
 
-    private fun copyBackupToCache(uri: Uri): File {
+    private fun copyBackupToCache(uri: Uri, password: String): File {
         val temp = File(context.cacheDir, "restore_${UUID.randomUUID()}.notasegura")
         try {
             val input = context.contentResolver.openInputStream(uri)
                 ?: error("Não foi possível abrir o backup.")
 
-            input.use { source ->
-                FileOutputStream(temp).use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var total = 0L
-                    while (true) {
-                        val count = source.read(buffer)
-                        if (count < 0) break
-                        if (count == 0) continue
-                        total += count
-                        require(total <= MAX_ARCHIVE_BYTES) {
-                            "Backup excede o tamanho máximo permitido."
-                        }
-                        output.write(buffer, 0, count)
-                    }
+            input.buffered().use { source ->
+                FileOutputStream(temp).buffered().use { output ->
+                    BackupCrypto.decrypt(
+                        input = source,
+                        output = output,
+                        password = password.toCharArray(),
+                        maxPlaintextBytes = MAX_ARCHIVE_BYTES
+                    )
                 }
             }
             return temp

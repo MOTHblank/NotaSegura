@@ -82,7 +82,7 @@ fun TimelineScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
-    val attentionSummary by viewModel.attentionSummary.collectAsState()
+    val attentionDashboard by viewModel.attentionDashboard.collectAsState()
     val focusManager = LocalFocusManager.current
     var previewAttachment by remember { mutableStateOf<Attachment?>(null) }
 
@@ -97,20 +97,19 @@ fun TimelineScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (
-                    attentionSummary.warrantiesExpiringSoon > 0 ||
-                    attentionSummary.overduePayments > 0 ||
-                    attentionSummary.paymentsDueThisWeek > 0
-                ) {
-                    AttentionOverview(
-                        summary = attentionSummary,
-                        onOpenPayments = {
-                            navController.navigate(AppScreen.Payments.route) {
-                                launchSingleTop = true
-                            }
-                        }
-                    )
-                }
+                AttentionOverview(
+                    dashboard = attentionDashboard,
+                    onOpenPayment = { paymentId ->
+                        navController.navigate(
+                            AppScreen.PaymentDetails.createRoute(paymentId)
+                        )
+                    },
+                    onOpenWarranty = { purchaseId ->
+                        navController.navigate(
+                            AppScreen.PurchaseDetails.createRoute(purchaseId)
+                        )
+                    }
+                )
 
                 OutlinedTextField(
                     value = searchQuery,
@@ -222,81 +221,204 @@ fun TimelineScreen(
 
 @Composable
 private fun AttentionOverview(
-    summary: AttentionSummary,
-    onOpenPayments: () -> Unit
+    dashboard: AttentionDashboardState,
+    onOpenPayment: (String) -> Unit,
+    onOpenWarranty: (String) -> Unit
 ) {
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    val today = LocalDate.now()
+    val visiblePayments = dashboard.paymentsRequiringAttention.take(2)
+    val visibleWarranties = dashboard.warrantiesExpiringSoon.take(2)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                stringResource(R.string.attention_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    stringResource(R.string.dashboard_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    stringResource(R.string.dashboard_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            if (dashboard.isEmpty) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Event,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                stringResource(R.string.dashboard_clear_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                stringResource(R.string.dashboard_clear_body),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else {
+                if (dashboard.paymentsRequiringAttention.isNotEmpty()) {
+                    Text(
+                        stringResource(R.string.dashboard_payments_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+
+                    visiblePayments.forEach { payment ->
+                        val deadline = when {
+                            payment.isOverdue -> stringResource(
+                                R.string.dashboard_payment_overdue,
+                                payment.dueDate.format(formatter)
+                            )
+                            payment.dueDate == today -> stringResource(
+                                R.string.dashboard_payment_due_today
+                            )
+                            else -> stringResource(
+                                R.string.dashboard_payment_due_date,
+                                payment.dueDate.format(formatter)
+                            )
+                        }
+
+                        AttentionEntryCard(
+                            title = payment.title,
+                            detail = stringResource(
+                                R.string.dashboard_payment_detail,
+                                deadline,
+                                CurrencyUtils.formatCents(payment.amountCents)
+                            ),
+                            urgent = payment.isOverdue,
+                            onClick = { onOpenPayment(payment.paymentId) }
+                        )
+                    }
+
+                    val hiddenPayments =
+                        dashboard.paymentsRequiringAttention.size - visiblePayments.size
+                    if (hiddenPayments > 0) {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.dashboard_more_payments,
+                                hiddenPayments,
+                                hiddenPayments
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+
+                if (dashboard.warrantiesExpiringSoon.isNotEmpty()) {
+                    Text(
+                        stringResource(R.string.dashboard_warranties_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+
+                    visibleWarranties.forEach { warranty ->
+                        AttentionEntryCard(
+                            title = warranty.productName,
+                            detail = stringResource(
+                                R.string.dashboard_warranty_due_date,
+                                warranty.warrantyEndDate.format(formatter)
+                            ),
+                            urgent = false,
+                            onClick = { onOpenWarranty(warranty.purchaseId) }
+                        )
+                    }
+
+                    val hiddenWarranties =
+                        dashboard.warrantiesExpiringSoon.size - visibleWarranties.size
+                    if (hiddenWarranties > 0) {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.dashboard_more_warranties,
+                                hiddenWarranties,
+                                hiddenWarranties
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttentionEntryCard(
+    title: String,
+    detail: String,
+    urgent: Boolean,
+    onClick: () -> Unit
+) {
+    val containerColor = if (urgent) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (urgent) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                if (urgent) Icons.Default.WarningAmber else Icons.Default.Event,
+                contentDescription = null,
+                tint = contentColor
             )
-
-            if (summary.warrantiesExpiringSoon > 0) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Event,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                    Text(
-                        pluralStringResource(
-                            R.plurals.attention_warranties_expiring,
-                            summary.warrantiesExpiringSoon,
-                            summary.warrantiesExpiringSoon
-                        ),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
-            }
-
-            val paymentAttention =
-                summary.overduePayments + summary.paymentsDueThisWeek
-            val overdueLabel = if (summary.overduePayments > 0) {
-                pluralStringResource(
-                    R.plurals.attention_payments_overdue,
-                    summary.overduePayments,
-                    summary.overduePayments
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor
                 )
-            } else {
-                ""
-            }
-            val dueWeekLabel = if (summary.paymentsDueThisWeek > 0) {
-                pluralStringResource(
-                    R.plurals.attention_payments_due_week,
-                    summary.paymentsDueThisWeek,
-                    summary.paymentsDueThisWeek
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = contentColor
                 )
-            } else {
-                ""
-            }
-            if (paymentAttention > 0) {
-                OutlinedButton(
-                    onClick = onOpenPayments,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.WarningAmber, contentDescription = null)
-                    Text(
-                        listOf(overdueLabel, dueWeekLabel)
-                            .filter { it.isNotBlank() }
-                            .joinToString(stringResource(R.string.attention_separator)),
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
             }
         }
     }

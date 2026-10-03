@@ -52,6 +52,7 @@ import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
+import com.mothblank.notasegura.ui.components.attachmentTypeLabel
 import com.mothblank.notasegura.util.CurrencyUtils
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -351,16 +352,6 @@ private fun DetailRow(label: String, value: String) {
         Text(value, style = MaterialTheme.typography.bodyLarge)
     }
 }
-
-@Composable
-private fun attachmentTypeLabel(type: String): String =
-    when (AttachmentType.normalize(type)) {
-        AttachmentType.RECEIPT -> stringResource(R.string.attachment_type_receipt)
-        AttachmentType.INVOICE -> stringResource(R.string.attachment_type_invoice)
-        AttachmentType.WARRANTY -> stringResource(R.string.attachment_type_warranty)
-        AttachmentType.MANUAL -> stringResource(R.string.attachment_type_manual)
-        else -> stringResource(R.string.attachment_type_other)
-    }
 
 @Composable
 private fun WarrantyDetails(

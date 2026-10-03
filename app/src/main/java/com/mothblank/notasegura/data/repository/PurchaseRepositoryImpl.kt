@@ -21,8 +21,14 @@ class PurchaseRepositoryImpl(
     override suspend fun savePurchase(
         purchase: Purchase,
         newAttachments: List<Attachment>,
+        updatedAttachments: List<Attachment>,
         attachmentIdsToDelete: List<String>
-    ) = dao.savePurchase(purchase, newAttachments, attachmentIdsToDelete)
+    ) = dao.savePurchase(
+        purchase,
+        newAttachments,
+        updatedAttachments,
+        attachmentIdsToDelete
+    )
 
     override suspend fun deletePurchaseById(id: String) =
         dao.deletePurchaseById(id)

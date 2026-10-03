@@ -11,6 +11,7 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
+import com.mothblank.notasegura.data.storage.StageAttachmentResult
 import com.mothblank.notasegura.data.storage.StagedAttachment
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.Purchase
@@ -229,32 +230,48 @@ class AddEditItemViewModel(
 
     fun onAttachmentSelected(context: Context, uri: Uri) {
         viewModelScope.launch {
-            val staged = documentStore.stageAttachment(uri)
-            if (staged == null) {
-                _uiState.update {
-                    it.copy(errorMessageRes = R.string.error_document_copy)
-                }
-                return@launch
-            }
+            when (val result = documentStore.stageAttachment(uri)) {
+                is StageAttachmentResult.Success -> {
+                    val staged = result.attachment
+                    stagedAttachments[staged.stagedFile.id] = staged
+                    _uiState.update {
+                        it.copy(
+                            attachments = it.attachments + PurchaseAttachmentUi(
+                                id = staged.stagedFile.id,
+                                path = staged.stagedFile.path,
+                                mimeType = staged.stagedFile.mimeType,
+                                displayName = staged.stagedFile.displayName,
+                                isStaged = true
+                            ),
+                            errorMessageRes = null
+                        )
+                    }
 
-            stagedAttachments[staged.stagedFile.id] = staged
-            _uiState.update {
-                it.copy(
-                    attachments = it.attachments + PurchaseAttachmentUi(
-                        id = staged.stagedFile.id,
-                        path = staged.stagedFile.path,
-                        mimeType = staged.stagedFile.mimeType,
-                        displayName = staged.stagedFile.displayName,
-                        isStaged = true
-                    ),
-                    errorMessageRes = null
+                    if (staged.stagedFile.mimeType.startsWith("image/")) {
+                        processImageForOcr(context, uri, staged.stagedFile.id)
+                    }
+                }
+                StageAttachmentResult.UnsupportedType -> showAttachmentError(
+                    R.string.error_document_unsupported
+                )
+                StageAttachmentResult.TooLarge -> showAttachmentError(
+                    R.string.error_document_too_large
+                )
+                StageAttachmentResult.Empty -> showAttachmentError(
+                    R.string.error_document_empty
+                )
+                StageAttachmentResult.InvalidContent -> showAttachmentError(
+                    R.string.error_document_invalid
+                )
+                StageAttachmentResult.ReadError -> showAttachmentError(
+                    R.string.error_document_copy
                 )
             }
-
-            if (staged.stagedFile.mimeType.startsWith("image/")) {
-                processImageForOcr(context, uri, staged.stagedFile.id)
-            }
         }
+    }
+
+    private fun showAttachmentError(@StringRes messageRes: Int) {
+        _uiState.update { it.copy(errorMessageRes = messageRes) }
     }
 
     fun removeAttachment(id: String) {

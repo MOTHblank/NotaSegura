@@ -158,7 +158,7 @@
     <string name="attachment_take_photo">Tirar foto</string>
     <string name="attachment_take_photo_hint">Fotografe um comprovante ou certificado.</string>
     <string name="attachment_choose_file">Escolher imagem ou PDF</string>
-    <string name="attachment_choose_file_hint">Selecione um documento já salvo no aparelho.</string>
+    <string name="attachment_choose_file_hint">Selecione uma imagem ou PDF de até 100 MB já salvo no aparelho.</string>
     <string name="ocr_suggestion_found">Encontrado: %1$s</string>
     <string name="attachment_reading">Lendo documento...</string>
     <string name="attachment_none">Nenhum documento anexado.</string>
@@ -209,7 +209,7 @@
 
     <string name="error_document_copy">Não foi possível ler o documento selecionado.</string>
     <string name="error_document_unsupported">Esse tipo de arquivo não é compatível. Escolha uma imagem ou PDF.</string>
-    <string name="error_document_too_large">O documento é maior que 25 MB. Escolha um arquivo menor.</string>
+    <string name="error_document_too_large">O documento é maior que 100 MB. Escolha um arquivo menor.</string>
     <string name="error_document_empty">O documento selecionado está vazio.</string>
     <string name="error_document_invalid">O arquivo não parece ser uma imagem ou PDF válido.</string>
     <string name="error_warranty_before_purchase">O fim da garantia não pode ser anterior à compra.</string>

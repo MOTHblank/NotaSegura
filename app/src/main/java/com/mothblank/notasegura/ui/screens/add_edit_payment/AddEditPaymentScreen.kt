@@ -54,8 +54,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -176,12 +179,31 @@ fun AddEditPaymentScreen(
                 }
             )
 
-            Box {
+            val dueDateLabel = stringResource(R.string.field_payment_due_date)
+            val dueDateValue = viewModel.formatDate(uiState.dueDate)
+            val dueDateAccessibilityState = dueDateValue.ifBlank {
+                stringResource(R.string.accessibility_date_not_selected)
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClickLabel = stringResource(R.string.select_payment_due_date),
+                        role = Role.Button
+                    ) { showDatePicker = true }
+                    .semantics {
+                        contentDescription = dueDateLabel
+                        stateDescription = dueDateAccessibilityState
+                    }
+            ) {
                 OutlinedTextField(
-                    value = viewModel.formatDate(uiState.dueDate),
+                    value = dueDateValue,
                     onValueChange = {},
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { RequiredPaymentLabel(stringResource(R.string.field_payment_due_date)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clearAndSetSemantics { },
+                    label = { RequiredPaymentLabel(dueDateLabel) },
                     textStyle = MaterialTheme.typography.bodyLarge,
                     readOnly = true,
                     trailingIcon = {
@@ -191,14 +213,6 @@ fun AddEditPaymentScreen(
                             modifier = Modifier.size(28.dp)
                         )
                     }
-                )
-                Spacer(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clickable(
-                            onClickLabel = stringResource(R.string.select_payment_due_date),
-                            role = Role.Button
-                        ) { showDatePicker = true }
                 )
             }
         }

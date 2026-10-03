@@ -137,7 +137,8 @@ class ExpirationCheckWorker(
                     } else {
                         R.string.notification_action_view_payments
                     }
-                )
+                ),
+                markPaidPaymentId = pendingPayments.singleOrNull()?.id
             )
         } else {
             NotificationManagerCompat.from(applicationContext)
@@ -159,7 +160,8 @@ class ExpirationCheckWorker(
         title: String,
         contentText: String,
         destination: Uri,
-        actionLabel: String
+        actionLabel: String,
+        markPaidPaymentId: String? = null
     ) {
         val contentIntent = PendingIntent.getActivity(
             applicationContext,
@@ -182,6 +184,23 @@ class ExpirationCheckWorker(
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
 
+        markPaidPaymentId?.let { paymentId ->
+            val markPaidIntent = PendingIntent.getBroadcast(
+                applicationContext,
+                "paid:$paymentId".hashCode() and Int.MAX_VALUE,
+                Intent(applicationContext, ReminderActionReceiver::class.java).apply {
+                    action = ReminderActionReceiver.ACTION_MARK_PAYMENT_PAID
+                    putExtra(ReminderActionReceiver.EXTRA_PAYMENT_ID, paymentId)
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(
+                0,
+                applicationContext.getString(R.string.notification_action_mark_paid),
+                markPaidIntent
+            )
+        }
+
         val canNotify =
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 ActivityCompat.checkSelfPermission(
@@ -194,7 +213,7 @@ class ExpirationCheckWorker(
         }
     }
 
-    private companion object {
+    companion object {
         const val REMINDER_CHANNEL_ID = "REMINDERS"
         const val WARRANTY_NOTIFICATION_ID = 101
         const val PAYMENT_NOTIFICATION_ID = 102

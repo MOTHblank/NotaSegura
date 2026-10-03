@@ -48,7 +48,6 @@ import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.domain.model.Attachment
-import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog

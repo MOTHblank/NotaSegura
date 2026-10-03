@@ -9,8 +9,10 @@ import com.paddle.ocr.EngineConfig
 import com.paddle.ocr.PaddleOCR
 import com.paddle.ocr.PaddleOCRConfig
 import com.paddle.ocr.util.OpenCVUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class ReceiptOcrEngine(
@@ -20,21 +22,23 @@ class ReceiptOcrEngine(
     private val mutex = Mutex()
     private var engine: PaddleOCR? = null
 
-    suspend fun recognize(imageFile: File): String = mutex.withLock {
-        require(imageFile.isFile && imageFile.length() > 0L) {
-            "Imagem de OCR ausente ou vazia."
-        }
+    suspend fun recognize(imageFile: File): String = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            require(imageFile.isFile && imageFile.length() > 0L) {
+                "Imagem de OCR ausente ou vazia."
+            }
 
-        val bitmap = decodeForOcr(imageFile)
-        try {
-            val result = getOrCreateEngine().recognize(bitmap)
-            result.results
-                .asSequence()
-                .map { it.text.trim() }
-                .filter { it.isNotEmpty() }
-                .joinToString("\n")
-        } finally {
-            bitmap.recycle()
+            val bitmap = decodeForOcr(imageFile)
+            try {
+                val result = getOrCreateEngine().recognize(bitmap)
+                result.results
+                    .asSequence()
+                    .map { it.text.trim() }
+                    .filter { it.isNotEmpty() }
+                    .joinToString("\n")
+            } finally {
+                bitmap.recycle()
+            }
         }
     }
 

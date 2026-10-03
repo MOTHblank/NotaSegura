@@ -17,7 +17,7 @@ A purchase is a first-class record. It can contain:
 - notes;
 - any number of image or PDF attachments.
 
-Attachments are separate Room entities with ownership, MIME type, display name, SHA-256 checksum, and optional OCR text.
+Attachments are separate Room entities with ownership, MIME type, editable display name, document type, SHA-256 checksum, and optional OCR text. Supported document types are receipt, invoice, warranty certificate, manual, and other.
 
 ## Document ingestion
 
@@ -35,7 +35,8 @@ The first development build downloads the pinned PP-OCRv6_small detection and re
 - paid state and paid date;
 - monthly recurrence with stable billing-day anchoring;
 - pending-payment filtering;
-- WorkManager reminders.
+- WorkManager reminders with configurable lead times;
+- notification deep links to the relevant payment or payment list.
 
 ## Backup and restore
 
@@ -100,12 +101,15 @@ The current purchase/attachment/payment model is the first supported database ba
 
 Once a production release has real user data, schema changes must use explicit Room migrations and preserve backup compatibility.
 
+## Current reminder and dashboard behavior
+
+The purchases screen includes an upcoming-deadlines dashboard for overdue/upcoming payments and warranties nearing expiry. Reminder lead times are configurable independently for payments and warranties, including the option to disable either reminder class. Notifications deep-link to the relevant purchase/payment when there is a single item, or to the appropriate list when several items need attention.
+
 ## Next work
 
-- add a dashboard for upcoming obligations and expiring warranties;
-- add reminder thresholds/deep links/actions;
-- add attachment types/editing and PDF text extraction;
-- add backup/restore and persistence tests for the supported baseline.
+- add local PDF text extraction, using OCR only when a PDF has no usable embedded text;
+- add backup/restore and persistence tests for the supported baseline;
+- complete release-hardening tests for process death, large font scales, notification states, file-picker/camera cancellation, and large documents.
 
 
 ## License

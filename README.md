@@ -103,7 +103,7 @@ Once a production release has real user data, schema changes must use explicit R
 
 ## Current reminder and dashboard behavior
 
-The purchases screen includes an upcoming-deadlines dashboard for overdue/upcoming payments and warranties nearing expiry. Reminder lead times are configurable independently for payments and warranties, including the option to disable either reminder class. Notifications deep-link to the relevant purchase/payment when there is a single item, or to the appropriate list when several items need attention.
+The purchases screen includes an upcoming-deadlines dashboard for overdue/upcoming payments and warranties nearing expiry. Reminder lead times are configurable independently for payments and warranties, including the option to disable either reminder class. Notifications deep-link to the relevant purchase/payment when there is a single item, or to the appropriate list when several items need attention. A single-payment reminder also offers a direct “mark as paid” action, using the same recurrence path as the payment screen.
 
 ## Next work
 

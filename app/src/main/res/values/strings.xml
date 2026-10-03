@@ -160,7 +160,8 @@
     <string name="attachment_choose_file">Escolher imagem ou PDF</string>
     <string name="attachment_choose_file_hint">Selecione uma imagem ou PDF de até 100 MB já salvo no aparelho.</string>
     <string name="ocr_suggestion_found">Encontrado: %1$s</string>
-    <string name="attachment_reading">Lendo documento...</string>
+    <string name="attachment_reading">Lendo documento no aparelho...</string>
+    <string name="ocr_read_failed">Documento anexado. Não foi possível preencher os dados automaticamente desta imagem.</string>
     <string name="attachment_none">Nenhum documento anexado.</string>
     <string name="attachment_open_hint">Toque em um documento para abrir e ampliar.</string>
     <string name="attachment_add">Adicionar foto ou documento</string>

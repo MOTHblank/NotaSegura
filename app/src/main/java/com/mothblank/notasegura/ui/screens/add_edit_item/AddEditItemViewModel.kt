@@ -63,7 +63,8 @@ data class AddEditUiState(
     val hasOcrAutofill: Boolean = false,
     val isAnalyzingDocument: Boolean = false,
     val isSaving: Boolean = false,
-    @StringRes val errorMessageRes: Int? = null
+    @StringRes val errorMessageRes: Int? = null,
+    @StringRes val infoMessageRes: Int? = null
 )
 
 private enum class OcrEditableField {
@@ -233,6 +234,30 @@ class AddEditItemViewModel(
             when (val result = documentStore.stageAttachment(uri)) {
                 is StageAttachmentResult.Success -> {
                     val staged = result.attachment
+                    val checksum = staged.stagedFile.sha256
+                    val duplicatesExisting = original
+                        ?.attachments
+                        .orEmpty()
+                        .any { attachment ->
+                            attachment.id !in removedAttachments &&
+                                attachment.sha256 != null &&
+                                attachment.sha256 == checksum
+                        }
+                    val duplicatesStaged = stagedAttachments.values.any { attachment ->
+                        attachment.stagedFile.sha256 == checksum
+                    }
+
+                    if (duplicatesExisting || duplicatesStaged) {
+                        documentStore.discardStagedAttachment(staged)
+                        _uiState.update {
+                            it.copy(
+                                errorMessageRes = null,
+                                infoMessageRes = R.string.attachment_duplicate_ignored
+                            )
+                        }
+                        return@launch
+                    }
+
                     stagedAttachments[staged.stagedFile.id] = staged
                     _uiState.update {
                         it.copy(
@@ -243,7 +268,8 @@ class AddEditItemViewModel(
                                 displayName = staged.stagedFile.displayName,
                                 isStaged = true
                             ),
-                            errorMessageRes = null
+                            errorMessageRes = null,
+                            infoMessageRes = null
                         )
                     }
 
@@ -271,7 +297,12 @@ class AddEditItemViewModel(
     }
 
     private fun showAttachmentError(@StringRes messageRes: Int) {
-        _uiState.update { it.copy(errorMessageRes = messageRes) }
+        _uiState.update {
+            it.copy(
+                errorMessageRes = messageRes,
+                infoMessageRes = null
+            )
+        }
     }
 
     fun removeAttachment(id: String) {

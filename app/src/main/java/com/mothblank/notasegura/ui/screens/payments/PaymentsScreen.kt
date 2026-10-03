@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -51,6 +52,7 @@ import androidx.navigation.NavController
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.util.CurrencyUtils
@@ -90,7 +92,9 @@ fun PaymentsScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(AccessibilityTags.PAYMENT_SEARCH),
                     label = { Text(stringResource(R.string.payment_search_label)) },
                     placeholder = { Text(stringResource(R.string.payment_search_hint)) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -223,6 +227,7 @@ private fun EmptyPaymentState(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
+                    .testTag(AccessibilityTags.PAYMENT_EMPTY_ACTION)
             ) {
                 Text(
                     if (filtered) {

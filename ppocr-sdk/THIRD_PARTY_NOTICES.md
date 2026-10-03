@@ -11,3 +11,11 @@ PP-OCRv6_small detection and recognition ONNX models at build time.
 
 The app performs OCR locally. Model downloads occur only on the developer/build machine; model files are
 verified by byte count and SHA-256 and then packaged into the APK/AAB. There is no runtime model download.
+
+
+## Runtime dependencies
+
+- ONNX Runtime Android 1.27.0 (MIT): selected for Android 16 KB page-size compatibility.
+  NotaSegura removes INTERNET and ACCESS_NETWORK_STATE from the merged manifest and disables
+  ONNX Runtime telemetry when its environment is created.
+- OpenCV Android 4.13.0 (Apache-2.0): official OpenCV.org Maven Central AAR.

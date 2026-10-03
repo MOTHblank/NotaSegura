@@ -33,7 +33,9 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,6 +43,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -81,6 +84,7 @@ import coil3.compose.AsyncImage
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
+import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
 import com.mothblank.notasegura.util.CurrencyUtils
@@ -127,6 +131,7 @@ fun AddEditItemScreen(
     var showPurchaseDatePicker by remember { mutableStateOf(false) }
     var showWarrantyDatePicker by remember { mutableStateOf(false) }
     var previewAttachment by remember { mutableStateOf<PurchaseAttachmentUi?>(null) }
+    var editingAttachment by remember { mutableStateOf<PurchaseAttachmentUi?>(null) }
     var showReminderPermissionDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -190,6 +195,7 @@ fun AddEditItemScreen(
                 isAnalyzing = uiState.isAnalyzingDocument,
                 onAdd = { showAttachmentOptions = true },
                 onPreview = { previewAttachment = it },
+                onEdit = { editingAttachment = it },
                 onRemove = viewModel::removeAttachment
             )
         }
@@ -519,6 +525,21 @@ fun AddEditItemScreen(
         )
     }
 
+    editingAttachment?.let { attachment ->
+        AttachmentMetadataDialog(
+            attachment = attachment,
+            onDismiss = { editingAttachment = null },
+            onSave = { displayName, type ->
+                viewModel.updateAttachmentMetadata(
+                    id = attachment.id,
+                    displayName = displayName,
+                    type = type
+                )
+                editingAttachment = null
+            }
+        )
+    }
+
     previewAttachment?.let { attachment ->
         DocumentViewerDialog(
             path = attachment.path,
@@ -601,6 +622,7 @@ private fun AttachmentSection(
     isAnalyzing: Boolean,
     onAdd: () -> Unit,
     onPreview: (PurchaseAttachmentUi) -> Unit,
+    onEdit: (PurchaseAttachmentUi) -> Unit,
     onRemove: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -690,6 +712,27 @@ private fun AttachmentSection(
                             }
                         }
 
+                        Text(
+                            attachmentTypeLabel(attachment.type),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            displayName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                        TextButton(
+                            onClick = { onEdit(attachment) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                            Text(
+                                stringResource(R.string.attachment_edit),
+                                modifier = Modifier.padding(start = 6.dp)
+                            )
+                        }
                         TextButton(
                             onClick = { onRemove(attachment.id) },
                             modifier = Modifier.fillMaxWidth()
@@ -720,6 +763,78 @@ private fun AttachmentSection(
         }
     }
 }
+
+@Composable
+private fun AttachmentMetadataDialog(
+    attachment: PurchaseAttachmentUi,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var displayName by remember(attachment.id) {
+        mutableStateOf(attachment.displayName)
+    }
+    var type by remember(attachment.id) {
+        mutableStateOf(AttachmentType.normalize(attachment.type))
+    }
+    val typeOptions = listOf(
+        AttachmentType.RECEIPT,
+        AttachmentType.INVOICE,
+        AttachmentType.WARRANTY,
+        AttachmentType.MANUAL,
+        AttachmentType.OTHER
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.attachment_edit_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.attachment_name_label)) },
+                    singleLine = true
+                )
+                Text(
+                    stringResource(R.string.attachment_type_label),
+                    style = MaterialTheme.typography.labelLarge
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(typeOptions) { option ->
+                        FilterChip(
+                            selected = type == option,
+                            onClick = { type = option },
+                            label = { Text(attachmentTypeLabel(option)) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(displayName, type) }
+            ) {
+                Text(stringResource(R.string.common_ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun attachmentTypeLabel(type: String): String =
+    when (AttachmentType.normalize(type)) {
+        AttachmentType.RECEIPT -> stringResource(R.string.attachment_type_receipt)
+        AttachmentType.INVOICE -> stringResource(R.string.attachment_type_invoice)
+        AttachmentType.WARRANTY -> stringResource(R.string.attachment_type_warranty)
+        AttachmentType.MANUAL -> stringResource(R.string.attachment_type_manual)
+        else -> stringResource(R.string.attachment_type_other)
+    }
 
 @Composable
 private fun RequiredLabel(text: String) {

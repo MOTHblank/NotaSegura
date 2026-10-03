@@ -22,14 +22,16 @@ class LocalOcrPackagingTest {
         assertFalse(Manifest.permission.INTERNET in permissions)
         assertFalse(Manifest.permission.ACCESS_NETWORK_STATE in permissions)
 
-        assertAssetPresent(context.assets.open("models/det/inference.onnx").available().toLong())
-        assertAssetPresent(context.assets.open("models/rec/inference.onnx").available().toLong())
+        assertAssetPresent(context, "models/det/inference.onnx")
+        assertAssetPresent(context, "models/rec/inference.onnx")
         context.assets.open("models/rec/inference.yml").bufferedReader().use { reader ->
             assertTrue(reader.readText().contains("character_dict:"))
         }
     }
 
-    private fun assertAssetPresent(availableBytes: Long) {
-        assertTrue("Bundled OCR model asset is missing or empty.", availableBytes > 0L)
+    private fun assertAssetPresent(context: android.content.Context, path: String) {
+        context.assets.open(path).use { input ->
+            assertTrue("Bundled OCR model asset is missing or empty: $path", input.read() >= 0)
+        }
     }
 }

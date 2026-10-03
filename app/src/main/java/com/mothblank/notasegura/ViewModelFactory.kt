@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.mothblank.notasegura.data.ocr.ReceiptOcrEngine
 import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemViewModel
@@ -16,7 +17,8 @@ import com.mothblank.notasegura.ui.screens.timeline.TimelineViewModel
 @Suppress("UNCHECKED_CAST")
 class ViewModelFactory(
     private val purchaseDocumentStore: PurchaseDocumentStore,
-    private val paymentRepository: PaymentRepository
+    private val paymentRepository: PaymentRepository,
+    private val receiptOcrEngine: ReceiptOcrEngine? = null
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(
@@ -30,7 +32,13 @@ class ViewModelFactory(
                 TimelineViewModel(purchaseDocumentStore, paymentRepository) as T
 
             modelClass.isAssignableFrom(AddEditItemViewModel::class.java) ->
-                AddEditItemViewModel(purchaseDocumentStore, savedStateHandle) as T
+                AddEditItemViewModel(
+                    documentStore = purchaseDocumentStore,
+                    receiptOcrEngine = checkNotNull(receiptOcrEngine) {
+                        "ReceiptOcrEngine is required for AddEditItemViewModel."
+                    },
+                    savedStateHandle = savedStateHandle
+                ) as T
 
             modelClass.isAssignableFrom(PurchaseDetailsViewModel::class.java) ->
                 PurchaseDetailsViewModel(purchaseDocumentStore, savedStateHandle) as T

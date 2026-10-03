@@ -514,7 +514,7 @@ class AddEditItemViewModel(
             serialNumber = serialNumber,
             ocrSuggestions = remainingSuggestions,
             hasOcrAutofill = state.hasOcrAutofill || didAutoFill,
-            purchaseValueErrorRes = if (autoFillValue) null else state.purchaseValueError,
+            purchaseValueErrorRes = if (autoFillValue) null else state.purchaseValueErrorRes,
             errorMessageRes = null
         )
     }

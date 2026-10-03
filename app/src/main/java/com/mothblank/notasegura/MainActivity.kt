@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -55,7 +54,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.mothblank.notasegura.data.backup.BackupArchiveManager
 import com.mothblank.notasegura.navigation.AppScreen
+import com.mothblank.notasegura.ui.components.CreateEncryptedBackupDialog
+import com.mothblank.notasegura.ui.components.RestoreEncryptedBackupDialog
 import com.mothblank.notasegura.ui.components.UnsavedExitDialog
 import com.mothblank.notasegura.ui.screens.add_edit_item.AddEditItemScreen
 import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
@@ -123,6 +125,8 @@ fun NotaSeguraApp() {
     }
 
     var menuExpanded by remember { mutableStateOf(false) }
+    var showBackupPasswordDialog by remember { mutableStateOf(false) }
+    var pendingBackupPassword by remember { mutableStateOf<String?>(null) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
     var pendingEditorExit by remember { mutableStateOf(false) }
     var editorHasUnsavedChanges by remember { mutableStateOf(false) }
@@ -141,11 +145,14 @@ fun NotaSeguraApp() {
     }
 
     val createBackupLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/zip")
+        ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri ->
-        if (uri != null) {
+        val password = pendingBackupPassword
+        pendingBackupPassword = null
+
+        if (uri != null && password != null) {
             coroutineScope.launch {
-                app.backupArchiveManager.createBackup(uri)
+                app.backupArchiveManager.createBackup(uri, password)
                     .onSuccess { summary ->
                         Toast.makeText(
                             context,
@@ -272,9 +279,7 @@ fun NotaSeguraApp() {
                                 },
                                 onClick = {
                                     menuExpanded = false
-                                    createBackupLauncher.launch(
-                                        "NotaSegura_Backup_${LocalDate.now()}.notasegura"
-                                    )
+                                    showBackupPasswordDialog = true
                                 }
                             )
 
@@ -484,49 +489,48 @@ fun NotaSeguraApp() {
         )
     }
 
-    pendingRestoreUri?.let { uri ->
-        AlertDialog(
-            onDismissRequest = { pendingRestoreUri = null },
-            title = { Text(stringResource(R.string.backup_restore_title)) },
-            text = {
-                Text(
-                    stringResource(R.string.backup_restore_body)
+    if (showBackupPasswordDialog) {
+        CreateEncryptedBackupDialog(
+            minPasswordLength = BackupArchiveManager.MIN_PASSWORD_LENGTH,
+            onDismiss = { showBackupPasswordDialog = false },
+            onConfirm = { password ->
+                showBackupPasswordDialog = false
+                pendingBackupPassword = password
+                createBackupLauncher.launch(
+                    "NotaSegura_Backup_${LocalDate.now()}.notasegura"
                 )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingRestoreUri = null
-                        coroutineScope.launch {
-                            app.backupArchiveManager.restoreBackup(uri)
-                                .onSuccess { summary ->
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(
-                                            R.string.backup_restored_summary,
-                                            summary.purchases,
-                                            summary.attachments,
-                                            summary.payments
-                                        ),
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                                .onFailure { error ->
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.backup_restore_failed),
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
+            }
+        )
+    }
+
+    pendingRestoreUri?.let { uri ->
+        RestoreEncryptedBackupDialog(
+            minPasswordLength = BackupArchiveManager.MIN_PASSWORD_LENGTH,
+            onDismiss = { pendingRestoreUri = null },
+            onConfirm = { password ->
+                pendingRestoreUri = null
+                coroutineScope.launch {
+                    app.backupArchiveManager.restoreBackup(uri, password)
+                        .onSuccess { summary ->
+                            Toast.makeText(
+                                context,
+                                context.getString(
+                                    R.string.backup_restored_summary,
+                                    summary.purchases,
+                                    summary.attachments,
+                                    summary.payments
+                                ),
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
-                    }
-                ) {
-                    Text(stringResource(R.string.common_continue))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingRestoreUri = null }) {
-                    Text(stringResource(R.string.common_cancel))
+                        .onFailure {
+                            pendingRestoreUri = uri
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.backup_restore_failed),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                 }
             }
         )

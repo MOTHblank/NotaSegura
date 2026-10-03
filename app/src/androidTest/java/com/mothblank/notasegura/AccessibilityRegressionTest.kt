@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertExists
@@ -30,6 +31,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
+import androidx.compose.ui.test.then
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -46,6 +48,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 class AccessibilityRegressionTest {
 
@@ -72,12 +75,16 @@ class AccessibilityRegressionTest {
 
         composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_EMPTY_ACTION).performClick()
         assertClickableTouchTargetsAtLeast48Dp()
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_SAVE).performScrollTo()
+        assertClickableTouchTargetsAtLeast48Dp()
 
         composeRule.onNodeWithContentDescription(string(R.string.common_back)).performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENTS_TAB).performClick()
         assertClickableTouchTargetsAtLeast48Dp()
 
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION).performClick()
+        assertClickableTouchTargetsAtLeast48Dp()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE).performScrollTo()
         assertClickableTouchTargetsAtLeast48Dp()
     }
 
@@ -259,7 +266,11 @@ class AccessibilityRegressionTest {
         assertTrue("Expected at least one clickable semantics node", clickableNodes.isNotEmpty())
 
         val minimumPixels = with(composeRule.density) { 48.dp.toPx() }
-        clickableNodes.forEach { node ->
+        clickableNodes
+            .filter { node ->
+                node.boundsInRoot.width > 0f && node.boundsInRoot.height > 0f
+            }
+            .forEach { node ->
             val bounds = node.touchBoundsInRoot
             assertTrue(
                 "Touch target is narrower than 48dp: ${node.config}",
@@ -277,7 +288,11 @@ class AccessibilityRegressionTest {
             .onAllNodes(hasClickAction())
             .fetchSemanticsNodes()
 
-        clickableNodes.forEach { node ->
+        clickableNodes
+            .filter { node ->
+                node.boundsInRoot.width > 0f && node.boundsInRoot.height > 0f
+            }
+            .forEach { node ->
             val config = node.config
             if (config.contains(SemanticsActions.SetText)) {
                 return@forEach

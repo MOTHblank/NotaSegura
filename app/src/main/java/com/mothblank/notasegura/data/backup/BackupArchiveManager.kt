@@ -118,20 +118,24 @@ class BackupArchiveManager(
                         password.toCharArray()
                     ).use { encrypted ->
                         ZipOutputStream(encrypted).use { zip ->
-                        writeBytes(zip, "manifest.json", manifest.toString().toByteArray(Charsets.UTF_8))
-                        writeBytes(zip, "data.json", dataBytes)
+                            writeBytes(
+                                zip,
+                                "manifest.json",
+                                manifest.toString().toByteArray(Charsets.UTF_8)
+                            )
+                            writeBytes(zip, "data.json", dataBytes)
 
-                        attachments.forEach { attachment ->
-                            val file = attachmentFiles.getValue(attachment)
-                            zip.putNextEntry(ZipEntry(archiveEntryFor(attachment)))
-                            file.inputStream().buffered().use { input ->
-                                input.copyTo(zip)
+                            attachments.forEach { attachment ->
+                                val file = attachmentFiles.getValue(attachment)
+                                zip.putNextEntry(ZipEntry(archiveEntryFor(attachment)))
+                                file.inputStream().buffered().use { input ->
+                                    input.copyTo(zip)
+                                }
+                                zip.closeEntry()
                             }
-                            zip.closeEntry()
                         }
                     }
                 }
-            }
 
                 BackupSummary(
                     purchases = purchases.size,

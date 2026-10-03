@@ -55,6 +55,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.mothblank.notasegura.data.backup.BackupArchiveManager
 import com.mothblank.notasegura.navigation.AppScreen
 import com.mothblank.notasegura.ui.components.CreateEncryptedBackupDialog
@@ -65,6 +66,7 @@ import com.mothblank.notasegura.ui.screens.add_edit_payment.AddEditPaymentScreen
 import com.mothblank.notasegura.ui.screens.payment_details.PaymentDetailsScreen
 import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
 import com.mothblank.notasegura.ui.screens.purchase_details.PurchaseDetailsScreen
+import com.mothblank.notasegura.ui.screens.reminders.ReminderSettingsScreen
 import com.mothblank.notasegura.ui.screens.security.SecurityPrivacyScreen
 import com.mothblank.notasegura.ui.screens.timeline.TimelineScreen
 import com.mothblank.notasegura.ui.theme.NotaSeguraTheme
@@ -76,22 +78,31 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
+    private val notificationIntent = mutableStateOf<Intent?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        notificationIntent.value = intent
         enableEdgeToEdge()
         setContent {
             NotaSeguraTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    NotaSeguraApp()
+                    NotaSeguraApp(notificationIntent.value)
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        notificationIntent.value = intent
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotaSeguraApp() {
+fun NotaSeguraApp(notificationIntent: Intent? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val app = context.applicationContext as NotaSeguraApplication
     val coroutineScope = rememberCoroutineScope()
@@ -99,11 +110,18 @@ fun NotaSeguraApp() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    LaunchedEffect(notificationIntent) {
+        if (notificationIntent?.data?.scheme == "notasegura") {
+            navController.handleDeepLink(notificationIntent)
+        }
+    }
+
     val isPurchaseEditor = currentRoute == AppScreen.AddEditItem.route
     val isPaymentEditor = currentRoute == AppScreen.AddEditPayment.route
     val isPurchaseDetails = currentRoute == AppScreen.PurchaseDetails.route
     val isPaymentDetails = currentRoute == AppScreen.PaymentDetails.route
     val isSecurityPrivacy = currentRoute == AppScreen.SecurityPrivacy.route
+    val isReminderSettings = currentRoute == AppScreen.ReminderSettings.route
     val showPrimaryNavigation =
         currentRoute == AppScreen.Timeline.route || currentRoute == AppScreen.Payments.route
 
@@ -125,6 +143,7 @@ fun NotaSeguraApp() {
         isPurchaseDetails -> stringResource(R.string.screen_purchase_details)
         isPaymentDetails -> stringResource(R.string.screen_payment_details)
         isSecurityPrivacy -> stringResource(R.string.security_screen_title)
+        isReminderSettings -> stringResource(R.string.reminder_settings_title)
         else -> null
     }
 
@@ -305,11 +324,7 @@ fun NotaSeguraApp() {
                                 },
                                 onClick = {
                                     menuExpanded = false
-                                    context.startActivity(
-                                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                        }
-                                    )
+                                    navController.navigate(AppScreen.ReminderSettings.route)
                                 }
                             )
 
@@ -435,7 +450,12 @@ fun NotaSeguraApp() {
             startDestination = AppScreen.Timeline.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(AppScreen.Timeline.route) {
+            composable(
+                route = AppScreen.Timeline.route,
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "notasegura://purchases" }
+                )
+            ) {
                 TimelineScreen(navController)
             }
             composable(
@@ -459,12 +479,31 @@ fun NotaSeguraApp() {
                     navArgument("itemId") {
                         type = NavType.StringType
                     }
+                ),
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "notasegura://purchase/{itemId}" }
                 )
             ) {
                 PurchaseDetailsScreen(navController)
             }
-            composable(AppScreen.Payments.route) {
+            composable(
+                route = AppScreen.Payments.route,
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "notasegura://payments" }
+                )
+            ) {
                 PaymentsScreen(navController)
+            }
+            composable(AppScreen.ReminderSettings.route) {
+                ReminderSettingsScreen(
+                    onOpenSystemSettings = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            }
+                        )
+                    }
+                )
             }
             composable(AppScreen.SecurityPrivacy.route) {
                 SecurityPrivacyScreen(
@@ -492,6 +531,9 @@ fun NotaSeguraApp() {
                     navArgument("paymentId") {
                         type = NavType.StringType
                     }
+                ),
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = "notasegura://payment/{paymentId}" }
                 )
             ) {
                 PaymentDetailsScreen(navController)

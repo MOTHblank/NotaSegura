@@ -28,7 +28,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.mothblank.notasegura.R
+import com.mothblank.notasegura.data.worker.ExpirationCheckWorker
 import com.mothblank.notasegura.util.ReminderPreferences
 
 @Composable
@@ -64,6 +68,7 @@ fun ReminderSettingsScreen(
             onSelected = { days ->
                 paymentDays = days
                 ReminderPreferences.setPaymentLeadDays(context, days)
+                refreshReminders(context)
             }
         )
 
@@ -75,6 +80,7 @@ fun ReminderSettingsScreen(
             onSelected = { days ->
                 warrantyDays = days
                 ReminderPreferences.setWarrantyLeadDays(context, days)
+                refreshReminders(context)
             }
         )
 
@@ -95,6 +101,14 @@ fun ReminderSettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+private fun refreshReminders(context: android.content.Context) {
+    WorkManager.getInstance(context).enqueueUniqueWork(
+        "reminder_settings_refresh",
+        ExistingWorkPolicy.REPLACE,
+        OneTimeWorkRequestBuilder<ExpirationCheckWorker>().build()
+    )
 }
 
 @Composable

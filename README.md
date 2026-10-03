@@ -23,7 +23,7 @@ Attachments are separate Room entities with ownership, MIME type, display name, 
 
 Images from the camera or document picker are copied into app-private storage. PDFs are also supported as real attachments.
 
-Image OCR uses ML Kit and stores the recognized text with the attachment. The app extracts possible merchant, purchase date, total, model, and serial number, but presents them as reviewable suggestions. OCR never invents warranty dates.
+Image OCR uses the bundled PP-OCRv6_small models and runs locally on the device. The app stores recognized text with the attachment and extracts possible merchant, purchase date, total, model, and serial number as reviewable suggestions. OCR never invents warranty dates, requires no runtime model download, and does not transmit receipt contents.
 
 Search covers structured purchase fields and stored OCR text, so an old receipt can be found by merchant, model, serial number, or recognized receipt content.
 
@@ -71,6 +71,7 @@ The list layouts avoid tight horizontal price/action rows so they remain usable 
 ## Data and security model
 
 - Room stores structured data locally.
+- Receipt OCR uses bundled PP-OCRv6_small models and runs entirely on-device without runtime network access.
 - Managed documents live under app-private internal storage.
 - Android backup remains disabled.
 - Shared PDF reports are temporary cache files exposed through FileProvider grants.
@@ -82,6 +83,7 @@ The list layouts avoid tight horizontal price/action rows so they remain usable 
 `app/src/main/java/com/mothblank/notasegura/`
 
 - `data/local/`: Room database and DAOs.
+- `data/ocr/`: local PP-OCR receipt recognition wrapper.
 - `data/repository/`: repository implementations.
 - `data/storage/`: attachment staging/commit and purchase document ownership.
 - `data/backup/`: versioned archive backup/restore.

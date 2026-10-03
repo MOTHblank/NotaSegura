@@ -27,6 +27,8 @@ Image OCR uses the bundled PP-OCRv6_small models and runs locally on the device.
 
 Search covers structured purchase fields and stored OCR text, so an old receipt can be found by merchant, model, serial number, or recognized receipt content.
 
+The first development build downloads the pinned PP-OCRv6_small detection and recognition assets into Gradle's local cache, verifies their exact size and SHA-256 digests, and packages them into the app. Subsequent clean builds reuse the verified cache. Production installs never download OCR models at runtime.
+
 ## Payments
 
 - exact integer-cent monetary storage;

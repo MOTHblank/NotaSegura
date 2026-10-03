@@ -70,20 +70,25 @@
     <string name="purchase_search_hint">Produto, loja ou número de série</string>
     <string name="purchase_filter_category">Filtrar por categoria</string>
     <string name="purchase_filter_all">Todas</string>
-    <string name="attention_title">Atenção nos próximos dias</string>
-    <plurals name="attention_warranties_expiring">
-        <item quantity="one">%d garantia termina nos próximos 30 dias</item>
-        <item quantity="other">%d garantias terminam nos próximos 30 dias</item>
+    <string name="dashboard_title">Próximos prazos</string>
+    <string name="dashboard_subtitle">Pagamentos pendentes dos próximos 7 dias e garantias que terminam em até 30 dias.</string>
+    <string name="dashboard_clear_title">Nenhum prazo próximo</string>
+    <string name="dashboard_clear_body">Não há pagamentos pendentes nesta semana nem garantias terminando nos próximos 30 dias.</string>
+    <string name="dashboard_payments_title">Obrigações</string>
+    <string name="dashboard_warranties_title">Garantias perto do fim</string>
+    <string name="dashboard_payment_overdue">Atrasado • venceu em %1$s</string>
+    <string name="dashboard_payment_due_today">Vence hoje</string>
+    <string name="dashboard_payment_due_date">Vence em %1$s</string>
+    <string name="dashboard_payment_detail">%1$s • %2$s</string>
+    <string name="dashboard_warranty_due_date">Garantia até %1$s</string>
+    <plurals name="dashboard_more_payments">
+        <item quantity="one">+ %d outra obrigação próxima</item>
+        <item quantity="other">+ %d outras obrigações próximas</item>
     </plurals>
-    <plurals name="attention_payments_overdue">
-        <item quantity="one">%d pagamento atrasado</item>
-        <item quantity="other">%d pagamentos atrasados</item>
+    <plurals name="dashboard_more_warranties">
+        <item quantity="one">+ %d outra garantia próxima do fim</item>
+        <item quantity="other">+ %d outras garantias próximas do fim</item>
     </plurals>
-    <plurals name="attention_payments_due_week">
-        <item quantity="one">%d vence nesta semana</item>
-        <item quantity="other">%d vencem nesta semana</item>
-    </plurals>
-    <string name="attention_separator"> • </string>
     <string name="purchase_empty_filtered_title">Nenhuma compra encontrada</string>
     <string name="purchase_empty_title">Você ainda não cadastrou nenhuma compra</string>
     <string name="purchase_empty_filtered_body">Tente limpar a pesquisa ou os filtros.</string>

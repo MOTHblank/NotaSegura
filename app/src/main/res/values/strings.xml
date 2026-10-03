@@ -74,7 +74,7 @@
     <string name="unsaved_exit_discard">Sair sem salvar</string>
 
     <string name="reminder_permission_title">Ativar lembretes?</string>
-    <string name="reminder_permission_body">O Nota Segura pode avisar antes do fim de uma garantia ou do vencimento de um pagamento. Você pode mudar essa opção depois nas configurações do celular.</string>
+    <string name="reminder_permission_body">O Nota Segura pode avisar antes do fim de uma garantia ou do vencimento de um pagamento. Depois, você pode ajustar a antecedência nas opções de lembretes.</string>
     <string name="reminder_permission_enable">Ativar lembretes</string>
 
     <string name="document_viewer_instruction">Use dois dedos para ampliar ou mover o documento.</string>

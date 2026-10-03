@@ -11,6 +11,7 @@ import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.data.storage.StageAttachmentResult
 import com.mothblank.notasegura.data.storage.StagedAttachment
 import com.mothblank.notasegura.domain.model.Attachment
+import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.domain.model.Purchase
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.util.CategoryNormalizer
@@ -39,6 +40,7 @@ data class PurchaseAttachmentUi(
     val path: String,
     val mimeType: String,
     val displayName: String,
+    val type: String,
     val isStaged: Boolean
 ) {
     val isImage: Boolean
@@ -73,6 +75,12 @@ private enum class OcrEditableField {
     SERIAL_NUMBER
 }
 
+private data class AttachmentEditorSnapshot(
+    val id: String,
+    val displayName: String,
+    val type: String
+)
+
 private data class PurchaseEditorSnapshot(
     val productName: String,
     val merchant: String,
@@ -83,7 +91,7 @@ private data class PurchaseEditorSnapshot(
     val notes: String,
     val purchaseDate: LocalDate?,
     val warrantyEndDate: LocalDate?,
-    val attachmentIds: List<String>
+    val attachments: List<AttachmentEditorSnapshot>
 )
 
 class AddEditItemViewModel(
@@ -170,6 +178,7 @@ class AddEditItemViewModel(
                                     path = attachment.filePath,
                                     mimeType = attachment.mimeType,
                                     displayName = attachment.displayName.orEmpty(),
+                                    type = AttachmentType.normalize(attachment.type),
                                     isStaged = false
                                 )
                             }
@@ -264,7 +273,8 @@ class AddEditItemViewModel(
                                 id = staged.stagedFile.id,
                                 path = staged.stagedFile.path,
                                 mimeType = staged.stagedFile.mimeType,
-                                displayName = staged.stagedFile.displayName,
+                                displayName = staged.displayName,
+                                type = staged.type,
                                 isStaged = true
                             ),
                             errorMessageRes = null,
@@ -315,6 +325,37 @@ class AddEditItemViewModel(
 
         _uiState.update {
             it.copy(attachments = it.attachments.filterNot { attachment -> attachment.id == id })
+        }
+    }
+
+    fun updateAttachmentMetadata(
+        id: String,
+        displayName: String,
+        type: String
+    ) {
+        val normalizedType = AttachmentType.normalize(type)
+        val normalizedName = displayName.trim()
+
+        stagedAttachments[id]?.let { staged ->
+            stagedAttachments[id] = staged.copy(
+                type = normalizedType,
+                displayName = normalizedName
+            )
+        }
+
+        _uiState.update { state ->
+            state.copy(
+                attachments = state.attachments.map { attachment ->
+                    if (attachment.id == id) {
+                        attachment.copy(
+                            displayName = normalizedName,
+                            type = normalizedType
+                        )
+                    } else {
+                        attachment
+                    }
+                }
+            )
         }
     }
 
@@ -456,9 +497,23 @@ class AddEditItemViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessageRes = null) }
             try {
+                val updatedAttachments = state.attachments
+                    .asSequence()
+                    .filterNot { it.isStaged }
+                    .mapNotNull { uiAttachment ->
+                        original?.attachments
+                            ?.firstOrNull { it.id == uiAttachment.id }
+                            ?.copy(
+                                displayName = uiAttachment.displayName.trim().ifBlank { null },
+                                type = AttachmentType.normalize(uiAttachment.type)
+                            )
+                    }
+                    .toList()
+
                 documentStore.savePurchase(
                     purchase = purchase,
                     stagedAttachments = stagedAttachments.values.toList(),
+                    updatedAttachments = updatedAttachments,
                     removedAttachments = removedAttachments.values.toList()
                 )
                 stagedAttachments.clear()
@@ -496,7 +551,13 @@ class AddEditItemViewModel(
         notes = state.notes,
         purchaseDate = state.purchaseDate,
         warrantyEndDate = state.warrantyEndDate,
-        attachmentIds = state.attachments.map { it.id }
+        attachments = state.attachments.map { attachment ->
+            AttachmentEditorSnapshot(
+                id = attachment.id,
+                displayName = attachment.displayName,
+                type = attachment.type
+            )
+        }
     )
 
     private fun applyOcrResult(

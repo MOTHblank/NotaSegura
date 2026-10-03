@@ -53,6 +53,7 @@ dependencies {
     ksp(libs.room.compiler)
 
     implementation(project(":ppocr-sdk"))
+    implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.work.manager.ktx)
     implementation(libs.coil.compose)
 

@@ -334,11 +334,13 @@ class AddEditItemViewModel(
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
-            _uiState.update {
-                it.copy(
-                    infoMessageRes = R.string.ocr_read_failed,
-                    errorMessageRes = null
-                )
+            if (attachmentId in stagedAttachments) {
+                _uiState.update {
+                    it.copy(
+                        infoMessageRes = R.string.ocr_read_failed,
+                        errorMessageRes = null
+                    )
+                }
             }
         } finally {
             finishOcr()

@@ -36,7 +36,7 @@ The first development build downloads the pinned PP-OCRv6_small detection and re
 - monthly recurrence with stable billing-day anchoring;
 - pending-payment filtering;
 - WorkManager reminders with configurable lead times;
-- notification deep links to the relevant payment or payment list.
+- notification deep links to the relevant purchase/payment or corresponding list.
 
 ## Backup and restore
 

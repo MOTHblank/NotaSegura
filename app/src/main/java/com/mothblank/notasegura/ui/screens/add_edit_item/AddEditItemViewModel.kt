@@ -1,15 +1,12 @@
 package com.mothblank.notasegura.ui.screens.add_edit_item
 
-import android.content.Context
 import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.mothblank.notasegura.R
+import com.mothblank.notasegura.data.ocr.ReceiptOcrEngine
 import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
 import com.mothblank.notasegura.data.storage.StageAttachmentResult
 import com.mothblank.notasegura.data.storage.StagedAttachment
@@ -20,6 +17,7 @@ import com.mothblank.notasegura.util.CategoryNormalizer
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.ReceiptOcrParser
 import com.mothblank.notasegura.util.ReceiptOcrSuggestions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,7 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.IOException
+import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -90,6 +88,7 @@ private data class PurchaseEditorSnapshot(
 
 class AddEditItemViewModel(
     private val documentStore: PurchaseDocumentStore,
+    private val receiptOcrEngine: ReceiptOcrEngine,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -229,7 +228,7 @@ class AddEditItemViewModel(
         _uiState.update { it.copy(warrantyEndDate = value, errorMessageRes = null) }
     }
 
-    fun onAttachmentSelected(context: Context, uri: Uri) {
+    fun onAttachmentSelected(uri: Uri) {
         viewModelScope.launch {
             when (val result = documentStore.stageAttachment(uri)) {
                 is StageAttachmentResult.Success -> {
@@ -274,7 +273,7 @@ class AddEditItemViewModel(
                     }
 
                     if (staged.stagedFile.mimeType.startsWith("image/")) {
-                        processImageForOcr(context, uri, staged.stagedFile.id)
+                        processImageForOcr(staged.stagedFile.path, staged.stagedFile.id)
                     }
                 }
                 StageAttachmentResult.UnsupportedType -> showAttachmentError(
@@ -319,29 +318,29 @@ class AddEditItemViewModel(
         }
     }
 
-    private fun processImageForOcr(context: Context, imageUri: Uri, attachmentId: String) {
+    private suspend fun processImageForOcr(imagePath: String, attachmentId: String) {
         pendingOcrCount += 1
         _uiState.update { it.copy(isAnalyzingDocument = true) }
 
         try {
-            val image = InputImage.fromFilePath(context, imageUri)
-            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+            val text = receiptOcrEngine.recognize(File(imagePath))
+            val staged = stagedAttachments[attachmentId] ?: return
 
-            recognizer.process(image)
-                .addOnSuccessListener { visionText ->
-                    stagedAttachments[attachmentId]?.let { staged ->
-                        stagedAttachments[attachmentId] = staged.copy(ocrText = visionText.text)
-                    }
-                    val parsed = ReceiptOcrParser.parse(visionText.text)
-                    _uiState.update { state ->
-                        applyOcrResult(state, parsed)
-                    }
-                }
-                .addOnCompleteListener {
-                    recognizer.close()
-                    finishOcr()
-                }
-        } catch (_: IOException) {
+            stagedAttachments[attachmentId] = staged.copy(ocrText = text)
+            val parsed = ReceiptOcrParser.parse(text)
+            _uiState.update { state ->
+                applyOcrResult(state, parsed)
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            _uiState.update {
+                it.copy(
+                    infoMessageRes = R.string.ocr_read_failed,
+                    errorMessageRes = null
+                )
+            }
+        } finally {
             finishOcr()
         }
     }

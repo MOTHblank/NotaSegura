@@ -30,12 +30,21 @@
     <string name="privacy_policy_url" translatable="false">https://mothblank.github.io/pt-BR/privacy-notasegura.html</string>
     <string name="nav_purchases">Compras</string>
     <string name="nav_payments">Pagamentos</string>
+    <string name="backup_password_title">Proteger cópia de segurança</string>
+    <string name="backup_password_body">Defina uma senha para criptografar este backup. Você precisará dela para restaurá-lo, inclusive em outro aparelho.</string>
+    <string name="backup_password_warning">O Nota Segura não salva essa senha e não poderá recuperá-la se você esquecer.</string>
+    <string name="backup_password_label">Senha do backup</string>
+    <string name="backup_password_confirm_label">Confirmar senha</string>
+    <string name="backup_password_too_short">Use pelo menos %1$d caracteres.</string>
+    <string name="backup_password_mismatch">As senhas não coincidem.</string>
+    <string name="backup_encrypt_and_save">Criptografar e salvar</string>
     <string name="backup_restore_title">Restaurar cópia de segurança?</string>
-    <string name="backup_restore_body">Isso substituirá todas as compras, documentos e pagamentos que estão no aparelho. O arquivo será conferido antes de qualquer alteração.</string>
-    <string name="backup_saved_summary">Cópia de segurança salva: %1$d compras, %2$d documentos e %3$d pagamentos.</string>
-    <string name="backup_save_failed">Não foi possível salvar a cópia de segurança.</string>
+    <string name="backup_restore_body">Isso substituirá todas as compras, documentos e pagamentos que estão no aparelho. O arquivo será autenticado e conferido antes de qualquer alteração.</string>
+    <string name="backup_restore_password_body">Digite a senha usada quando esta cópia de segurança foi criada.</string>
+    <string name="backup_saved_summary">Cópia de segurança criptografada salva: %1$d compras, %2$d documentos e %3$d pagamentos.</string>
+    <string name="backup_save_failed">Não foi possível criar a cópia de segurança criptografada.</string>
     <string name="backup_restored_summary">Dados restaurados: %1$d compras, %2$d documentos e %3$d pagamentos.</string>
-    <string name="backup_restore_failed">Não foi possível restaurar a cópia de segurança.</string>
+    <string name="backup_restore_failed">Não foi possível restaurar. Confira a senha e a integridade do arquivo.</string>
     <string name="report_generation_failed">Não foi possível gerar o PDF.</string>
 
     <string name="unsaved_exit_title">Sair sem salvar?</string>

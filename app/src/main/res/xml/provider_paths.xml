@@ -1,4 +1,5 @@
-<!-- res/xml/provider_paths.xml -->
+<!-- FileProvider exposes only the cache subdirectories used for camera capture and PDF sharing. -->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <cache-path name="my_images" path="." />
+    <cache-path name="camera_images" path="camera/" />
+    <cache-path name="exports" path="exports/" />
 </paths>

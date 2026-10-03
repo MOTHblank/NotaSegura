@@ -71,8 +71,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
@@ -856,11 +859,29 @@ private fun DateField(
     clickLabel: String,
     onClick: () -> Unit
 ) {
-    Box {
+    val accessibilityState = value.ifBlank {
+        stringResource(R.string.accessibility_date_not_selected)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                onClickLabel = clickLabel,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .semantics {
+                contentDescription = label
+                stateDescription = accessibilityState
+            }
+    ) {
         OutlinedTextField(
             value = value,
             onValueChange = {},
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clearAndSetSemantics { },
             label = {
                 if (required) RequiredLabel(label) else Text(label)
             },
@@ -868,15 +889,6 @@ private fun DateField(
             trailingIcon = {
                 Icon(Icons.Default.DateRange, contentDescription = null)
             }
-        )
-        Spacer(
-            modifier = Modifier
-                .matchParentSize()
-                .clickable(
-                    onClickLabel = clickLabel,
-                    role = Role.Button,
-                    onClick = onClick
-                )
         )
     }
 }

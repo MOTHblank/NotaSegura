@@ -110,7 +110,8 @@ fun AddEditItemScreen(
         factory = (LocalContext.current.applicationContext as NotaSeguraApplication).let { app ->
             ViewModelFactory(
                 purchaseDocumentStore = app.purchaseDocumentStore,
-                paymentRepository = app.paymentRepository
+                paymentRepository = app.paymentRepository,
+                receiptOcrEngine = app.receiptOcrEngine
             )
         }
     )
@@ -153,7 +154,7 @@ fun AddEditItemScreen(
     val documentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { viewModel.onAttachmentSelected(context, it) }
+        uri?.let { viewModel.onAttachmentSelected(it) }
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(

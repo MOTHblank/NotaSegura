@@ -87,8 +87,13 @@ class PaymentRecurrenceIntegrationTest {
         val rows = db.paymentDao().getPaymentsSnapshot()
         assertEquals(9_900L, rows.single { it.id == first.id }.amountCents)
         assertTrue(rows.single { it.id == first.id }.isPaid)
-        assertTrue(rows.filter { it.seriesId == first.id && it.dueDate > next.dueDate }
-            .all { it.amountCents == 15_000L })
+        assertTrue(rows.filter {
+            it.seriesId == first.id && it.dueDate.isAfter(LocalDate.now())
+        }.all { it.amountCents == 15_000L })
+        assertTrue(rows.any {
+            it.seriesId == first.id && it.dueDate == initialDue.plusMonths(2) &&
+                it.amountCents == 9_900L
+        })
     }
 
     @Test
@@ -114,8 +119,10 @@ class PaymentRecurrenceIntegrationTest {
 
         assertFalse(db.paymentDao().getPlansSnapshot().single().isActive)
         assertTrue(db.paymentDao().getPaymentById(first.id)!!.isPaid)
+        // Overdue debt is intentionally not erased when a recurrence ends.
+        assertNotNull(db.paymentDao().getPaymentById(next.id))
         assertFalse(db.paymentDao().getPaymentsSnapshot().any {
-            it.seriesId == first.id && !it.isPaid && it.dueDate >= next.dueDate
+            it.seriesId == first.id && !it.isPaid && it.dueDate.isAfter(horizon)
         })
     }
 

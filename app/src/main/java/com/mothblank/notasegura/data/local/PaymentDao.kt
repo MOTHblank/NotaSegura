@@ -76,9 +76,6 @@ interface PaymentDao {
     @Query("UPDATE payments SET seriesId = :seriesId WHERE id = :id AND seriesId IS NULL")
     suspend fun linkLegacyRoot(id: String, seriesId: String)
 
-    @Query("DELETE FROM payments WHERE generatedFromId = :sourceId AND isPaid = 0")
-    suspend fun deleteUnpaidGeneratedChild(sourceId: String)
-
     @Query(
         """SELECT * FROM payments WHERE isPaid = 0 AND dueDate <= :endDate
            ORDER BY dueDate ASC"""
@@ -219,11 +216,19 @@ interface PaymentDao {
         }
     }
 
+    /**
+     * Turning a bill back to pending must not remove another month's bill.
+     * Those were once generated as children; they are now independent dues.
+     */
     @Transaction
-    suspend fun updatePaidState(updatedPayment: Payment, nextPayment: Payment?) {
+    suspend fun updatePaidState(updatedPayment: Payment) {
         insertPayment(updatedPayment)
-        if (!updatedPayment.isPaid) deleteUnpaidGeneratedChild(updatedPayment.id)
-        // nextPayment is retained for compatibility with older callers.
-        // Scheduled occurrences are now created by synchronizeMonthlyPayments.
+    }
+
+    @Transaction
+    suspend fun stopRecurringPlan(id: String, today: LocalDate) {
+        val plan = getPlanById(id) ?: return
+        insertPlan(plan.copy(isActive = false))
+        deleteUnpaidSeriesFrom(id, today)
     }
 }

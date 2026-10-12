@@ -29,6 +29,7 @@ data class AddEditPaymentUiState(
     val dueDate: LocalDate? = null,
     val isPaid: Boolean = false,
     val isRecurring: Boolean = false,
+    val recurrenceAnchorDay: Int? = null,
     val editingRecurring: Boolean = false,
     val applyToFuture: Boolean = false,
     val isSaving: Boolean = false,
@@ -81,6 +82,7 @@ class AddEditPaymentViewModel(
                             dueDate = payment.dueDate,
                             isPaid = payment.isPaid,
                             isRecurring = payment.recurrenceMonths != null,
+                            recurrenceAnchorDay = payment.recurrenceAnchorDay ?: payment.dueDate.dayOfMonth,
                             editingRecurring = payment.recurrenceMonths != null && payment.seriesId != null
                         )
                     }
@@ -101,7 +103,7 @@ class AddEditPaymentViewModel(
     }
 
     fun onDueDateChange(value: LocalDate) = _uiState.update {
-        it.copy(dueDate = value, errorMessageRes = null)
+        it.copy(dueDate = value, recurrenceAnchorDay = value.dayOfMonth, errorMessageRes = null)
     }
 
     fun onPaidChange(value: Boolean) = _uiState.update { it.copy(isPaid = value) }

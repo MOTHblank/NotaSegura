@@ -262,9 +262,9 @@ fun AddEditPaymentScreen(
                 )
             }
 
-            if (uiState.isRecurring) {
+            if (uiState.isRecurring && (!uiState.editingRecurring || uiState.applyToFuture)) {
                 uiState.dueDate?.let { dueDate ->
-                    val anchor = dueDate.dayOfMonth
+                    val anchor = uiState.recurrenceAnchorDay ?: dueDate.dayOfMonth
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()

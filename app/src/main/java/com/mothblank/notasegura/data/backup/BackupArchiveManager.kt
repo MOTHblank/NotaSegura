@@ -6,6 +6,8 @@ import androidx.room.withTransaction
 import com.mothblank.notasegura.data.local.AppDatabase
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.Payment
+import com.mothblank.notasegura.domain.model.RecurringPaymentPlan
+import com.mothblank.notasegura.domain.model.RecurringPaymentSkip
 import com.mothblank.notasegura.domain.model.Purchase
 import com.mothblank.notasegura.util.FileStorageManager
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +34,9 @@ data class BackupSummary(
 private data class BackupSnapshot(
     val purchases: List<Purchase>,
     val attachments: List<Attachment>,
-    val payments: List<Payment>
+    val payments: List<Payment>,
+    val plans: List<RecurringPaymentPlan>,
+    val skips: List<RecurringPaymentSkip>
 )
 
 private data class CopiedEntry(
@@ -49,7 +53,7 @@ class BackupArchiveManager(
 
         private const val FORMAT_NAME = "NotaSeguraBackup"
         private const val FORMAT_VERSION = 1
-        private const val SCHEMA_VERSION = 1
+        private const val SCHEMA_VERSION = 2
         private const val MAX_ARCHIVE_BYTES = 512L * 1024L * 1024L
         private const val MAX_JSON_BYTES = 8 * 1024 * 1024
     }
@@ -67,7 +71,9 @@ class BackupArchiveManager(
                     BackupSnapshot(
                         purchases = database.purchaseDao().getPurchasesSnapshot(),
                         attachments = database.purchaseDao().getAttachmentsSnapshot(),
-                        payments = database.paymentDao().getPaymentsSnapshot()
+                        payments = database.paymentDao().getPaymentsSnapshot(),
+                        plans = database.paymentDao().getPlansSnapshot(),
+                        skips = database.paymentDao().getSkipsSnapshot()
                     )
                 }
                 val purchases = snapshot.purchases
@@ -82,7 +88,7 @@ class BackupArchiveManager(
                     file
                 }
 
-                val dataJson = createDataJson(purchases, attachments, payments)
+                val dataJson = createDataJson(purchases, attachments, payments, snapshot.plans, snapshot.skips)
                 val dataBytes = dataJson.toString().toByteArray(Charsets.UTF_8)
                 require(dataBytes.size <= MAX_JSON_BYTES) {
                     "Metadados excedem o limite de restauração."
@@ -225,6 +231,8 @@ class BackupArchiveManager(
                         val data = JSONObject(dataBytes.toString(Charsets.UTF_8))
                         val purchases = parsePurchases(data.getJSONArray("purchases"))
                         val payments = parsePayments(data.getJSONArray("payments"))
+                        val restoredPlans = parsePlans(data.optJSONArray("recurringPlans"))
+                        val restoredSkips = parseSkips(data.optJSONArray("recurringSkips"))
                         val attachmentRecords = data.getJSONArray("attachments")
 
                         val purchaseIds = purchases.mapTo(hashSetOf()) { it.id }
@@ -288,6 +296,8 @@ class BackupArchiveManager(
                             val purchaseDao = database.purchaseDao()
                             val paymentDao = database.paymentDao()
 
+                            paymentDao.clearSkips()
+                            paymentDao.clearPlans()
                             purchaseDao.clearAttachments()
                             purchaseDao.clearPurchases()
                             paymentDao.clearPayments()
@@ -301,6 +311,8 @@ class BackupArchiveManager(
                             if (payments.isNotEmpty()) {
                                 paymentDao.insertPayments(payments)
                             }
+                            if (restoredPlans.isNotEmpty()) paymentDao.insertPlans(restoredPlans)
+                            if (restoredSkips.isNotEmpty()) paymentDao.insertSkips(restoredSkips)
                         }
 
                         databaseCommitted = true
@@ -328,9 +340,28 @@ class BackupArchiveManager(
     private fun createDataJson(
         purchases: List<Purchase>,
         attachments: List<Attachment>,
-        payments: List<Payment>
+        payments: List<Payment>,
+        plans: List<RecurringPaymentPlan>,
+        skips: List<RecurringPaymentSkip>
     ): JSONObject {
         return JSONObject()
+            .put("recurringPlans", JSONArray().apply {
+                plans.forEach { plan ->
+                    put(JSONObject()
+                        .put("id", plan.id)
+                        .put("title", plan.title)
+                        .put("amountCents", plan.amountCents)
+                        .put("startDate", plan.startDate.toEpochDay())
+                        .put("anchorDay", plan.anchorDay)
+                        .put("isActive", plan.isActive))
+                }
+            })
+            .put("recurringSkips", JSONArray().apply {
+                skips.forEach { skip ->
+                    put(JSONObject().put("seriesId", skip.seriesId)
+                        .put("dueDate", skip.dueDate.toEpochDay()))
+                }
+            })
             .put(
                 "purchases",
                 JSONArray().apply {
@@ -392,6 +423,39 @@ class BackupArchiveManager(
                     }
                 }
             )
+    }
+
+    private fun parsePlans(array: JSONArray?): List<RecurringPaymentPlan> = buildList {
+        if (array == null) return@buildList
+        for (index in 0 until array.length()) {
+            val item = array.getJSONObject(index)
+            val id = item.getString("id")
+            validateRecordId(id)
+            val anchorDay = item.getInt("anchorDay")
+            require(anchorDay in 1..31) { "Dia de recorrência inválido." }
+            add(RecurringPaymentPlan(
+                id = id,
+                title = item.getString("title"),
+                amountCents = item.getLong("amountCents"),
+                startDate = LocalDate.ofEpochDay(item.getLong("startDate")),
+                anchorDay = anchorDay,
+                isActive = item.optBoolean("isActive", true)
+            ))
+        }
+        require(distinctBy { it.id }.size == size) { "Planos duplicados no backup." }
+    }
+
+    private fun parseSkips(array: JSONArray?): List<RecurringPaymentSkip> = buildList {
+        if (array == null) return@buildList
+        for (index in 0 until array.length()) {
+            val item = array.getJSONObject(index)
+            val id = item.getString("seriesId")
+            validateRecordId(id)
+            add(RecurringPaymentSkip(id, LocalDate.ofEpochDay(item.getLong("dueDate"))))
+        }
+        require(distinctBy { it.seriesId to it.dueDate }.size == size) {
+            "Exceções de recorrência duplicadas no backup."
+        }
     }
 
     private fun parsePurchases(array: JSONArray): List<Purchase> = buildList {

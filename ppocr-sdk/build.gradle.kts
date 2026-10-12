@@ -136,7 +136,15 @@ val preparePpOcrModels by tasks.registering {
     }
 }
 
-android.sourceSets.getByName("main").assets.srcDir(generatedAssetsDir)
+// AGP 9.2+ regression: LibraryExtension.sourceSets getter casts each
+// source set to a legacy AndroidLibrarySourceSet interface that its runtime
+// implementation no longer implements. The configuration block uses the
+// compatible new DSL instead. Preserve the generated OCR assets directory.
+android.sourceSets {
+    named("main") {
+        assets.srcDir(generatedAssetsDir)
+    }
+}
 tasks.named("preBuild").configure {
     dependsOn(preparePpOcrModels)
 }

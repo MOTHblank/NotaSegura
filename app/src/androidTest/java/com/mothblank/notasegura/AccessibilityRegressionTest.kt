@@ -2,7 +2,10 @@ package com.mothblank.notasegura
 
 import androidx.activity.ComponentActivity
 import android.widget.DatePicker
+import android.view.View
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
@@ -48,8 +51,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mothblank.notasegura.ui.AccessibilityTags
-import com.mothblank.notasegura.util.DateUtils
-import java.time.LocalDate
+import org.hamcrest.Matcher
 import com.mothblank.notasegura.ui.theme.NotaSeguraTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -148,7 +150,20 @@ class AccessibilityRegressionTest {
         composeRule.onNodeWithContentDescription(string(R.string.select_purchase_date))
             .performScrollTo().performClick()
         onView(isAssignableFrom(DatePicker::class.java)).check(matches(isDisplayed()))
-        onView(withId(android.R.id.button2)).perform(click())
+        selectNativeDate(2020, 9, 21)
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_DATE_FIELD)
+            .assertTextContains("21/09/2020")
+
+        composeRule.onNodeWithTag(AccessibilityTags.WARRANTY_DATE_FIELD)
+            .performScrollTo().performTextInput("11122027")
+        composeRule.onNodeWithTag(AccessibilityTags.WARRANTY_DATE_FIELD)
+            .assertTextContains("11/12/2027")
+        composeRule.onNodeWithContentDescription(string(R.string.select_warranty_end))
+            .performScrollTo().performClick()
+        onView(isAssignableFrom(DatePicker::class.java)).check(matches(isDisplayed()))
+        selectNativeDate(2028, 12, 24)
+        composeRule.onNodeWithTag(AccessibilityTags.WARRANTY_DATE_FIELD)
+            .assertTextContains("24/12/2028")
     }
 
     @Test
@@ -180,10 +195,9 @@ class AccessibilityRegressionTest {
         composeRule.onNodeWithContentDescription(string(R.string.select_payment_due_date))
             .performScrollTo().performClick()
         onView(isAssignableFrom(DatePicker::class.java)).check(matches(isDisplayed()))
-        val today = LocalDate.now()
-        onView(withId(android.R.id.button1)).perform(click())
+        selectNativeDate(2029, 7, 14)
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD)
-            .assertTextContains(DateUtils.formatEditableDate(today))
+            .assertTextContains("14/07/2029")
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE)
             .performScrollTo().assertIsEnabled()
     }
@@ -301,7 +315,7 @@ class AccessibilityRegressionTest {
             .performScrollTo()
             .assertIsDisplayed()
             .performClick()
-        composeRule.onNodeWithContentDescription(string(R.string.field_payment_due_date))
+        composeRule.onNodeWithContentDescription(string(R.string.select_payment_due_date))
             .assertHasClickAction()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_TITLE_FIELD)
             .performScrollTo()
@@ -328,6 +342,21 @@ class AccessibilityRegressionTest {
 
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION).performClick()
         composeRule.onRoot().tryPerformAccessibilityChecks()
+    }
+
+    /** Sets an actual date in Android's platform picker before confirming it. */
+    private fun selectNativeDate(year: Int, month: Int, day: Int) {
+        onView(isAssignableFrom(DatePicker::class.java)).perform(object : ViewAction {
+            override fun getConstraints(): Matcher<View> =
+                isAssignableFrom(DatePicker::class.java)
+
+            override fun getDescription(): String = "Select native calendar date"
+
+            override fun perform(uiController: UiController, view: View) {
+                (view as DatePicker).updateDate(year, month - 1, day)
+            }
+        })
+        onView(withId(android.R.id.button1)).perform(click())
     }
 
     private fun setAppContent(

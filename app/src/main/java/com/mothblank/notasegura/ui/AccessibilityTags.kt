@@ -8,6 +8,9 @@ object AccessibilityTags {
     const val PRIMARY_ADD_ACTION = "a11y_primary_add_action"
 
     const val DASHBOARD = "a11y_dashboard"
+    const val DASHBOARD_TOGGLE = "a11y_dashboard_toggle"
+    const val PURCHASE_LIST = "a11y_purchase_list"
+    const val PURCHASE_CARD_PREFIX = "a11y_purchase_card_"
     const val PURCHASE_SEARCH = "a11y_purchase_search"
     const val PURCHASE_EMPTY_ACTION = "a11y_purchase_empty_action"
     const val PURCHASE_FORM = "a11y_purchase_form"

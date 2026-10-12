@@ -11,6 +11,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mothblank.notasegura.data.backup.BackupArchiveManager
 import com.mothblank.notasegura.data.local.AppDatabase
+import com.mothblank.notasegura.data.local.DatabaseMigrations
 import com.mothblank.notasegura.data.ocr.ReceiptOcrEngine
 import com.mothblank.notasegura.data.repository.PaymentRepositoryImpl
 import com.mothblank.notasegura.data.repository.PurchaseRepositoryImpl
@@ -34,7 +35,7 @@ class NotaSeguraApplication : Application() {
             applicationContext,
             AppDatabase::class.java,
             "nota-segura-v2.db"
-        ).build()
+        ).addMigrations(DatabaseMigrations.MIGRATION_1_2).build()
     }
 
     val purchaseRepository: PurchaseRepository by lazy {
@@ -63,6 +64,8 @@ class NotaSeguraApplication : Application() {
         createNotificationChannel()
         scheduleDailyExpirationCheck()
         maintenanceScope.launch {
+            runCatching { paymentRepository.refreshOccurrences(java.time.LocalDate.now().plusMonths(1)) }
+                .onFailure { Log.w("NotaSeguraPayments", "Failed to synchronize monthly obligations", it) }
             runCatching { ManagedDocumentRecovery.reconcile(applicationContext, database) }
                 .onFailure { Log.w("NotaSeguraRecovery", "Document reconciliation failed", it) }
         }

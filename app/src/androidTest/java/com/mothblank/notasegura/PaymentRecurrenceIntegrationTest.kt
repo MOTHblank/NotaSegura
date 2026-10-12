@@ -9,6 +9,8 @@ import com.mothblank.notasegura.domain.model.Payment
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -21,6 +23,8 @@ import java.util.UUID
 class PaymentRecurrenceIntegrationTest {
     private lateinit var db: AppDatabase
     private lateinit var repository: PaymentRepositoryImpl
+    private val initialDue = LocalDate.now().minusMonths(3).withDayOfMonth(10)
+    private val horizon = LocalDate.now().plusMonths(2)
 
     @Before
     fun setup() {
@@ -32,51 +36,109 @@ class PaymentRecurrenceIntegrationTest {
     }
 
     @After
-    fun tearDown() = db.close()
+    fun cleanup() = db.close()
 
     @Test
-    fun editingGeneratedPaymentKeepsParentRelationshipForUndo() = runBlocking {
-        val parent = newPayment(isPaid = false)
-        repository.saveEditedPayment(parent)
-        repository.setPaidStatus(parent, true, LocalDate.of(2026, 10, 12))
-        val child = db.paymentDao().getPaymentsSnapshot()
-            .single { it.generatedFromId == parent.id }
-        repository.saveEditedPayment(child.copy(title = "Parcela alterada"))
-        assertEquals(parent.id, repository.getPaymentById(child.id)?.generatedFromId)
+    fun generatesEveryMissedMonthWithoutAnyPaidParent() = runBlocking {
+        val first = newMonthlyPayment()
+        repository.saveEditedPayment(first)
+        repository.refreshOccurrences(horizon)
 
-        repository.setPaidStatus(
-            repository.getPaymentById(parent.id)!!, false, LocalDate.of(2026, 10, 12)
+        val months = db.paymentDao().getPaymentsSnapshot().filter { it.seriesId == first.id }
+        assertTrue(months.size >= 5)
+        assertTrue(months.all { !it.isPaid })
+        assertTrue(months.any { it.dueDate == initialDue.plusMonths(1) })
+        assertTrue(months.any { it.dueDate == initialDue.plusMonths(2) })
+        assertTrue(months.any { it.dueDate == initialDue.plusMonths(3) })
+    }
+
+    @Test
+    fun editingOneOccurrenceDoesNotRewriteOtherMonthsOrRestoreOldDate() = runBlocking {
+        val first = newMonthlyPayment()
+        repository.saveEditedPayment(first)
+        repository.refreshOccurrences(horizon)
+        val target = db.paymentDao().getPaymentsSnapshot()
+            .single { it.seriesId == first.id && it.dueDate == initialDue.plusMonths(1) }
+
+        val moved = target.copy(
+            amountCents = 50_000,
+            dueDate = target.dueDate.plusDays(2)
         )
-        assertNull(repository.getPaymentById(child.id))
+        repository.saveEditedPayment(moved, applyToFuture = false)
+        repository.refreshOccurrences(horizon)
+
+        val rows = db.paymentDao().getPaymentsSnapshot().filter { it.seriesId == first.id }
+        assertNull(rows.firstOrNull { it.dueDate == target.dueDate })
+        assertEquals(50_000L, rows.single { it.id == target.id }.amountCents)
+        assertTrue(rows.any { it.dueDate == initialDue.plusMonths(2) && it.amountCents == 9_900L })
     }
 
     @Test
-    fun changingDueDateOrDisablingRecurrenceReplacesUnpaidChild() = runBlocking {
-        val parent = newPayment(isPaid = true)
-        repository.saveEditedPayment(parent)
-        assertEquals(1, childrenOf(parent.id).size)
+    fun futureEditChangesTemplateButPreservesPreviouslyPaidHistory() = runBlocking {
+        val first = newMonthlyPayment()
+        repository.saveEditedPayment(first)
+        repository.setPaidStatus(first, true, LocalDate.now())
+        val next = db.paymentDao().getPaymentsSnapshot()
+            .single { it.seriesId == first.id && it.dueDate == initialDue.plusMonths(1) }
 
-        val moved = parent.copy(dueDate = LocalDate.of(2026, 10, 31), recurrenceAnchorDay = 31)
-        repository.saveEditedPayment(moved)
-        assertEquals(1, childrenOf(parent.id).size)
-        assertEquals(LocalDate.of(2026, 11, 30), childrenOf(parent.id).single().dueDate)
+        repository.saveEditedPayment(next.copy(amountCents = 15_000L), applyToFuture = true)
+        repository.refreshOccurrences(horizon)
 
-        repository.saveEditedPayment(moved.copy(recurrenceMonths = null, seriesId = null))
-        assertTrue(childrenOf(parent.id).isEmpty())
+        val rows = db.paymentDao().getPaymentsSnapshot()
+        assertEquals(9_900L, rows.single { it.id == first.id }.amountCents)
+        assertTrue(rows.single { it.id == first.id }.isPaid)
+        assertTrue(rows.filter { it.seriesId == first.id && it.dueDate > next.dueDate }
+            .all { it.amountCents == 15_000L })
     }
 
-    private suspend fun childrenOf(parentId: String) =
-        db.paymentDao().getPaymentsSnapshot().filter { it.generatedFromId == parentId }
+    @Test
+    fun deletedSingleOccurrenceStaysSkippedAndStoppingPreservesPaidMonths() = runBlocking {
+        val first = newMonthlyPayment()
+        repository.saveEditedPayment(first)
+        repository.refreshOccurrences(horizon)
+        val skipped = db.paymentDao().getPaymentsSnapshot()
+            .single { it.seriesId == first.id && it.dueDate == initialDue.plusMonths(1) }
 
-    private fun newPayment(isPaid: Boolean) = Payment(
+        repository.removePayment(skipped, includeFuture = false)
+        repository.refreshOccurrences(horizon)
+        assertNull(db.paymentDao().getPaymentById(skipped.id))
+        assertFalse(db.paymentDao().getPaymentsSnapshot().any {
+            it.seriesId == first.id && it.dueDate == skipped.dueDate
+        })
+
+        repository.setPaidStatus(first, true, LocalDate.now())
+        val next = db.paymentDao().getPaymentsSnapshot()
+            .single { it.seriesId == first.id && it.dueDate == initialDue.plusMonths(2) }
+        repository.removePayment(next, includeFuture = true)
+        repository.refreshOccurrences(horizon.plusMonths(6))
+
+        assertFalse(db.paymentDao().getPlansSnapshot().single().isActive)
+        assertTrue(db.paymentDao().getPaymentById(first.id)!!.isPaid)
+        assertFalse(db.paymentDao().getPaymentsSnapshot().any {
+            it.seriesId == first.id && !it.isPaid && it.dueDate >= next.dueDate
+        })
+    }
+
+    @Test
+    fun legacyMonthlyRecordsBecomePlansWithoutLosingOriginalRecord() = runBlocking {
+        val legacy = newMonthlyPayment().copy(seriesId = "legacy")
+        db.paymentDao().insertPayment(legacy)
+
+        repository.refreshOccurrences(horizon)
+        assertNotNull(db.paymentDao().getPlanById("legacy"))
+        assertNotNull(db.paymentDao().getPaymentById(legacy.id))
+        assertTrue(db.paymentDao().getPaymentsSnapshot().any {
+            it.seriesId == "legacy" && it.dueDate == initialDue.plusMonths(1)
+        })
+    }
+
+    private fun newMonthlyPayment() = Payment(
         id = UUID.randomUUID().toString(),
-        title = "Mensalidade",
-        amountCents = 3000L,
-        dueDate = LocalDate.of(2026, 10, 12),
-        isPaid = isPaid,
-        paidAt = if (isPaid) LocalDate.of(2026, 10, 12) else null,
+        title = "Internet",
+        amountCents = 9_900L,
+        dueDate = initialDue,
         recurrenceMonths = 1,
-        recurrenceAnchorDay = 12,
+        recurrenceAnchorDay = initialDue.dayOfMonth,
         seriesId = null
     )
 }

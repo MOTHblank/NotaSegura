@@ -19,6 +19,15 @@ A purchase is a first-class record. It can contain:
 
 Attachments are separate Room entities with ownership, MIME type, editable display name, document type, SHA-256 checksum, and optional OCR text. Supported document types are receipt, invoice, warranty certificate, manual, and other.
 
+
+### Pagamentos recorrentes
+
+A área de pagamentos agora separa **A pagar**, **Recorrentes** e **Histórico**. Uma conta mensal é salva como um plano independente das parcelas; o aplicativo registra vencimentos de cada mês mesmo que os anteriores continuem pendentes. A lista de recorrentes mostra o dia do vencimento, o valor previsto e o próximo pagamento pendente.
+
+Na edição de uma parcela mensal é possível alterar apenas o vencimento selecionado ou também os futuros. Para interromper a conta mensal, use **Encerrar recorrência** nos detalhes: parcelas futuras ainda não pagas são retiradas, mas o histórico pago é mantido. Excluir somente uma parcela registra essa exceção para impedir que reapareça na próxima sincronização.
+
+Os bancos de dados existentes são migrados de versão 1 para 2 sem apagar as compras, documentos ou pagamentos. Contas mensais antigas são reconhecidas por seus marcadores de série. Backups criptografados novos incluem os planos recorrentes e suas exceções, e o formato continua aceitando arquivos de backup anteriores.
+
 ## Document ingestion
 
 Images from the camera or document picker are copied into app-private storage. PDFs are also supported as real attachments.

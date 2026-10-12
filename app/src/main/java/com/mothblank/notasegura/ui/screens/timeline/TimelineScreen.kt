@@ -236,7 +236,12 @@ private fun AttentionOverview(
     val today = LocalDate.now()
     val visiblePayments = dashboard.paymentsRequiringAttention.take(2)
     val visibleWarranties = dashboard.warrantiesExpiringSoon.take(2)
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    val overduePayments = dashboard.paymentsRequiringAttention.count { it.isOverdue }
+    val deadlinesDueToday =
+        dashboard.paymentsRequiringAttention.count { it.dueDate == today } +
+            dashboard.warrantiesExpiringSoon.count { it.warrantyEndDate == today }
+    // Keep manual collapse available, but show the deadlines on the initial visit.
+    var expanded by rememberSaveable { mutableStateOf(true) }
 
     Card(
         modifier = Modifier
@@ -273,6 +278,53 @@ private fun AttentionOverview(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
+                    // Important deadlines must remain obvious when the details are collapsed.
+                    if (overduePayments > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.WarningAmber,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                pluralStringResource(
+                                    R.plurals.dashboard_overdue_alert,
+                                    overduePayments,
+                                    overduePayments
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    if (deadlinesDueToday > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Event,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                pluralStringResource(
+                                    R.plurals.dashboard_due_today_alert,
+                                    deadlinesDueToday,
+                                    deadlinesDueToday
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
                 }
                 TextButton(
                     modifier = Modifier.testTag(AccessibilityTags.DASHBOARD_TOGGLE),

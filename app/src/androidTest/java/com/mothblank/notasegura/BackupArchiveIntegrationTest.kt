@@ -68,6 +68,46 @@ class BackupArchiveIntegrationTest {
     }
 
     @Test
+    fun restoresRecurringPlansAndSkippedInstallments() = runBlocking {
+        val paymentId = UUID.randomUUID().toString()
+        val firstDue = LocalDate.now().minusMonths(1).withDayOfMonth(10)
+        val payment = Payment(
+            id = paymentId,
+            title = "Internet",
+            amountCents = 9900L,
+            dueDate = firstDue,
+            recurrenceMonths = 1,
+            recurrenceAnchorDay = 10,
+            seriesId = paymentId
+        )
+        val repository = com.mothblank.notasegura.data.repository.PaymentRepositoryImpl(db.paymentDao())
+        repository.saveEditedPayment(payment)
+        repository.refreshOccurrences(LocalDate.now().plusMonths(2))
+        val skipped = db.paymentDao().getPaymentsSnapshot().single {
+            it.seriesId == paymentId && it.dueDate == firstDue.plusMonths(1)
+        }
+        repository.removePayment(skipped, includeFuture = false)
+
+        val manager = BackupArchiveManager(context, db)
+        val archive = newArchive()
+        assertTrue(manager.createBackup(archiveUri(archive), PASSWORD).isSuccess)
+
+        db.paymentDao().clearSkips()
+        db.paymentDao().clearPlans()
+        db.paymentDao().clearPayments()
+
+        val restored = manager.restoreBackup(archiveUri(archive), PASSWORD)
+        assertTrue(restored.exceptionOrNull()?.toString(), restored.isSuccess)
+        assertEquals(paymentId, db.paymentDao().getPlansSnapshot().single().id)
+        assertEquals(skipped.dueDate, db.paymentDao().getSkipsSnapshot().single().dueDate)
+
+        repository.refreshOccurrences(LocalDate.now().plusMonths(2))
+        assertFalse(db.paymentDao().getPaymentsSnapshot().any {
+            it.seriesId == paymentId && it.dueDate == skipped.dueDate
+        })
+    }
+
+    @Test
     fun wrongPasswordAndTamperingLeaveLiveRecordsUntouched() = runBlocking {
         seed()
         val manager = BackupArchiveManager(context, db)

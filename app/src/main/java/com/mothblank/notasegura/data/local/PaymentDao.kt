@@ -73,6 +73,9 @@ interface PaymentDao {
     @Query("DELETE FROM payments WHERE seriesId = :seriesId AND dueDate >= :from AND isPaid = 0")
     suspend fun deleteUnpaidSeriesFrom(seriesId: String, from: LocalDate)
 
+    @Query("UPDATE payments SET seriesId = :seriesId WHERE id = :id AND seriesId IS NULL")
+    suspend fun linkLegacyRoot(id: String, seriesId: String)
+
     @Query("DELETE FROM payments WHERE generatedFromId = :sourceId AND isPaid = 0")
     suspend fun deleteUnpaidGeneratedChild(sourceId: String)
 
@@ -109,6 +112,8 @@ interface PaymentDao {
                     anchorDay = first.recurrenceAnchorDay ?: first.dueDate.dayOfMonth
                 )
                 insertPlan(plan)
+                // Older monthly root rows could predate the series ID field.
+                occurrences.forEach { if (it.seriesId == null) linkLegacyRoot(it.id, id) }
                 plans[id] = plan
             }
         }
@@ -169,7 +174,8 @@ interface PaymentDao {
         } else if (existingPlan != null && applyToFuture) {
             // Future edits change the template without modifying paid history.
             val start = original.dueDate
-            deleteUnpaidSeriesFrom(existingPlan.id, start)
+            // Keep already-overdue debts intact when editing future rules.
+            deleteUnpaidSeriesFrom(existingPlan.id, maxOf(start, LocalDate.now()))
             if (payment.recurrenceMonths == null) {
                 insertPlan(existingPlan.copy(isActive = false))
                 insertPayment(payment.copy(seriesId = null))
@@ -178,7 +184,7 @@ interface PaymentDao {
                     existingPlan.copy(
                         title = payment.title,
                         amountCents = payment.amountCents,
-                        startDate = payment.dueDate,
+                        startDate = maxOf(payment.dueDate, LocalDate.now()),
                         anchorDay = payment.recurrenceAnchorDay ?: payment.dueDate.dayOfMonth,
                         isActive = true
                     )
@@ -204,7 +210,8 @@ interface PaymentDao {
         val plan = payment.seriesId?.let { getPlanById(it) }
         if (plan != null && includeFuture) {
             insertPlan(plan.copy(isActive = false))
-            deleteUnpaidSeriesFrom(plan.id, payment.dueDate)
+            // Ending a subscription must not erase overdue unpaid bills.
+            deleteUnpaidSeriesFrom(plan.id, maxOf(payment.dueDate, LocalDate.now()))
             // Paid occurrences, including this one, remain part of the history.
         } else {
             if (plan != null) insertSkip(RecurringPaymentSkip(plan.id, payment.dueDate))

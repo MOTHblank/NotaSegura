@@ -7,16 +7,53 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.mothblank.notasegura.domain.model.Payment
+import com.mothblank.notasegura.domain.model.RecurringPaymentPlan
+import com.mothblank.notasegura.domain.model.RecurringPaymentSkip
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
+import java.time.YearMonth
+import java.util.UUID
 
 @Dao
 interface PaymentDao {
     @Query("SELECT * FROM payments ORDER BY dueDate ASC")
     fun getAllPayments(): Flow<List<Payment>>
 
+    @Query("SELECT * FROM recurring_payment_plans ORDER BY title COLLATE NOCASE")
+    fun getRecurringPlans(): Flow<List<RecurringPaymentPlan>>
+
+    @Query("SELECT * FROM recurring_payment_plans")
+    suspend fun getPlansSnapshot(): List<RecurringPaymentPlan>
+
+    @Query("SELECT * FROM recurring_payment_plans WHERE id = :id")
+    suspend fun getPlanById(id: String): RecurringPaymentPlan?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlan(plan: RecurringPaymentPlan)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlans(plans: List<RecurringPaymentPlan>)
+
+    @Query("DELETE FROM recurring_payment_plans")
+    suspend fun clearPlans()
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSkip(skip: RecurringPaymentSkip)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSkips(skips: List<RecurringPaymentSkip>)
+
+    @Query("SELECT * FROM recurring_payment_skips")
+    suspend fun getSkipsSnapshot(): List<RecurringPaymentSkip>
+
+    @Query("DELETE FROM recurring_payment_skips")
+    suspend fun clearSkips()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPayment(payment: Payment)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPaymentIfAbsent(payment: Payment): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPayments(payments: List<Payment>)
@@ -33,71 +70,146 @@ interface PaymentDao {
     @Query("DELETE FROM payments")
     suspend fun clearPayments()
 
-    @Query(
-        """
-        SELECT EXISTS(
-            SELECT 1 FROM payments
-            WHERE seriesId = :seriesId AND dueDate = :dueDate
-            LIMIT 1
-        )
-        """
-    )
-    suspend fun existsSeriesOccurrence(seriesId: String, dueDate: LocalDate): Boolean
+    @Query("DELETE FROM payments WHERE seriesId = :seriesId AND dueDate >= :from AND isPaid = 0")
+    suspend fun deleteUnpaidSeriesFrom(seriesId: String, from: LocalDate)
 
     @Query("DELETE FROM payments WHERE generatedFromId = :sourceId AND isPaid = 0")
     suspend fun deleteUnpaidGeneratedChild(sourceId: String)
 
     @Query(
-        """
-        SELECT * FROM payments
-        WHERE isPaid = 0
-          AND dueDate <= :endDate
-        ORDER BY dueDate ASC
-        """
+        """SELECT * FROM payments WHERE isPaid = 0 AND dueDate <= :endDate
+           ORDER BY dueDate ASC"""
     )
-    suspend fun getPendingPaymentsDueOnOrBefore(
-        endDate: LocalDate
-    ): List<Payment>
+    suspend fun getPendingPaymentsDueOnOrBefore(endDate: LocalDate): List<Payment>
 
     /**
-     * Save edits and the outstanding generated child atomically. Editing a
-     * recurring parent must not strand an unpaid child with its old due date.
+     * Idempotently recover legacy monthly definitions and materialize every
+     * due occurrence through the requested horizon. Paid status never gates
+     * generation, so missed months remain visible.
+     *
+     * Explicit skips are respected and existing paid/edited rows are never
+     * overwritten. The horizon and 600-month bound prevent runaway loops.
      */
     @Transaction
-    suspend fun saveEditedPayment(updatedPayment: Payment, nextPayment: Payment?) {
-        val previous = getPaymentById(updatedPayment.id)
-        if (previous != null && (
-                !updatedPayment.isPaid ||
-                previous.dueDate != updatedPayment.dueDate ||
-                previous.recurrenceMonths != updatedPayment.recurrenceMonths ||
-                previous.recurrenceAnchorDay != updatedPayment.recurrenceAnchorDay
-            )
-        ) {
-            deleteUnpaidGeneratedChild(updatedPayment.id)
-        }
-        insertPayment(updatedPayment)
-        if (nextPayment != null) {
-            val seriesId = nextPayment.seriesId
-            if (seriesId == null || !existsSeriesOccurrence(seriesId, nextPayment.dueDate)) {
-                insertPayment(nextPayment)
+    suspend fun synchronizeMonthlyPayments(untilDate: LocalDate) {
+        val payments = getPaymentsSnapshot()
+        val plans = getPlansSnapshot().associateBy { it.id }.toMutableMap()
+        val oldSeries = payments.asSequence()
+            .filter { (it.recurrenceMonths ?: 0) > 0 }
+            .groupBy { it.seriesId ?: it.id }
+        oldSeries.forEach { (id, occurrences) ->
+            if (id !in plans) {
+                val first = occurrences.minBy { it.dueDate }
+                val recent = occurrences.maxBy { it.dueDate }
+                val plan = RecurringPaymentPlan(
+                    id = id,
+                    title = recent.title,
+                    amountCents = recent.amountCents,
+                    startDate = first.dueDate,
+                    anchorDay = first.recurrenceAnchorDay ?: first.dueDate.dayOfMonth
+                )
+                insertPlan(plan)
+                plans[id] = plan
             }
+        }
+
+        val skipped = getSkipsSnapshot().mapTo(hashSetOf()) { it.seriesId to it.dueDate }
+        val existing = payments.mapNotNullTo(hashSetOf()) { occurrence ->
+            occurrence.seriesId?.let { it to occurrence.dueDate }
+                ?: if ((occurrence.recurrenceMonths ?: 0) > 0) {
+                    occurrence.id to occurrence.dueDate
+                } else null
+        }
+
+        for (plan in plans.values) {
+            if (!plan.isActive || plan.startDate.isAfter(untilDate)) continue
+            var month = YearMonth.from(plan.startDate)
+            val horizon = YearMonth.from(untilDate)
+            var monthsVisited = 0
+            while (!month.isAfter(horizon) && monthsVisited++ < 600) {
+                val due = plan.dueIn(month)
+                val key = plan.id to due
+                if (!due.isBefore(plan.startDate) && !due.isAfter(untilDate) &&
+                    key !in skipped && existing.add(key)
+                ) {
+                    insertPaymentIfAbsent(
+                        Payment(
+                            id = UUID.randomUUID().toString(),
+                            title = plan.title,
+                            amountCents = plan.amountCents,
+                            dueDate = due,
+                            recurrenceMonths = 1,
+                            recurrenceAnchorDay = plan.anchorDay,
+                            seriesId = plan.id
+                        )
+                    )
+                }
+                month = month.plusMonths(1)
+            }
+        }
+    }
+
+    /**
+     * Scope=false edits only this bill; scope=true changes the active plan
+     * starting at the selected occurrence. Completed history is retained.
+     */
+    @Transaction
+    suspend fun saveWithRecurrence(payment: Payment, applyToFuture: Boolean, horizon: LocalDate) {
+        synchronizeMonthlyPayments(horizon)
+        val original = getPaymentById(payment.id)
+        val existingPlan = original?.seriesId?.let { getPlanById(it) }
+
+        if (original == null && payment.recurrenceMonths != null) {
+            val id = payment.seriesId ?: payment.id
+            insertPlan(
+                RecurringPaymentPlan(id, payment.title, payment.amountCents,
+                    payment.dueDate, payment.recurrenceAnchorDay ?: payment.dueDate.dayOfMonth)
+            )
+            insertPayment(payment.copy(seriesId = id))
+        } else if (existingPlan != null && applyToFuture) {
+            // Future edits change the template without modifying paid history.
+            val start = original.dueDate
+            deleteUnpaidSeriesFrom(existingPlan.id, start)
+            if (payment.recurrenceMonths == null) {
+                insertPlan(existingPlan.copy(isActive = false))
+                insertPayment(payment.copy(seriesId = existingPlan.id))
+            } else {
+                insertPlan(
+                    existingPlan.copy(
+                        title = payment.title,
+                        amountCents = payment.amountCents,
+                        startDate = payment.dueDate,
+                        anchorDay = payment.recurrenceAnchorDay ?: payment.dueDate.dayOfMonth,
+                        isActive = true
+                    )
+                )
+                insertPayment(payment.copy(seriesId = existingPlan.id))
+            }
+        } else {
+            // A one-time override keeps the existing series definition intact.
+            insertPayment(payment)
+        }
+        synchronizeMonthlyPayments(horizon)
+    }
+
+    @Transaction
+    suspend fun removePayment(payment: Payment, includeFuture: Boolean) {
+        val plan = payment.seriesId?.let { getPlanById(it) }
+        if (plan != null && includeFuture) {
+            insertPlan(plan.copy(isActive = false))
+            deleteUnpaidSeriesFrom(plan.id, payment.dueDate)
+            // Paid occurrences, including this one, remain part of the history.
+        } else {
+            if (plan != null) insertSkip(RecurringPaymentSkip(plan.id, payment.dueDate))
+            deletePayment(payment)
         }
     }
 
     @Transaction
     suspend fun updatePaidState(updatedPayment: Payment, nextPayment: Payment?) {
         insertPayment(updatedPayment)
-
-        if (!updatedPayment.isPaid) {
-            deleteUnpaidGeneratedChild(updatedPayment.id)
-            return
-        }
-
-        if (nextPayment != null) {
-            val seriesId = nextPayment.seriesId
-            if (seriesId == null || !existsSeriesOccurrence(seriesId, nextPayment.dueDate)) {
-                insertPayment(nextPayment)
-            }
-        }
+        if (!updatedPayment.isPaid) deleteUnpaidGeneratedChild(updatedPayment.id)
+        // nextPayment is retained for compatibility with older callers.
+        // Scheduled occurrences are now created by synchronizeMonthlyPayments.
     }
 }

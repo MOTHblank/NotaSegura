@@ -1,6 +1,14 @@
 import java.io.File
 import java.net.URI
 import java.security.MessageDigest
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
 
 plugins {
     alias(libs.plugins.android.library)
@@ -26,17 +34,24 @@ kotlin {
     jvmToolchain(21)
 }
 
-val generatedAssetsDir = layout.buildDirectory.dir("generated/ppocrAssets")
-val modelCacheDir = rootProject.layout.projectDirectory.dir(".gradle/ppocr-models/ppocrv6-small")
 
-val preparePpOcrModels by tasks.registering {
-    group = "build setup"
-    description = "Downloads and verifies the pinned PP-OCRv6_small ONNX models for packaging."
+/**
+ * Download the pinned OCR assets without capturing the enclosing Gradle script.
+ * Typed task properties are compatible with the configuration cache and allow
+ * Android's variant API to track the generated assets as task outputs.
+ */
+abstract class PreparePpOcrModelsTask : DefaultTask() {
+    @get:Input
+    abstract val modelRevision: Property<String>
 
-    inputs.property("ppocrModelRevision", "2026-06-pinned")
-    outputs.dir(generatedAssetsDir)
+    @get:Internal
+    abstract val modelCacheDirectory: DirectoryProperty
 
-    doLast {
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun prepareModels() {
         data class ModelAsset(
             val relativePath: String,
             val url: String,
@@ -121,8 +136,8 @@ val preparePpOcrModels by tasks.registering {
             }
         }
 
-        val cacheRoot = modelCacheDir.asFile
-        val packagedRoot = generatedAssetsDir.get().asFile.resolve("models")
+        val cacheRoot = modelCacheDirectory.get().asFile
+        val packagedRoot = outputDirectory.get().asFile.resolve("models")
         packagedRoot.deleteRecursively()
 
         assets.forEach { asset ->
@@ -136,16 +151,26 @@ val preparePpOcrModels by tasks.registering {
     }
 }
 
-// The Android SourceSet API on AGP 9 rejects Provider<Directory> values.
-// Resolve the output to a File here; preBuild depends on preparePpOcrModels,
-// so the generated OCR models are still copied before asset packaging.
-android.sourceSets {
-    named("main") {
-        assets.srcDir(generatedAssetsDir.get().asFile)
-    }
+val preparePpOcrModels = tasks.register<PreparePpOcrModelsTask>("preparePpOcrModels") {
+    group = "build setup"
+    description = "Downloads and verifies the pinned PP-OCRv6_small ONNX models for packaging."
+
+    modelRevision.set("2026-06-pinned")
+    modelCacheDirectory.set(
+        rootProject.layout.projectDirectory.dir(".gradle/ppocr-models/ppocrv6-small")
+    )
+    outputDirectory.set(layout.buildDirectory.dir("generated/ppocrAssets"))
 }
-tasks.named("preBuild").configure {
-    dependsOn(preparePpOcrModels)
+
+// Register generated assets as task outputs rather than a static source folder.
+// AGP will run preparePpOcrModels before packaging assets for each variant.
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(
+            preparePpOcrModels,
+            PreparePpOcrModelsTask::outputDirectory
+        )
+    }
 }
 
 dependencies {

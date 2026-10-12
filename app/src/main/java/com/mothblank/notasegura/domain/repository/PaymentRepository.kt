@@ -11,6 +11,7 @@ interface PaymentRepository {
     suspend fun refreshOccurrences(untilDate: LocalDate)
     suspend fun saveEditedPayment(payment: Payment, applyToFuture: Boolean = false)
     suspend fun removePayment(payment: Payment, includeFuture: Boolean)
+    suspend fun stopRecurringPlan(id: String)
     suspend fun insertPayment(payment: Payment)
     suspend fun saveEditedPayment(payment: Payment)
     suspend fun deletePayment(payment: Payment)

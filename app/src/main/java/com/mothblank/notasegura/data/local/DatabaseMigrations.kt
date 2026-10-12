@@ -1,7 +1,8 @@
 package com.mothblank.notasegura.data.local
 
 import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.execSQL
 
 object DatabaseMigrations {
     /**
@@ -9,7 +10,7 @@ object DatabaseMigrations {
      * from their legacy series markers on first synchronization.
      */
     val MIGRATION_1_2: Migration = object : Migration(1, 2) {
-        override fun migrate(db: SupportSQLiteDatabase) {
+        override fun migrate(db: SQLiteConnection) {
             db.execSQL(
                 """CREATE TABLE IF NOT EXISTS recurring_payment_plans (
                     id TEXT NOT NULL PRIMARY KEY,

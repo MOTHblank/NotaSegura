@@ -29,6 +29,8 @@ class ExpirationCheckWorker(
         val today = LocalDate.now()
         val warrantyLeadDays = ReminderPreferences.warrantyLeadDays(applicationContext)
         val paymentLeadDays = ReminderPreferences.paymentLeadDays(applicationContext)
+        // Materialize each missed monthly obligation before checking deadlines.
+        app.paymentRepository.refreshOccurrences(today.plusMonths(1))
 
         val expiringPurchases = if (warrantyLeadDays > 0) {
             app.purchaseRepository.getPurchasesExpiringBetween(

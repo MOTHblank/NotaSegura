@@ -35,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -76,6 +77,8 @@ import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
 import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,7 +182,11 @@ fun AddEditPaymentScreen(
                 }
             )
 
-            val dueDateLabel = stringResource(R.string.field_payment_due_date)
+            val dueDateLabel = if (uiState.isRecurring && !uiState.editingRecurring) {
+                stringResource(R.string.payment_first_due)
+            } else {
+                stringResource(R.string.field_payment_due_date)
+            }
             val dueDateValue = viewModel.formatDate(uiState.dueDate)
             val dueDateAccessibilityState = dueDateValue.ifBlank {
                 stringResource(R.string.accessibility_date_not_selected)
@@ -218,21 +225,91 @@ fun AddEditPaymentScreen(
         }
 
         PaymentFormSection(
-            title = stringResource(R.string.payment_section_options),
-            subtitle = stringResource(R.string.payment_section_options_hint)
+            title = stringResource(R.string.payment_recurrence_title),
+            subtitle = stringResource(R.string.payment_recurrence_subtitle)
+        ) {
+            if (uiState.editingRecurring) {
+                Text(
+                    stringResource(R.string.payment_edit_scope_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                PaymentChoiceRow(
+                    selected = !uiState.applyToFuture,
+                    title = stringResource(R.string.payment_only_this),
+                    detail = stringResource(R.string.payment_only_this_hint),
+                    onClick = { viewModel.onApplyToFutureChange(false) }
+                )
+                PaymentChoiceRow(
+                    selected = uiState.applyToFuture,
+                    title = stringResource(R.string.payment_this_and_future),
+                    detail = stringResource(R.string.payment_this_and_future_hint),
+                    onClick = { viewModel.onApplyToFutureChange(true) }
+                )
+            }
+
+            if (!uiState.editingRecurring || uiState.applyToFuture) {
+                PaymentChoiceRow(
+                    selected = !uiState.isRecurring,
+                    title = stringResource(R.string.payment_once),
+                    detail = stringResource(R.string.payment_once_hint),
+                    onClick = { viewModel.onRecurringChange(false) }
+                )
+                PaymentChoiceRow(
+                    selected = uiState.isRecurring,
+                    title = stringResource(R.string.payment_monthly),
+                    detail = stringResource(R.string.payment_monthly_hint),
+                    onClick = { viewModel.onRecurringChange(true) }
+                )
+            }
+
+            if (uiState.isRecurring) {
+                uiState.dueDate?.let { dueDate ->
+                    val anchor = dueDate.dayOfMonth
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.payment_recurrence_preview_title),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        for (offset in 0..2) {
+                            val month = YearMonth.from(dueDate).plusMonths(offset.toLong())
+                            val date = month.atDay(anchor.coerceAtMost(month.lengthOfMonth()))
+                            Text(
+                                date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        if (anchor > 28) {
+                            Text(
+                                stringResource(R.string.payment_short_month_note),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+                Text(
+                    stringResource(R.string.payment_recurrence_independent),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        PaymentFormSection(
+            title = stringResource(R.string.payment_initial_status_title),
+            subtitle = stringResource(R.string.payment_initial_status_hint)
         ) {
             PaymentCheckboxRow(
                 checked = uiState.isPaid,
                 title = stringResource(R.string.payment_already_paid),
                 supportingText = stringResource(R.string.payment_already_paid_hint),
                 onClick = { viewModel.onPaidChange(!uiState.isPaid) }
-            )
-
-            PaymentCheckboxRow(
-                checked = uiState.isRecurring,
-                title = stringResource(R.string.payment_monthly),
-                supportingText = stringResource(R.string.payment_monthly_hint),
-                onClick = { viewModel.onRecurringChange(!uiState.isRecurring) }
             )
         }
 
@@ -294,7 +371,9 @@ fun AddEditPaymentScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState()
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.dueDate?.toEpochDay()?.times(86_400_000L)
+        )
         val confirmEnabled = remember {
             derivedStateOf { datePickerState.selectedDateMillis != null }
         }
@@ -410,6 +489,36 @@ private fun PaymentCheckboxRow(
                 Text(
                     supportingText,
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentChoiceRow(
+    selected: Boolean,
+    title: String,
+    detail: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.RadioButton, onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(selected = selected, onClick = null)
+            Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

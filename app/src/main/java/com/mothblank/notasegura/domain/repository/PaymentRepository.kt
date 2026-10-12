@@ -1,11 +1,16 @@
 package com.mothblank.notasegura.domain.repository
 
 import com.mothblank.notasegura.domain.model.Payment
+import com.mothblank.notasegura.domain.model.RecurringPaymentPlan
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
 interface PaymentRepository {
     fun getAllPayments(): Flow<List<Payment>>
+    fun getRecurringPlans(): Flow<List<RecurringPaymentPlan>>
+    suspend fun refreshOccurrences(untilDate: LocalDate)
+    suspend fun saveEditedPayment(payment: Payment, applyToFuture: Boolean = false)
+    suspend fun removePayment(payment: Payment, includeFuture: Boolean)
     suspend fun insertPayment(payment: Payment)
     suspend fun saveEditedPayment(payment: Payment)
     suspend fun deletePayment(payment: Payment)

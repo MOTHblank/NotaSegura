@@ -177,8 +177,10 @@ fun PaymentsScreen(
                                 .filter { it.seriesId == plan.id && !it.isPaid }
                                 .minByOrNull { it.dueDate },
                             onOpen = {
-                                state.payments.filter { it.seriesId == plan.id }
+                                (state.payments.filter { it.seriesId == plan.id && !it.isPaid }
                                     .minByOrNull { it.dueDate }
+                                    ?: state.payments.filter { it.seriesId == plan.id }
+                                        .maxByOrNull { it.dueDate })
                                     ?.let { payment ->
                                         navController.navigate(
                                             AppScreen.PaymentDetails.createRoute(payment.id)

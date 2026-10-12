@@ -27,8 +27,11 @@ class PaymentRepositoryImpl(private val dao: PaymentDao) : PaymentRepository {
     override suspend fun getPaymentById(id: String): Payment? = dao.getPaymentById(id)
 
     override suspend fun setPaidStatus(payment: Payment, isPaid: Boolean, date: LocalDate) {
+        // Use the persisted record so a stale card or notification cannot erase
+        // the series ID and other changes made since it was rendered.
+        val current = dao.getPaymentById(payment.id) ?: return
         dao.updatePaidState(
-            payment.copy(isPaid = isPaid, paidAt = if (isPaid) payment.paidAt ?: date else null),
+            current.copy(isPaid = isPaid, paidAt = if (isPaid) current.paidAt ?: date else null),
             null
         )
         refreshOccurrences(LocalDate.now().plusMonths(1))

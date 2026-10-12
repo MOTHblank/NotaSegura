@@ -92,6 +92,14 @@
     <string name="dashboard_compact_summary">Pagamentos: %1$d · Garantias: %2$d</string>
     <string name="dashboard_expand">Exibir</string>
     <string name="dashboard_collapse">Recolher</string>
+    <plurals name="dashboard_overdue_alert">
+        <item quantity="one">%d pagamento atrasado</item>
+        <item quantity="other">%d pagamentos atrasados</item>
+    </plurals>
+    <plurals name="dashboard_due_today_alert">
+        <item quantity="one">%d prazo vence hoje</item>
+        <item quantity="other">%d prazos vencem hoje</item>
+    </plurals>
     <string name="dashboard_subtitle">Pagamentos atrasados ou dos próximos 7 dias e garantias que terminam em até 30 dias.</string>
     <string name="dashboard_clear_title">Nenhum prazo próximo</string>
     <string name="dashboard_clear_body">Não há pagamentos pendentes nesta semana nem garantias terminando nos próximos 30 dias.</string>

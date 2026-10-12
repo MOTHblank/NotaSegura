@@ -31,7 +31,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -40,8 +39,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -53,11 +50,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -91,13 +86,13 @@ import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.ui.components.DocumentViewerDialog
+import com.mothblank.notasegura.ui.components.EditableDateField
+import com.mothblank.notasegura.ui.components.AndroidCalendarDatePickerDialog
 import com.mothblank.notasegura.ui.components.attachmentTypeLabel
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
 import com.mothblank.notasegura.util.CurrencyUtils
-import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
 import java.io.File
-import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 private fun createCameraUri(context: Context): Uri {
@@ -271,7 +266,7 @@ fun AddEditItemScreen(
                 )
             }
 
-            DateField(
+            EditableDateField(
                 value = uiState.purchaseDateInput,
                 label = stringResource(R.string.field_purchase_date),
                 required = true,
@@ -279,7 +274,10 @@ fun AddEditItemScreen(
                 fieldTag = AccessibilityTags.PURCHASE_DATE_FIELD,
                 isError = uiState.purchaseDateInput.length == 10 && uiState.purchaseDate == null,
                 onValueChange = viewModel::onPurchaseDateTextChange,
-                onClick = { showPurchaseDatePicker = true }
+                onOpenCalendar = {
+                    focusManager.clearFocus()
+                    showPurchaseDatePicker = true
+                }
             )
             uiState.ocrSuggestions?.purchaseDate?.let {
                 FieldSuggestion(
@@ -376,7 +374,7 @@ fun AddEditItemScreen(
             title = stringResource(R.string.purchase_section_warranty),
             subtitle = stringResource(R.string.purchase_section_warranty_hint)
         ) {
-            DateField(
+            EditableDateField(
                 value = uiState.warrantyEndDateInput,
                 label = stringResource(R.string.field_warranty_end),
                 required = false,
@@ -384,7 +382,10 @@ fun AddEditItemScreen(
                 fieldTag = AccessibilityTags.WARRANTY_DATE_FIELD,
                 isError = uiState.warrantyEndDateInput.length == 10 && uiState.warrantyEndDate == null,
                 onValueChange = viewModel::onWarrantyEndDateTextChange,
-                onClick = { showWarrantyDatePicker = true }
+                onOpenCalendar = {
+                    focusManager.clearFocus()
+                    showWarrantyDatePicker = true
+                }
             )
             if (uiState.warrantyEndDateInput.isNotBlank()) {
                 TextButton(
@@ -474,7 +475,7 @@ fun AddEditItemScreen(
     }
 
     if (showPurchaseDatePicker) {
-        PurchaseDatePickerDialog(
+        AndroidCalendarDatePickerDialog(
             initialDate = uiState.purchaseDate,
             onDismiss = { showPurchaseDatePicker = false },
             onSelected = {
@@ -485,7 +486,7 @@ fun AddEditItemScreen(
     }
 
     if (showWarrantyDatePicker) {
-        PurchaseDatePickerDialog(
+        AndroidCalendarDatePickerDialog(
             initialDate = uiState.warrantyEndDate,
             onDismiss = { showWarrantyDatePicker = false },
             onSelected = {
@@ -858,81 +859,3 @@ private fun RequiredLabel(text: String) {
     )
 }
 
-@Composable
-private fun DateField(
-    value: String,
-    label: String,
-    required: Boolean,
-    clickLabel: String,
-    fieldTag: String,
-    isError: Boolean,
-    onValueChange: (String) -> Unit,
-    onClick: () -> Unit
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(fieldTag)
-            .semantics { contentDescription = label },
-        label = { if (required) RequiredLabel(label) else Text(label) },
-        placeholder = { Text(stringResource(R.string.date_input_hint)) },
-        singleLine = true,
-        isError = isError,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Number,
-            imeAction = ImeAction.Next
-        ),
-        trailingIcon = {
-            IconButton(onClick = onClick) {
-                Icon(Icons.Default.DateRange, contentDescription = clickLabel)
-            }
-        },
-        supportingText = {
-            Text(
-                stringResource(if (isError) R.string.error_invalid_date else R.string.date_input_hint),
-                color = if (isError) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PurchaseDatePickerDialog(
-    initialDate: LocalDate?,
-    onDismiss: () -> Unit,
-    onSelected: (LocalDate) -> Unit
-) {
-    val state = rememberDatePickerState(
-        initialSelectedDateMillis = initialDate?.let(DateUtils::localDateToDatePickerMillis)
-    )
-    val confirmEnabled = remember {
-        derivedStateOf { state.selectedDateMillis != null }
-    }
-
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    state.selectedDateMillis?.let {
-                        onSelected(DateUtils.datePickerMillisToLocalDate(it))
-                    }
-                },
-                enabled = confirmEnabled.value
-            ) {
-                Text(stringResource(R.string.common_ok))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.common_cancel))
-            }
-        }
-    ) {
-        DatePicker(state = state, showModeToggle = true)
-    }
-}

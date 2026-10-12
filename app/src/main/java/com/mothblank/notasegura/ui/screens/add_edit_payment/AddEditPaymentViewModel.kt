@@ -8,6 +8,7 @@ import com.mothblank.notasegura.R
 import com.mothblank.notasegura.domain.model.Payment
 import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.util.CurrencyUtils
+import com.mothblank.notasegura.util.DateUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class AddEditPaymentUiState(
@@ -27,6 +27,7 @@ data class AddEditPaymentUiState(
     val amount: String = "",
     @StringRes val amountErrorRes: Int? = null,
     val dueDate: LocalDate? = null,
+    val dueDateInput: String = "",
     val isPaid: Boolean = false,
     val isRecurring: Boolean = false,
     val recurrenceAnchorDay: Int? = null,
@@ -40,6 +41,7 @@ private data class PaymentEditorSnapshot(
     val title: String,
     val amount: String,
     val dueDate: LocalDate?,
+    val dueDateInput: String,
     val isPaid: Boolean,
     val isRecurring: Boolean,
     val applyToFuture: Boolean
@@ -80,6 +82,7 @@ class AddEditPaymentViewModel(
                             title = payment.title,
                             amount = CurrencyUtils.centsToEditable(payment.amountCents),
                             dueDate = payment.dueDate,
+                            dueDateInput = DateUtils.formatEditableDate(payment.dueDate),
                             isPaid = payment.isPaid,
                             isRecurring = payment.recurrenceMonths != null,
                             recurrenceAnchorDay = payment.recurrenceAnchorDay ?: payment.dueDate.dayOfMonth,
@@ -103,7 +106,25 @@ class AddEditPaymentViewModel(
     }
 
     fun onDueDateChange(value: LocalDate) = _uiState.update {
-        it.copy(dueDate = value, recurrenceAnchorDay = value.dayOfMonth, errorMessageRes = null)
+        it.copy(
+            dueDate = value,
+            dueDateInput = DateUtils.formatEditableDate(value),
+            recurrenceAnchorDay = value.dayOfMonth,
+            errorMessageRes = null
+        )
+    }
+
+    fun onDueDateTextChange(value: String) {
+        val input = DateUtils.formatEditableDateInput(value)
+        val parsed = DateUtils.parseEditableDate(input)
+        _uiState.update {
+            it.copy(
+                dueDateInput = input,
+                dueDate = parsed,
+                recurrenceAnchorDay = parsed?.dayOfMonth,
+                errorMessageRes = null
+            )
+        }
     }
 
     fun onPaidChange(value: Boolean) = _uiState.update { it.copy(isPaid = value) }
@@ -114,13 +135,11 @@ class AddEditPaymentViewModel(
         it.copy(applyToFuture = value, isRecurring = if (!value && it.editingRecurring) true else it.isRecurring)
     }
 
-    fun formatDate(date: LocalDate?): String =
-        date?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: ""
-
     private fun snapshotOf(state: AddEditPaymentUiState) = PaymentEditorSnapshot(
         title = state.title,
         amount = state.amount,
         dueDate = state.dueDate,
+        dueDateInput = state.dueDateInput,
         isPaid = state.isPaid,
         isRecurring = state.isRecurring,
         applyToFuture = state.applyToFuture

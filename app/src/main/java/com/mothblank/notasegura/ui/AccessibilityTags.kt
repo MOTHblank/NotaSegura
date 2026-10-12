@@ -20,5 +20,6 @@ object AccessibilityTags {
     const val PAYMENT_EMPTY_ACTION = "a11y_payment_empty_action"
     const val PAYMENT_FORM = "a11y_payment_form"
     const val PAYMENT_TITLE_FIELD = "a11y_payment_title_field"
+    const val PAYMENT_DATE_FIELD = "a11y_payment_date_field"
     const val PAYMENT_SAVE = "a11y_payment_save"
 }

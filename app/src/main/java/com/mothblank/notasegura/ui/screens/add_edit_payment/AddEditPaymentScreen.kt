@@ -23,15 +23,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -39,11 +35,9 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,11 +49,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -75,12 +67,12 @@ import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
-import com.mothblank.notasegura.util.DateUtils
+import com.mothblank.notasegura.ui.components.EditableDateField
+import com.mothblank.notasegura.ui.components.AndroidCalendarDatePickerDialog
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditPaymentScreen(
     navController: NavController,
@@ -187,41 +179,19 @@ fun AddEditPaymentScreen(
             } else {
                 stringResource(R.string.field_payment_due_date)
             }
-            val dueDateValue = viewModel.formatDate(uiState.dueDate)
-            val dueDateAccessibilityState = dueDateValue.ifBlank {
-                stringResource(R.string.accessibility_date_not_selected)
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        onClickLabel = stringResource(R.string.select_payment_due_date),
-                        role = Role.Button
-                    ) { showDatePicker = true }
-                    .semantics {
-                        contentDescription = dueDateLabel
-                        stateDescription = dueDateAccessibilityState
-                    }
-            ) {
-                OutlinedTextField(
-                    value = dueDateValue,
-                    onValueChange = {},
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clearAndSetSemantics { },
-                    label = { RequiredPaymentLabel(dueDateLabel) },
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    readOnly = true,
-                    trailingIcon = {
-                        Icon(
-                            Icons.Default.DateRange,
-                            contentDescription = null,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                )
-            }
+            EditableDateField(
+                value = uiState.dueDateInput,
+                label = dueDateLabel,
+                required = true,
+                clickLabel = stringResource(R.string.select_payment_due_date),
+                fieldTag = AccessibilityTags.PAYMENT_DATE_FIELD,
+                isError = uiState.dueDateInput.length == 10 && uiState.dueDate == null,
+                onValueChange = viewModel::onDueDateTextChange,
+                onOpenCalendar = {
+                    focusManager.clearFocus()
+                    showDatePicker = true
+                }
+            )
         }
 
         PaymentFormSection(
@@ -371,37 +341,16 @@ fun AddEditPaymentScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.dueDate?.toEpochDay()?.times(86_400_000L)
-        )
-        val confirmEnabled = remember {
-            derivedStateOf { datePickerState.selectedDateMillis != null }
-        }
-
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let {
-                            viewModel.onDueDateChange(DateUtils.datePickerMillisToLocalDate(it))
-                        }
-                        showDatePicker = false
-                    },
-                    enabled = confirmEnabled.value
-                ) {
-                    Text(stringResource(R.string.common_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
+        AndroidCalendarDatePickerDialog(
+            initialDate = uiState.dueDate,
+            onDismiss = { showDatePicker = false },
+            onSelected = {
+                viewModel.onDueDateChange(it)
+                showDatePicker = false
             }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        )
     }
+
 }
 
 @Composable

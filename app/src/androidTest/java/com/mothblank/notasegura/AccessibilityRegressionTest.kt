@@ -1,6 +1,13 @@
 package com.mothblank.notasegura
 
 import androidx.activity.ComponentActivity
+import android.widget.DatePicker
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,6 +48,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mothblank.notasegura.ui.AccessibilityTags
+import com.mothblank.notasegura.util.DateUtils
+import java.time.LocalDate
 import com.mothblank.notasegura.ui.theme.NotaSeguraTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -138,7 +147,45 @@ class AccessibilityRegressionTest {
 
         composeRule.onNodeWithContentDescription(string(R.string.select_purchase_date))
             .performScrollTo().performClick()
-        composeRule.onNodeWithText(string(R.string.common_cancel)).performClick()
+        onView(isAssignableFrom(DatePicker::class.java)).check(matches(isDisplayed()))
+        onView(withId(android.R.id.button2)).perform(click())
+    }
+
+    @Test
+    fun paymentDueDate_canBeTypedOrChosenInNativeCalendar() {
+        setAppContent()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENTS_TAB).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_TITLE_FIELD)
+            .performTextInput("Conta de teste")
+
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD)
+            .performTextInput("31022026")
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD)
+            .assertTextContains("31/02/2026")
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE)
+            .performScrollTo().assertIsNotEnabled()
+
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD).performTextClearance()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD)
+            .performTextInput("12102026")
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD)
+            .assertTextContains("12/10/2026")
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE)
+            .performScrollTo().assertIsEnabled()
+
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD).performTextClearance()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE)
+            .performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription(string(R.string.select_payment_due_date))
+            .performScrollTo().performClick()
+        onView(isAssignableFrom(DatePicker::class.java)).check(matches(isDisplayed()))
+        val today = LocalDate.now()
+        onView(withId(android.R.id.button1)).perform(click())
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD)
+            .assertTextContains(DateUtils.formatEditableDate(today))
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE)
+            .performScrollTo().assertIsEnabled()
     }
 
     @Test

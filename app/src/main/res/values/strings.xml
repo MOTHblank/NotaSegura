@@ -289,4 +289,40 @@
 
     <string name="notification_channel_name">Lembretes NotaSegura</string>
     <string name="notification_channel_description">Garantias prestes a expirar e pagamentos próximos do vencimento</string>
+
+    <!-- Pagamentos: recorrência e histórico -->
+    <string name="payment_tab_pending">A pagar</string>
+    <string name="payment_tab_recurring">Recorrentes</string>
+    <string name="payment_tab_history">Histórico</string>
+    <string name="payment_total_pending">Total pendente</string>
+    <string name="payment_overdue_count">%1$d pagamento(s) atrasado(s)</string>
+    <string name="payment_monthly_short">Mensal</string>
+    <string name="payment_every_month_day">Todo mês, dia %1$d</string>
+    <string name="payment_series_next">Próximo vencimento: %1$s</string>
+    <string name="payment_series_no_due">Nenhum vencimento pendente</string>
+    <string name="payment_series_active">Recorrência ativa</string>
+    <string name="payment_series_stopped">Recorrência encerrada</string>
+    <string name="payment_series_history">Pagamentos anteriores</string>
+    <string name="payment_no_recurring">Nenhuma conta recorrente cadastrada</string>
+    <string name="payment_no_items_for_tab">Nenhum pagamento nesta lista</string>
+    <string name="payment_first_due">Primeiro vencimento</string>
+    <string name="payment_recurrence_title">Repetição</string>
+    <string name="payment_recurrence_subtitle">Escolha se a cobrança acontece uma vez ou todo mês.</string>
+    <string name="payment_once">Pagamento único</string>
+    <string name="payment_once_hint">Este pagamento não será repetido.</string>
+    <string name="payment_recurrence_preview_title">Próximos vencimentos</string>
+    <string name="payment_recurrence_independent">Os vencimentos dos próximos meses são registrados mesmo que uma parcela permaneça em aberto.</string>
+    <string name="payment_short_month_note">Nos meses mais curtos, o vencimento usa o último dia do mês.</string>
+    <string name="payment_initial_status_title">Estado do pagamento</string>
+    <string name="payment_initial_status_hint">Informe se este vencimento específico já foi pago.</string>
+    <string name="payment_edit_scope_title">Onde aplicar a alteração?</string>
+    <string name="payment_only_this">Somente este vencimento</string>
+    <string name="payment_only_this_hint">Os outros meses mantêm seus próprios valores e datas.</string>
+    <string name="payment_this_and_future">Este e os próximos vencimentos</string>
+    <string name="payment_this_and_future_hint">Atualiza a recorrência. Pagamentos já concluídos são preservados.</string>
+    <string name="payment_delete_one">Excluir este vencimento</string>
+    <string name="payment_delete_one_body">Excluir “%1$s” apenas deste mês? Os outros vencimentos continuarão normalmente.</string>
+    <string name="payment_stop_recurrence">Encerrar recorrência</string>
+    <string name="payment_stop_recurrence_body">Os vencimentos futuros ainda não pagos serão removidos. Pagamentos concluídos serão preservados no histórico.</string>
+
 </resources>

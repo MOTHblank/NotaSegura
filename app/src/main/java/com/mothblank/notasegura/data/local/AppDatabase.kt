@@ -5,11 +5,13 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.Payment
+import com.mothblank.notasegura.domain.model.RecurringPaymentPlan
+import com.mothblank.notasegura.domain.model.RecurringPaymentSkip
 import com.mothblank.notasegura.domain.model.Purchase
 
 @Database(
-    entities = [Purchase::class, Attachment::class, Payment::class],
-    version = 1
+    entities = [Purchase::class, Attachment::class, Payment::class, RecurringPaymentPlan::class, RecurringPaymentSkip::class],
+    version = 2
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

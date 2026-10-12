@@ -29,6 +29,8 @@ data class AddEditPaymentUiState(
     val dueDate: LocalDate? = null,
     val isPaid: Boolean = false,
     val isRecurring: Boolean = false,
+    val editingRecurring: Boolean = false,
+    val applyToFuture: Boolean = false,
     val isSaving: Boolean = false,
     @StringRes val errorMessageRes: Int? = null
 )
@@ -38,7 +40,8 @@ private data class PaymentEditorSnapshot(
     val amount: String,
     val dueDate: LocalDate?,
     val isPaid: Boolean,
-    val isRecurring: Boolean
+    val isRecurring: Boolean,
+    val applyToFuture: Boolean
 )
 
 class AddEditPaymentViewModel(
@@ -77,7 +80,8 @@ class AddEditPaymentViewModel(
                             amount = CurrencyUtils.centsToEditable(payment.amountCents),
                             dueDate = payment.dueDate,
                             isPaid = payment.isPaid,
-                            isRecurring = payment.recurrenceMonths != null
+                            isRecurring = payment.recurrenceMonths != null,
+                            editingRecurring = payment.recurrenceMonths != null && payment.seriesId != null
                         )
                     }
                     originalSnapshot.value = snapshotOf(_uiState.value)
@@ -104,6 +108,10 @@ class AddEditPaymentViewModel(
 
     fun onRecurringChange(value: Boolean) = _uiState.update { it.copy(isRecurring = value) }
 
+    fun onApplyToFutureChange(value: Boolean) = _uiState.update {
+        it.copy(applyToFuture = value, isRecurring = if (!value && it.editingRecurring) true else it.isRecurring)
+    }
+
     fun formatDate(date: LocalDate?): String =
         date?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: ""
 
@@ -112,7 +120,8 @@ class AddEditPaymentViewModel(
         amount = state.amount,
         dueDate = state.dueDate,
         isPaid = state.isPaid,
-        isRecurring = state.isRecurring
+        isRecurring = state.isRecurring,
+        applyToFuture = state.applyToFuture
     )
 
     fun savePayment() {
@@ -159,7 +168,7 @@ class AddEditPaymentViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessageRes = null) }
             try {
-                repository.saveEditedPayment(payment)
+                repository.saveEditedPayment(payment, state.applyToFuture)
                 originalPayment = payment
                 _uiState.update { it.copy(isSaving = false) }
                 originalSnapshot.value = snapshotOf(_uiState.value)

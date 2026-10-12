@@ -153,21 +153,13 @@ class AddEditPaymentViewModel(
             recurrenceMonths = recurrenceMonths,
             recurrenceAnchorDay = recurrenceAnchorDay,
             seriesId = seriesId,
-            generatedFromId = null
+            generatedFromId = existing?.generatedFromId
         )
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessageRes = null) }
             try {
-                if (payment.isPaid && payment.recurrenceMonths != null) {
-                    repository.setPaidStatus(
-                        payment = payment,
-                        isPaid = true,
-                        date = payment.paidAt ?: LocalDate.now()
-                    )
-                } else {
-                    repository.insertPayment(payment)
-                }
+                repository.saveEditedPayment(payment)
                 originalPayment = payment
                 _uiState.update { it.copy(isSaving = false) }
                 originalSnapshot.value = snapshotOf(_uiState.value)

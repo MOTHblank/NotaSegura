@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -14,13 +15,19 @@ import com.mothblank.notasegura.data.ocr.ReceiptOcrEngine
 import com.mothblank.notasegura.data.repository.PaymentRepositoryImpl
 import com.mothblank.notasegura.data.repository.PurchaseRepositoryImpl
 import com.mothblank.notasegura.data.storage.PurchaseDocumentStore
+import com.mothblank.notasegura.data.storage.ManagedDocumentRecovery
 import com.mothblank.notasegura.data.worker.ExpirationCheckWorker
 import com.mothblank.notasegura.domain.repository.PaymentRepository
 import com.mothblank.notasegura.domain.repository.PurchaseRepository
 import com.mothblank.notasegura.util.TemporaryFileMaintenance
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class NotaSeguraApplication : Application() {
+    private val maintenanceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val database: AppDatabase by lazy {
         Room.databaseBuilder(
@@ -55,6 +62,10 @@ class NotaSeguraApplication : Application() {
         TemporaryFileMaintenance.cleanup(applicationContext)
         createNotificationChannel()
         scheduleDailyExpirationCheck()
+        maintenanceScope.launch {
+            runCatching { ManagedDocumentRecovery.reconcile(applicationContext, database) }
+                .onFailure { Log.w("NotaSeguraRecovery", "Document reconciliation failed", it) }
+        }
     }
 
     private fun scheduleDailyExpirationCheck() {

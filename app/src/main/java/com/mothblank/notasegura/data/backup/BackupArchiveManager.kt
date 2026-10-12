@@ -14,6 +14,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FilterOutputStream
+import java.io.OutputStream
 import java.security.MessageDigest
 import java.time.LocalDate
 import java.util.UUID
@@ -82,6 +84,19 @@ class BackupArchiveManager(
 
                 val dataJson = createDataJson(purchases, attachments, payments)
                 val dataBytes = dataJson.toString().toByteArray(Charsets.UTF_8)
+                require(dataBytes.size <= MAX_JSON_BYTES) {
+                    "Metadados excedem o limite de restauração."
+                }
+                // Restore also limits the total expanded attachment payload.
+                // Reject an export that this version of the app could not restore.
+                var remainingExpandedBytes = MAX_ARCHIVE_BYTES - dataBytes.size
+                attachments.forEach { attachment ->
+                    val size = attachmentFiles.getValue(attachment).length()
+                    require(size <= remainingExpandedBytes) {
+                        "Documentos excedem o limite máximo de restauração."
+                    }
+                    remainingExpandedBytes -= size
+                }
 
                 val fileChecksums = linkedMapOf(
                     "data.json" to sha256(dataBytes)
@@ -109,6 +124,11 @@ class BackupArchiveManager(
                         }
                     )
 
+                val manifestBytes = manifest.toString().toByteArray(Charsets.UTF_8)
+                require(manifestBytes.size <= MAX_JSON_BYTES) {
+                    "Manifesto excede o limite máximo de restauração."
+                }
+
                 val output = context.contentResolver.openOutputStream(destination, "w")
                     ?: error("Não foi possível abrir o destino do backup.")
 
@@ -117,21 +137,35 @@ class BackupArchiveManager(
                         raw.buffered(),
                         password.toCharArray()
                     ).use { encrypted ->
-                        ZipOutputStream(encrypted).use { zip ->
+                        // Count the *decrypted ZIP bytes*, not the encrypted output.
+                        // A large but highly compressible archive must still meet
+                        // the restore path's 512 MiB plaintext bound.
+                        ZipOutputStream(ArchiveSizeLimitOutputStream(encrypted, MAX_ARCHIVE_BYTES)).use { zip ->
                             writeBytes(
                                 zip,
                                 "manifest.json",
-                                manifest.toString().toByteArray(Charsets.UTF_8)
+                                manifestBytes
                             )
                             writeBytes(zip, "data.json", dataBytes)
 
                             attachments.forEach { attachment ->
                                 val file = attachmentFiles.getValue(attachment)
                                 zip.putNextEntry(ZipEntry(archiveEntryFor(attachment)))
+                                val digest = MessageDigest.getInstance("SHA-256")
                                 file.inputStream().buffered().use { input ->
-                                    input.copyTo(zip)
+                                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                                    while (true) {
+                                        val count = input.read(buffer)
+                                        if (count < 0) break
+                                        if (count == 0) continue
+                                        zip.write(buffer, 0, count)
+                                        digest.update(buffer, 0, count)
+                                    }
                                 }
                                 zip.closeEntry()
+                                require(digest.digest().toHex() == fileChecksums[archiveEntryFor(attachment)]) {
+                                    "Documento alterado durante a criação do backup."
+                                }
                             }
                         }
                     }
@@ -160,6 +194,7 @@ class BackupArchiveManager(
                     "attachments/restore_${System.currentTimeMillis()}_${UUID.randomUUID()}"
                 )
                 val oldAttachments = database.purchaseDao().getAttachmentsSnapshot()
+                var databaseCommitted = false
 
                 try {
                     ZipFile(tempArchive).use { zip ->
@@ -268,6 +303,7 @@ class BackupArchiveManager(
                             }
                         }
 
+                        databaseCommitted = true
                         oldAttachments.forEach { old ->
                             FileStorageManager.deleteManagedFile(context, old.filePath)
                         }
@@ -279,7 +315,9 @@ class BackupArchiveManager(
                         )
                     }
                 } catch (error: Throwable) {
-                    restoreDir.deleteRecursively()
+                    // Never erase newly committed documents if a post-commit
+                    // cleanup step happens to fail.
+                    if (!databaseCommitted) restoreDir.deleteRecursively()
                     throw error
                 } finally {
                     tempArchive.delete()
@@ -549,4 +587,35 @@ class BackupArchiveManager(
 
     private fun JSONObject.optNullableInt(name: String): Int? =
         if (isNull(name)) null else getInt(name)
+}
+
+/**
+ * Enforces the same compressed-ZIP plaintext limit used by [BackupCrypto.decrypt].
+ * The bound is checked before forwarding bytes, so a failed export cannot
+ * be mistaken for a valid restorable archive.
+ */
+internal class ArchiveSizeLimitOutputStream(
+    output: OutputStream,
+    private val maxBytes: Long
+) : FilterOutputStream(output) {
+    private var written: Long = 0L
+
+    override fun write(value: Int) {
+        ensureCapacity(1)
+        out.write(value)
+        written++
+    }
+
+    override fun write(bytes: ByteArray, offset: Int, length: Int) {
+        require(offset >= 0 && length >= 0 && offset <= bytes.size - length)
+        ensureCapacity(length)
+        out.write(bytes, offset, length)
+        written += length
+    }
+
+    private fun ensureCapacity(length: Int) {
+        require(length.toLong() <= maxBytes - written) {
+            "Backup excede o limite máximo de restauração."
+        }
+    }
 }

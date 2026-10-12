@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.mothblank.notasegura.domain.model.Attachment
 import com.mothblank.notasegura.domain.model.Purchase
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
@@ -30,7 +31,9 @@ interface PurchaseDao {
     @Query("SELECT * FROM purchases WHERE id = :id")
     suspend fun getPurchaseById(id: String): PurchaseWithAttachments?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // REPLACE deletes the old parent row, cascading into attachment rows.
+    // Upsert updates an existing purchase in place instead.
+    @Upsert
     suspend fun insertPurchase(purchase: Purchase)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

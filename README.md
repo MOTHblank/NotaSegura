@@ -51,7 +51,7 @@ The app can create a portable password-protected, versioned `.notasegura` backup
 
 The ZIP payload is wrapped in a versioned encrypted envelope before export. NotaSegura derives a 256-bit key from the user-provided password with PBKDF2-HMAC-SHA256 (600,000 iterations and a unique 16-byte random salt per backup), then encrypts and authenticates the archive with AES-256-GCM using a unique 12-byte IV. The password is never stored and cannot be recovered by the app.
 
-Restore authenticates and decrypts the envelope into private staging, validates the inner archive structure and SHA-256 checksums, prepares replacement documents, and only then replaces Room data in a transaction. A wrong password, tampered file, malformed archive, or incomplete backup is rejected before the live database is changed.
+Restore authenticates and decrypts the envelope into private staging, validates the inner archive structure and SHA-256 checksums, prepares replacement documents, and only then replaces Room data in a transaction. A wrong password, tampered file, malformed archive, or incomplete backup is rejected before the live database is changed. Export now enforces restore-compatible limits: at most 512 MiB of decrypted ZIP data / expanded document payload, and at most 8 MiB per JSON metadata entry. Documents that change during export cause the backup to fail instead of producing an apparently valid but unrestorable archive.
 
 The existing PDF export remains a human-readable report and is deliberately separate from backup/recovery.
 
@@ -78,6 +78,7 @@ Accessibility is also treated as a regression-tested product constraint. Instrum
 - Room stores structured data locally.
 - Receipt OCR uses bundled PP-OCRv6_small models and runs entirely on-device without runtime network access.
 - Managed documents live under app-private internal storage.
+- On startup, the app checks for missing document references and quarantines managed files abandoned for at least seven days by an interrupted save, delete, or restore. These files remain private under `attachment_recovery/` instead of being destroyed without a recovery path.
 - Android backup remains disabled.
 - Shared PDF reports are temporary cache files exposed through FileProvider grants.
 - Portable backups are explicitly created by the user through Android's document picker and encrypted with a user-controlled password.
@@ -110,7 +111,7 @@ The purchases screen includes an upcoming-deadlines dashboard for overdue/upcomi
 ## Next work
 
 - add local PDF text extraction, using OCR only when a PDF has no usable embedded text;
-- add backup/restore and persistence tests for the supported baseline;
+- run and extend the new backup/restore and persistence regression tests on Android devices, including near-limit archives and interruption recovery;
 - complete release-hardening tests for process death, large font scales, notification states, file-picker/camera cancellation, and large documents.
 
 

@@ -58,6 +58,20 @@ class TimelineDashboardTest {
         assertEquals(0, dashboard.paymentsDueThisWeek)
     }
 
+    @Test
+    fun dashboardRecalculatesDeadlinesAfterCalendarDateChanges() {
+        val purchases = listOf(purchase("warranty", "Notebook", today))
+        val payments = listOf(payment("payment", "Conta", today))
+
+        val onDeadline = buildAttentionDashboard(purchases, payments, today)
+        assertEquals(1, onDeadline.warrantiesExpiringSoon.size)
+        assertEquals(0, onDeadline.overduePayments)
+
+        val dayAfter = buildAttentionDashboard(purchases, payments, today.plusDays(1))
+        assertTrue(dayAfter.warrantiesExpiringSoon.isEmpty())
+        assertEquals(1, dayAfter.overduePayments)
+    }
+
     private fun purchase(
         id: String,
         productName: String,

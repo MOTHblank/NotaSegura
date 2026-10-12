@@ -16,6 +16,7 @@ import com.mothblank.notasegura.MainActivity
 import com.mothblank.notasegura.NotaSeguraApplication
 import com.mothblank.notasegura.R
 import com.mothblank.notasegura.util.ReminderPreferences
+import com.mothblank.notasegura.util.ReminderDeliveryState
 import java.time.LocalDate
 
 class ExpirationCheckWorker(
@@ -58,27 +59,46 @@ class ExpirationCheckWorker(
                 Uri.parse("notasegura://purchases")
             }
 
-            showNotification(
-                id = WARRANTY_NOTIFICATION_ID,
-                title = applicationContext.getString(R.string.notification_warranty_title),
-                contentText = applicationContext.resources.getQuantityString(
-                    R.plurals.notification_warranty_expiring,
-                    expiringPurchases.size,
-                    expiringPurchases.size,
-                    window
-                ),
-                destination = destination,
-                actionLabel = applicationContext.getString(
-                    if (expiringPurchases.size == 1) {
-                        R.string.notification_action_view_purchase
-                    } else {
-                        R.string.notification_action_view_purchases
-                    }
-                )
+            val signature = ReminderDeliveryState.signature(
+                warrantyLeadDays,
+                expiringPurchases.map { purchase ->
+                    "${purchase.id}:${purchase.warrantyEndDate}:" +
+                        ReminderDeliveryState.urgencyBucket(
+                            requireNotNull(purchase.warrantyEndDate).toEpochDay() - today.toEpochDay()
+                        )
+                }
             )
+            if (ReminderDeliveryState.needsDelivery(
+                    applicationContext, ReminderDeliveryState.WARRANTY, signature
+                )
+            ) {
+                if (showNotification(
+                        id = WARRANTY_NOTIFICATION_ID,
+                        title = applicationContext.getString(R.string.notification_warranty_title),
+                        contentText = applicationContext.resources.getQuantityString(
+                            R.plurals.notification_warranty_expiring,
+                            expiringPurchases.size,
+                            expiringPurchases.size,
+                            window
+                        ),
+                        destination = destination,
+                        actionLabel = applicationContext.getString(
+                            if (expiringPurchases.size == 1) {
+                                R.string.notification_action_view_purchase
+                            } else {
+                                R.string.notification_action_view_purchases
+                            }
+                        )
+                )) {
+                    ReminderDeliveryState.delivered(
+                        applicationContext, ReminderDeliveryState.WARRANTY, signature
+                    )
+                }
+            }
         } else {
             NotificationManagerCompat.from(applicationContext)
                 .cancel(WARRANTY_NOTIFICATION_ID)
+            ReminderDeliveryState.clear(applicationContext, ReminderDeliveryState.WARRANTY)
         }
 
         if (pendingPayments.isNotEmpty()) {
@@ -126,23 +146,42 @@ class ExpirationCheckWorker(
                 Uri.parse("notasegura://payments")
             }
 
-            showNotification(
-                id = PAYMENT_NOTIFICATION_ID,
-                title = applicationContext.getString(R.string.notification_payment_title),
-                contentText = message,
-                destination = destination,
-                actionLabel = applicationContext.getString(
-                    if (pendingPayments.size == 1) {
-                        R.string.notification_action_view_payment
-                    } else {
-                        R.string.notification_action_view_payments
-                    }
-                ),
-                markPaidPaymentId = pendingPayments.singleOrNull()?.id
+            val signature = ReminderDeliveryState.signature(
+                paymentLeadDays,
+                pendingPayments.map { payment ->
+                    "${payment.id}:${payment.dueDate}:" +
+                        ReminderDeliveryState.urgencyBucket(
+                            payment.dueDate.toEpochDay() - today.toEpochDay()
+                        )
+                }
             )
+            if (ReminderDeliveryState.needsDelivery(
+                    applicationContext, ReminderDeliveryState.PAYMENT, signature
+                )
+            ) {
+                if (showNotification(
+                        id = PAYMENT_NOTIFICATION_ID,
+                        title = applicationContext.getString(R.string.notification_payment_title),
+                        contentText = message,
+                        destination = destination,
+                        actionLabel = applicationContext.getString(
+                            if (pendingPayments.size == 1) {
+                                R.string.notification_action_view_payment
+                            } else {
+                                R.string.notification_action_view_payments
+                            }
+                        ),
+                        markPaidPaymentId = pendingPayments.singleOrNull()?.id
+                )) {
+                    ReminderDeliveryState.delivered(
+                        applicationContext, ReminderDeliveryState.PAYMENT, signature
+                    )
+                }
+            }
         } else {
             NotificationManagerCompat.from(applicationContext)
                 .cancel(PAYMENT_NOTIFICATION_ID)
+            ReminderDeliveryState.clear(applicationContext, ReminderDeliveryState.PAYMENT)
         }
 
         return Result.success()
@@ -162,7 +201,7 @@ class ExpirationCheckWorker(
         destination: Uri,
         actionLabel: String,
         markPaidPaymentId: String? = null
-    ) {
+    ): Boolean {
         val contentIntent = PendingIntent.getActivity(
             applicationContext,
             destination.toString().hashCode() and Int.MAX_VALUE,
@@ -209,8 +248,17 @@ class ExpirationCheckWorker(
                 ) == PackageManager.PERMISSION_GRANTED
 
         if (canNotify) {
-            NotificationManagerCompat.from(applicationContext).notify(id, builder.build())
+            val manager = NotificationManagerCompat.from(applicationContext)
+            if (manager.areNotificationsEnabled()) {
+                try {
+                    manager.notify(id, builder.build())
+                    return true
+                } catch (_: SecurityException) {
+                    // Permission may have been revoked between the check and notify.
+                }
+            }
         }
+        return false
     }
 
     companion object {

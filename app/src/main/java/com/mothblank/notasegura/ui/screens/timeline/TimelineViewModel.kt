@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
@@ -153,12 +156,22 @@ class TimelineViewModel(
                 emptyList()
             )
 
+    // A database flow need not emit at midnight. The date is its own
+    // reactive input, so due/overdue labels also change while the app stays open.
+    private val currentDate = flow {
+        while (true) {
+            emit(LocalDate.now())
+            delay(60_000L)
+        }
+    }.distinctUntilChanged()
+
     val attentionDashboard: StateFlow<AttentionDashboardState> =
-        combine(allPurchases, paymentRepository.getAllPayments()) { purchases, payments ->
+        combine(allPurchases, paymentRepository.getAllPayments(), currentDate) {
+                purchases, payments, today ->
             buildAttentionDashboard(
                 purchases = purchases,
                 payments = payments,
-                today = LocalDate.now()
+                today = today
             )
         }.stateIn(
             scope = viewModelScope,

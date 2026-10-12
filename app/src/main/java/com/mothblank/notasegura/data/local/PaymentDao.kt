@@ -59,6 +59,31 @@ interface PaymentDao {
         endDate: LocalDate
     ): List<Payment>
 
+    /**
+     * Save edits and the outstanding generated child atomically. Editing a
+     * recurring parent must not strand an unpaid child with its old due date.
+     */
+    @Transaction
+    suspend fun saveEditedPayment(updatedPayment: Payment, nextPayment: Payment?) {
+        val previous = getPaymentById(updatedPayment.id)
+        if (previous != null && (
+                !updatedPayment.isPaid ||
+                previous.dueDate != updatedPayment.dueDate ||
+                previous.recurrenceMonths != updatedPayment.recurrenceMonths ||
+                previous.recurrenceAnchorDay != updatedPayment.recurrenceAnchorDay
+            )
+        ) {
+            deleteUnpaidGeneratedChild(updatedPayment.id)
+        }
+        insertPayment(updatedPayment)
+        if (nextPayment != null) {
+            val seriesId = nextPayment.seriesId
+            if (seriesId == null || !existsSeriesOccurrence(seriesId, nextPayment.dueDate)) {
+                insertPayment(nextPayment)
+            }
+        }
+    }
+
     @Transaction
     suspend fun updatePaidState(updatedPayment: Payment, nextPayment: Payment?) {
         insertPayment(updatedPayment)

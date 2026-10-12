@@ -16,6 +16,13 @@ class PaymentRepositoryImpl(
 
     override suspend fun insertPayment(payment: Payment) = dao.insertPayment(payment)
 
+    override suspend fun saveEditedPayment(payment: Payment) {
+        dao.saveEditedPayment(
+            payment,
+            if (payment.isPaid) generateNextPayment(payment) else null
+        )
+    }
+
     override suspend fun deletePayment(payment: Payment) = dao.deletePayment(payment)
 
     override suspend fun getPaymentById(id: String): Payment? = dao.getPaymentById(id)
@@ -33,23 +40,20 @@ class PaymentRepositoryImpl(
             isPaid = true,
             paidAt = payment.paidAt ?: date
         )
-        val nextDate = updated.nextOccurrenceDate()
-        val nextPayment = if (nextDate != null) {
-            val seriesId = updated.seriesId ?: updated.id
-            updated.copy(
-                id = UUID.randomUUID().toString(),
-                dueDate = nextDate,
-                isPaid = false,
-                paidAt = null,
-                seriesId = seriesId,
-                recurrenceAnchorDay = updated.recurrenceAnchorDay ?: updated.dueDate.dayOfMonth,
-                generatedFromId = updated.id
-            )
-        } else {
-            null
-        }
+        dao.updatePaidState(updated, generateNextPayment(updated))
+    }
 
-        dao.updatePaidState(updated, nextPayment)
+    private fun generateNextPayment(payment: Payment): Payment? {
+        val nextDate = payment.nextOccurrenceDate() ?: return null
+        return payment.copy(
+            id = UUID.randomUUID().toString(),
+            dueDate = nextDate,
+            isPaid = false,
+            paidAt = null,
+            seriesId = payment.seriesId ?: payment.id,
+            recurrenceAnchorDay = payment.recurrenceAnchorDay ?: payment.dueDate.dayOfMonth,
+            generatedFromId = payment.id
+        )
     }
 
     override suspend fun getPendingPaymentsDueOnOrBefore(

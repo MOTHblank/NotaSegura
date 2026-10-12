@@ -172,7 +172,7 @@ interface PaymentDao {
             deleteUnpaidSeriesFrom(existingPlan.id, start)
             if (payment.recurrenceMonths == null) {
                 insertPlan(existingPlan.copy(isActive = false))
-                insertPayment(payment.copy(seriesId = existingPlan.id))
+                insertPayment(payment.copy(seriesId = null))
             } else {
                 insertPlan(
                     existingPlan.copy(
@@ -200,6 +200,7 @@ interface PaymentDao {
 
     @Transaction
     suspend fun removePayment(payment: Payment, includeFuture: Boolean) {
+        synchronizeMonthlyPayments(LocalDate.now().plusMonths(1))
         val plan = payment.seriesId?.let { getPlanById(it) }
         if (plan != null && includeFuture) {
             insertPlan(plan.copy(isActive = false))

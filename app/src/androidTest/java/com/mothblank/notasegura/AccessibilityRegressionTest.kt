@@ -264,7 +264,7 @@ class AccessibilityRegressionTest {
                             id = "purchase_$index",
                             productName = "Produto $index",
                             purchaseDate = today.minusDays(40),
-                            warrantyEndDate = today.plusDays(index.toLong() + 1),
+                            warrantyEndDate = today.plusDays(index.toLong()),
                             createdAt = 1L,
                             updatedAt = 1L
                         ),
@@ -281,11 +281,23 @@ class AccessibilityRegressionTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
 
-        // Expand the detailed dashboard; even then, purchases must remain reachable.
-        composeRule.onNodeWithTag(AccessibilityTags.DASHBOARD_TOGGLE).performClick()
+        // The dashboard opens expanded, and scroll is still available at large font sizes.
+        composeRule.onNodeWithTag(AccessibilityTags.DASHBOARD_TOGGLE)
+            .assertTextContains(string(R.string.dashboard_collapse))
+        composeRule.onNodeWithText("19 pagamentos atrasados").assertExists()
+        // One payment and one warranty expire today.
+        composeRule.onNodeWithText("2 prazos vencem hoje").assertExists()
         composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_LIST).performScrollToIndex(9)
         composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_CARD_PREFIX + "purchase_8")
             .assertIsDisplayed()
+
+        // Collapsing only hides the detail cards; urgent deadlines remain unmistakable.
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_LIST).performScrollToIndex(0)
+        composeRule.onNodeWithTag(AccessibilityTags.DASHBOARD_TOGGLE).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.DASHBOARD_TOGGLE)
+            .assertTextContains(string(R.string.dashboard_expand))
+        composeRule.onNodeWithText("19 pagamentos atrasados").assertExists()
+        composeRule.onNodeWithText("2 prazos vencem hoje").assertExists()
     }
 
     @Test

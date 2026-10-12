@@ -14,10 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
@@ -37,11 +35,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,113 +94,112 @@ fun TimelineScreen(
 
     val hasFilters = searchQuery.isNotBlank() || selectedCategory != null
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Surface(
-            tonalElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+    // The deadlines overview and the purchase list share the same scroll container.
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().testTag(AccessibilityTags.PURCHASE_LIST),
+        contentPadding = PaddingValues(bottom = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item(key = "dashboard_and_filters") {
+            Surface(
+                tonalElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                AttentionOverview(
-                    dashboard = attentionDashboard,
-                    onOpenPayment = { paymentId ->
-                        navController.navigate(
-                            AppScreen.PaymentDetails.createRoute(paymentId)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AttentionOverview(
+                        dashboard = attentionDashboard,
+                        onOpenPayment = { paymentId ->
+                            navController.navigate(
+                                AppScreen.PaymentDetails.createRoute(paymentId)
+                            )
+                        },
+                        onOpenWarranty = { purchaseId ->
+                            navController.navigate(
+                                AppScreen.PurchaseDetails.createRoute(purchaseId)
+                            )
+                        }
+                    )
+    
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = viewModel::onSearchQueryChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(AccessibilityTags.PURCHASE_SEARCH),
+                        label = { Text(stringResource(R.string.purchase_search_label)) },
+                        placeholder = { Text(stringResource(R.string.purchase_search_hint)) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(
+                            onSearch = { focusManager.clearFocus() }
+                        ),
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null)
+                        },
+                        trailingIcon = if (searchQuery.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.search_clear)
+                                    )
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+    
+                    if (categories.isNotEmpty()) {
+                        Text(
+                            stringResource(R.string.purchase_filter_category),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    onOpenWarranty = { purchaseId ->
-                        navController.navigate(
-                            AppScreen.PurchaseDetails.createRoute(purchaseId)
-                        )
-                    }
-                )
-
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = viewModel::onSearchQueryChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag(AccessibilityTags.PURCHASE_SEARCH),
-                    label = { Text(stringResource(R.string.purchase_search_label)) },
-                    placeholder = { Text(stringResource(R.string.purchase_search_hint)) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(
-                        onSearch = { focusManager.clearFocus() }
-                    ),
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                    },
-                    trailingIcon = if (searchQuery.isNotEmpty()) {
-                        {
-                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.search_clear)
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            item {
+                                FilterChip(
+                                    selected = selectedCategory == null,
+                                    onClick = { viewModel.onCategorySelected(null) },
+                                    label = { Text(stringResource(R.string.purchase_filter_all)) }
                                 )
                             }
-                        }
-                    } else {
-                        null
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-
-                if (categories.isNotEmpty()) {
-                    Text(
-                        stringResource(R.string.purchase_filter_category),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        item {
-                            FilterChip(
-                                selected = selectedCategory == null,
-                                onClick = { viewModel.onCategorySelected(null) },
-                                label = { Text(stringResource(R.string.purchase_filter_all)) }
-                            )
-                        }
-                        items(categories) { category ->
-                            FilterChip(
-                                selected = selectedCategory == category,
-                                onClick = { viewModel.onCategorySelected(category) },
-                                label = { Text(category) }
-                            )
+                            items(categories) { category ->
+                                FilterChip(
+                                    selected = selectedCategory == category,
+                                    onClick = { viewModel.onCategorySelected(category) },
+                                    label = { Text(category) }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-
         if (purchases.isEmpty()) {
-            EmptyPurchaseState(
-                filtered = hasFilters,
-                onPrimaryAction = {
-                    if (hasFilters) {
-                        viewModel.onSearchQueryChange("")
-                        viewModel.onCategorySelected(null)
-                    } else {
-                        navController.navigate(AppScreen.AddEditItem.createRoute())
+            item(key = "empty_purchases") {
+                EmptyPurchaseState(
+                    filtered = hasFilters,
+                    onPrimaryAction = {
+                        if (hasFilters) {
+                            viewModel.onSearchQueryChange("")
+                            viewModel.onCategorySelected(null)
+                        } else {
+                            navController.navigate(AppScreen.AddEditItem.createRoute())
+                        }
                     }
-                }
-            )
+                )
+            }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 16.dp,
-                    bottom = 112.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                items(purchases, key = { it.purchase.id }) { purchaseItem ->
+            items(purchases, key = { it.purchase.id }) { purchaseItem ->
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                     PurchaseCard(
                         item = purchaseItem,
                         onOpen = {
@@ -237,6 +236,7 @@ private fun AttentionOverview(
     val today = LocalDate.now()
     val visiblePayments = dashboard.paymentsRequiringAttention.take(2)
     val visibleWarranties = dashboard.warrantiesExpiringSoon.take(2)
+    var expanded by rememberSaveable { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -251,22 +251,48 @@ private fun AttentionOverview(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    stringResource(R.string.dashboard_title),
-                    modifier = Modifier.semantics { heading() },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.dashboard_title),
+                        modifier = Modifier.semantics { heading() },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        if (dashboard.isEmpty) stringResource(R.string.dashboard_clear_title)
+                        else stringResource(
+                            R.string.dashboard_compact_summary,
+                            dashboard.paymentsRequiringAttention.size,
+                            dashboard.warrantiesExpiringSoon.size
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+                TextButton(
+                    modifier = Modifier.testTag(AccessibilityTags.DASHBOARD_TOGGLE),
+                    onClick = { expanded = !expanded }
+                ) {
+                    Text(
+                        stringResource(
+                            if (expanded) R.string.dashboard_collapse
+                            else R.string.dashboard_expand
+                        )
+                    )
+                }
+            }
+            if (expanded) {
                 Text(
                     stringResource(R.string.dashboard_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
-            }
-
-            if (dashboard.isEmpty) {
+                if (dashboard.isEmpty) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -380,6 +406,7 @@ private fun AttentionOverview(
                     }
                 }
             }
+            }
         }
     }
 }
@@ -442,8 +469,7 @@ private fun EmptyPurchaseState(
 ) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .fillMaxWidth()
             .padding(24.dp)
     ) {
         Column(
@@ -508,7 +534,8 @@ private fun PurchaseCard(
 
     Card(
         onClick = onOpen,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+            .testTag(AccessibilityTags.PURCHASE_CARD_PREFIX + purchase.id),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,

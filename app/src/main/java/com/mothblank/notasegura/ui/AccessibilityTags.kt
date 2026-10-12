@@ -12,6 +12,8 @@ object AccessibilityTags {
     const val PURCHASE_EMPTY_ACTION = "a11y_purchase_empty_action"
     const val PURCHASE_FORM = "a11y_purchase_form"
     const val PURCHASE_PRODUCT_FIELD = "a11y_purchase_product_field"
+    const val PURCHASE_DATE_FIELD = "a11y_purchase_date_field"
+    const val WARRANTY_DATE_FIELD = "a11y_warranty_date_field"
     const val PURCHASE_SAVE = "a11y_purchase_save"
 
     const val PAYMENT_SEARCH = "a11y_payment_search"

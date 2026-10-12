@@ -15,6 +15,9 @@ import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
@@ -24,10 +27,12 @@ import androidx.compose.ui.test.onAllNodes
 import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.tryPerformAccessibilityChecks
 import androidx.compose.ui.test.then
 import androidx.compose.ui.unit.DpSize
@@ -100,12 +105,40 @@ class AccessibilityRegressionTest {
         composeRule.onNodeWithTag(AccessibilityTags.PRIMARY_ADD_ACTION).performClick()
         composeRule.onNodeWithContentDescription(string(R.string.common_back))
             .assertHasClickAction()
-        composeRule.onNodeWithContentDescription(string(R.string.field_purchase_date))
+        composeRule.onNodeWithContentDescription(string(R.string.select_purchase_date))
             .assertHasClickAction()
-        composeRule.onNodeWithContentDescription(string(R.string.field_warranty_end))
+        composeRule.onNodeWithContentDescription(string(R.string.select_warranty_end))
             .assertHasClickAction()
 
         assertClickableSemanticsAreNamed()
+    }
+
+    @Test
+    fun purchaseDate_acceptsTypingAndCalendarRemainsAccessible() {
+        setAppContent()
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_PRODUCT_FIELD)
+            .performTextInput("Produto de teste")
+
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_DATE_FIELD)
+            .performTextInput("31022026")
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_DATE_FIELD)
+            .assertTextContains("31/02/2026")
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_SAVE)
+            .performScrollTo().assertIsNotEnabled()
+
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_DATE_FIELD)
+            .performTextClearance()
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_DATE_FIELD)
+            .performTextInput("12102026")
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_DATE_FIELD)
+            .assertTextContains("12/10/2026")
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_SAVE)
+            .performScrollTo().assertIsEnabled()
+
+        composeRule.onNodeWithContentDescription(string(R.string.select_purchase_date))
+            .performScrollTo().performClick()
+        composeRule.onNodeWithText(string(R.string.common_cancel)).performClick()
     }
 
     @Test

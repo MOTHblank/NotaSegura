@@ -16,6 +16,7 @@ import com.mothblank.notasegura.domain.model.Purchase
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.util.CategoryNormalizer
 import com.mothblank.notasegura.util.CurrencyUtils
+import com.mothblank.notasegura.util.DateUtils
 import com.mothblank.notasegura.util.ReceiptOcrParser
 import com.mothblank.notasegura.util.ReceiptOcrSuggestions
 import kotlinx.coroutines.CancellationException
@@ -32,7 +33,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class PurchaseAttachmentUi(
@@ -57,7 +57,9 @@ data class AddEditUiState(
     val serialNumber: String = "",
     val notes: String = "",
     val purchaseDate: LocalDate? = null,
+    val purchaseDateInput: String = "",
     val warrantyEndDate: LocalDate? = null,
+    val warrantyEndDateInput: String = "",
     val attachments: List<PurchaseAttachmentUi> = emptyList(),
     val ocrSuggestions: ReceiptOcrSuggestions? = null,
     val hasOcrAutofill: Boolean = false,
@@ -90,7 +92,9 @@ private data class PurchaseEditorSnapshot(
     val serialNumber: String,
     val notes: String,
     val purchaseDate: LocalDate?,
+    val purchaseDateInput: String,
     val warrantyEndDate: LocalDate?,
+    val warrantyEndDateInput: String,
     val attachments: List<AttachmentEditorSnapshot>
 )
 
@@ -171,7 +175,9 @@ class AddEditItemViewModel(
                             serialNumber = item.purchase.serialNumber.orEmpty(),
                             notes = item.purchase.notes,
                             purchaseDate = item.purchase.purchaseDate,
+                            purchaseDateInput = DateUtils.formatEditableDate(item.purchase.purchaseDate),
                             warrantyEndDate = item.purchase.warrantyEndDate,
+                            warrantyEndDateInput = DateUtils.formatEditableDate(item.purchase.warrantyEndDate),
                             attachments = item.attachments.map { attachment ->
                                 PurchaseAttachmentUi(
                                     id = attachment.id,
@@ -230,11 +236,46 @@ class AddEditItemViewModel(
 
     fun onPurchaseDateChange(value: LocalDate) {
         userEditedOcrFields += OcrEditableField.PURCHASE_DATE
-        _uiState.update { it.copy(purchaseDate = value, errorMessageRes = null) }
+        _uiState.update {
+            it.copy(
+                purchaseDate = value,
+                purchaseDateInput = DateUtils.formatEditableDate(value),
+                errorMessageRes = null
+            )
+        }
+    }
+
+    fun onPurchaseDateTextChange(value: String) {
+        userEditedOcrFields += OcrEditableField.PURCHASE_DATE
+        val input = DateUtils.formatEditableDateInput(value)
+        _uiState.update {
+            it.copy(
+                purchaseDateInput = input,
+                purchaseDate = DateUtils.parseEditableDate(input),
+                errorMessageRes = null
+            )
+        }
     }
 
     fun onWarrantyEndDateChange(value: LocalDate?) {
-        _uiState.update { it.copy(warrantyEndDate = value, errorMessageRes = null) }
+        _uiState.update {
+            it.copy(
+                warrantyEndDate = value,
+                warrantyEndDateInput = DateUtils.formatEditableDate(value),
+                errorMessageRes = null
+            )
+        }
+    }
+
+    fun onWarrantyEndDateTextChange(value: String) {
+        val input = DateUtils.formatEditableDateInput(value)
+        _uiState.update {
+            it.copy(
+                warrantyEndDateInput = input,
+                warrantyEndDate = DateUtils.parseEditableDate(input),
+                errorMessageRes = null
+            )
+        }
     }
 
     fun onAttachmentSelected(uri: Uri) {
@@ -410,6 +451,7 @@ class AddEditItemViewModel(
         _uiState.update {
             it.copy(
                 purchaseDate = suggestion,
+                purchaseDateInput = DateUtils.formatEditableDate(suggestion),
                 ocrSuggestions = it.ocrSuggestions?.copy(purchaseDate = null)
             )
         }
@@ -448,12 +490,10 @@ class AddEditItemViewModel(
         }
     }
 
-    fun formatDate(date: LocalDate?): String =
-        date?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: ""
-
     fun saveItem() {
         val state = _uiState.value
         val purchaseDate = state.purchaseDate ?: return
+        if (state.warrantyEndDateInput.isNotBlank() && state.warrantyEndDate == null) return
         if (state.productName.isBlank() || state.isSaving || state.isAnalyzingDocument) return
 
         if (state.warrantyEndDate?.isBefore(purchaseDate) == true) {
@@ -550,7 +590,9 @@ class AddEditItemViewModel(
         serialNumber = state.serialNumber,
         notes = state.notes,
         purchaseDate = state.purchaseDate,
+        purchaseDateInput = state.purchaseDateInput,
         warrantyEndDate = state.warrantyEndDate,
+        warrantyEndDateInput = state.warrantyEndDateInput,
         attachments = state.attachments.map { attachment ->
             AttachmentEditorSnapshot(
                 id = attachment.id,
@@ -620,6 +662,7 @@ class AddEditItemViewModel(
             merchant = merchant,
             purchaseValue = purchaseValue,
             purchaseDate = purchaseDate,
+            purchaseDateInput = if (autoFillDate) DateUtils.formatEditableDate(purchaseDate) else state.purchaseDateInput,
             modelNumber = modelNumber,
             serialNumber = serialNumber,
             ocrSuggestions = remainingSuggestions,

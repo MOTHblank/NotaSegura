@@ -71,11 +71,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
@@ -274,10 +272,13 @@ fun AddEditItemScreen(
             }
 
             DateField(
-                value = viewModel.formatDate(uiState.purchaseDate),
+                value = uiState.purchaseDateInput,
                 label = stringResource(R.string.field_purchase_date),
                 required = true,
                 clickLabel = stringResource(R.string.select_purchase_date),
+                fieldTag = AccessibilityTags.PURCHASE_DATE_FIELD,
+                isError = uiState.purchaseDateInput.length == 10 && uiState.purchaseDate == null,
+                onValueChange = viewModel::onPurchaseDateTextChange,
                 onClick = { showPurchaseDatePicker = true }
             )
             uiState.ocrSuggestions?.purchaseDate?.let {
@@ -376,13 +377,16 @@ fun AddEditItemScreen(
             subtitle = stringResource(R.string.purchase_section_warranty_hint)
         ) {
             DateField(
-                value = viewModel.formatDate(uiState.warrantyEndDate),
+                value = uiState.warrantyEndDateInput,
                 label = stringResource(R.string.field_warranty_end),
                 required = false,
                 clickLabel = stringResource(R.string.select_warranty_end),
+                fieldTag = AccessibilityTags.WARRANTY_DATE_FIELD,
+                isError = uiState.warrantyEndDateInput.length == 10 && uiState.warrantyEndDate == null,
+                onValueChange = viewModel::onWarrantyEndDateTextChange,
                 onClick = { showWarrantyDatePicker = true }
             )
-            if (uiState.warrantyEndDate != null) {
+            if (uiState.warrantyEndDateInput.isNotBlank()) {
                 TextButton(
                     onClick = { viewModel.onWarrantyEndDateChange(null) },
                     modifier = Modifier.align(Alignment.End)
@@ -452,7 +456,8 @@ fun AddEditItemScreen(
             enabled = !uiState.isSaving &&
                 !uiState.isAnalyzingDocument &&
                 uiState.productName.isNotBlank() &&
-                uiState.purchaseDate != null,
+                uiState.purchaseDate != null &&
+                (uiState.warrantyEndDateInput.isBlank() || uiState.warrantyEndDate != null),
             shape = RoundedCornerShape(16.dp)
         ) {
             if (uiState.isSaving) {
@@ -470,6 +475,7 @@ fun AddEditItemScreen(
 
     if (showPurchaseDatePicker) {
         PurchaseDatePickerDialog(
+            initialDate = uiState.purchaseDate,
             onDismiss = { showPurchaseDatePicker = false },
             onSelected = {
                 viewModel.onPurchaseDateChange(it)
@@ -480,6 +486,7 @@ fun AddEditItemScreen(
 
     if (showWarrantyDatePicker) {
         PurchaseDatePickerDialog(
+            initialDate = uiState.warrantyEndDate,
             onDismiss = { showWarrantyDatePicker = false },
             onSelected = {
                 viewModel.onWarrantyEndDateChange(it)
@@ -857,49 +864,51 @@ private fun DateField(
     label: String,
     required: Boolean,
     clickLabel: String,
+    fieldTag: String,
+    isError: Boolean,
+    onValueChange: (String) -> Unit,
     onClick: () -> Unit
 ) {
-    val accessibilityState = value.ifBlank {
-        stringResource(R.string.accessibility_date_not_selected)
-    }
-
-    Box(
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                onClickLabel = clickLabel,
-                role = Role.Button,
-                onClick = onClick
+            .testTag(fieldTag)
+            .semantics { contentDescription = label },
+        label = { if (required) RequiredLabel(label) else Text(label) },
+        placeholder = { Text(stringResource(R.string.date_input_hint)) },
+        singleLine = true,
+        isError = isError,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Number,
+            imeAction = ImeAction.Next
+        ),
+        trailingIcon = {
+            IconButton(onClick = onClick) {
+                Icon(Icons.Default.DateRange, contentDescription = clickLabel)
+            }
+        },
+        supportingText = {
+            Text(
+                stringResource(if (isError) R.string.error_invalid_date else R.string.date_input_hint),
+                color = if (isError) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant
             )
-            .semantics {
-                contentDescription = label
-                stateDescription = accessibilityState
-            }
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            modifier = Modifier
-                .fillMaxWidth()
-                .clearAndSetSemantics { },
-            label = {
-                if (required) RequiredLabel(label) else Text(label)
-            },
-            readOnly = true,
-            trailingIcon = {
-                Icon(Icons.Default.DateRange, contentDescription = null)
-            }
-        )
-    }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PurchaseDatePickerDialog(
+    initialDate: LocalDate?,
     onDismiss: () -> Unit,
     onSelected: (LocalDate) -> Unit
 ) {
-    val state = rememberDatePickerState()
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initialDate?.let(DateUtils::localDateToDatePickerMillis)
+    )
     val confirmEnabled = remember {
         derivedStateOf { state.selectedDateMillis != null }
     }
@@ -924,6 +933,6 @@ private fun PurchaseDatePickerDialog(
             }
         }
     ) {
-        DatePicker(state = state)
+        DatePicker(state = state, showModeToggle = true)
     }
 }

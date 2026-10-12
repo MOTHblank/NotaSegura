@@ -175,6 +175,7 @@
     <string name="field_serial">Nº de série</string>
     <string name="field_warranty_end">Fim da garantia</string>
     <string name="field_notes">Observações</string>
+    <string name="date_input_hint">dd/MM/aaaa</string>
     <string name="select_purchase_date">Selecionar data da compra</string>
     <string name="select_warranty_end">Selecionar fim da garantia</string>
     <string name="remove_warranty">Remover garantia</string>
@@ -249,6 +250,7 @@
     <string name="error_document_invalid">O arquivo não parece ser uma imagem ou PDF válido.</string>
     <string name="error_warranty_before_purchase">O fim da garantia não pode ser anterior à compra.</string>
     <string name="error_invalid_value">Valor inválido</string>
+    <string name="error_invalid_date">Digite uma data válida no formato dd/MM/aaaa.</string>
     <string name="error_save_purchase">Não foi possível salvar a compra.</string>
     <string name="error_save_payment">Não foi possível salvar o pagamento.</string>
     <string name="document_file_missing">O arquivo deste documento não foi encontrado.</string>

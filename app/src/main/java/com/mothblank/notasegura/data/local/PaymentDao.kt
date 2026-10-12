@@ -159,7 +159,7 @@ interface PaymentDao {
         val original = getPaymentById(payment.id)
         val existingPlan = original?.seriesId?.let { getPlanById(it) }
 
-        if (original == null && payment.recurrenceMonths != null) {
+        if (existingPlan == null && payment.recurrenceMonths != null) {
             val id = payment.seriesId ?: payment.id
             insertPlan(
                 RecurringPaymentPlan(id, payment.title, payment.amountCents,
@@ -186,7 +186,13 @@ interface PaymentDao {
                 insertPayment(payment.copy(seriesId = existingPlan.id))
             }
         } else {
-            // A one-time override keeps the existing series definition intact.
+            // When a single occurrence changes date, do not recreate its old
+            // scheduled slot on the next reconciliation.
+            if (existingPlan != null && original != null &&
+                original.dueDate != payment.dueDate
+            ) {
+                insertSkip(RecurringPaymentSkip(existingPlan.id, original.dueDate))
+            }
             insertPayment(payment)
         }
         synchronizeMonthlyPayments(horizon)

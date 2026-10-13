@@ -15,7 +15,9 @@ import java.time.LocalDate
  * only cancels it after confirming no in-window unpaid obligations remain.
  */
 internal object PaymentReminderReconciler {
-    suspend fun reconcile(context: Context, repository: PaymentRepository, today: LocalDate) {
+    suspend fun reconcile(context: Context, repository: PaymentRepository, today: LocalDate,
+        forceRefresh: Boolean = false
+    ) {
         // A paid recurring installment must not hide another month's debt.
         repository.refreshOccurrences(today.plusMonths(1))
         val paymentLeadDays = ReminderPreferences.paymentLeadDays(context)
@@ -27,6 +29,10 @@ internal object PaymentReminderReconciler {
         } else {
             emptyList()
         }
+
+        // An action may dismiss an earlier notification even when its intent is stale.
+        // Explicit refresh must repost a surviving reminder regardless of cached signature.
+        if (forceRefresh) ReminderDeliveryState.clear(context, ReminderDeliveryState.PAYMENT)
 
         if (pendingPayments.isNotEmpty()) {
             val overdue = pendingPayments.count { it.dueDate.isBefore(today) }
@@ -87,7 +93,7 @@ internal object PaymentReminderReconciler {
                 )
             ) {
                 if (notifications.showNotification(
-                        id = PAYMENT_NOTIFICATION_ID,
+                        id = ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID,
                         title = context.getString(R.string.notification_payment_title),
                         contentText = message,
                         destination = destination,
@@ -107,9 +113,8 @@ internal object PaymentReminderReconciler {
             }
         } else {
             NotificationManagerCompat.from(context)
-                .cancel(PAYMENT_NOTIFICATION_ID)
+                .cancel(ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID)
             ReminderDeliveryState.clear(context, ReminderDeliveryState.PAYMENT)
         }
-
     }
 }

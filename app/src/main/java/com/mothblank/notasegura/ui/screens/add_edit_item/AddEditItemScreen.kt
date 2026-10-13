@@ -69,12 +69,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -90,6 +87,7 @@ import com.mothblank.notasegura.ui.components.EditableDateField
 import com.mothblank.notasegura.ui.components.AndroidCalendarDatePickerDialog
 import com.mothblank.notasegura.ui.components.attachmentTypeLabel
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
+import com.mothblank.notasegura.ui.components.RequiredFieldLabel
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
 import java.io.File
@@ -126,6 +124,7 @@ fun AddEditItemScreen(
     val categorySuggestions by viewModel.categorySuggestions.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val requiredProductDescription = stringResource(R.string.field_required_semantics, stringResource(R.string.field_product))
 
     var showAttachmentOptions by remember { mutableStateOf(false) }
     var tempImageUri by rememberSaveable { mutableStateOf<String?>(null) }
@@ -296,8 +295,9 @@ fun AddEditItemScreen(
                 onValueChange = viewModel::onProductNameChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag(AccessibilityTags.PURCHASE_PRODUCT_FIELD),
-                label = { RequiredLabel(stringResource(R.string.field_product)) },
+                    .testTag(AccessibilityTags.PURCHASE_PRODUCT_FIELD)
+                    .semantics { contentDescription = requiredProductDescription },
+                label = { RequiredFieldLabel(stringResource(R.string.field_product)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
@@ -842,18 +842,6 @@ private fun AttachmentMetadataDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.common_cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun RequiredLabel(text: String) {
-    Text(
-        buildAnnotatedString {
-            append("$text ")
-            withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
-                append("*")
             }
         }
     )

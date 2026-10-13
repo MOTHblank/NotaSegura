@@ -40,13 +40,18 @@ fun EditableDateField(
     onValueChange: (String) -> Unit,
     onOpenCalendar: () -> Unit
 ) {
+    val accessibleLabel = if (required) {
+        stringResource(R.string.field_required_semantics, label)
+    } else {
+        label
+    }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier
             .fillMaxWidth()
             .testTag(fieldTag)
-            .semantics { contentDescription = label },
+            .semantics { contentDescription = accessibleLabel },
         label = {
             if (required) {
                 Text(buildAnnotatedString {

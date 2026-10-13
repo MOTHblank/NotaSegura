@@ -3,7 +3,6 @@ package com.mothblank.notasegura.data.worker
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.core.app.NotificationManagerCompat
 import com.mothblank.notasegura.NotaSeguraApplication
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +31,11 @@ class ReminderActionReceiver : BroadcastReceiver() {
                         date = LocalDate.now()
                     )
                 }
-                NotificationManagerCompat.from(context)
-                    .cancel(ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID)
+                // This ID represents every outstanding payment. Rebuild the shared
+                // notification rather than hiding other due or overdue obligations.
+                PaymentReminderReconciler.reconcile(
+                    context.applicationContext, app.paymentRepository, LocalDate.now()
+                )
             } catch (_: Exception) {
                 // Keep the notification visible so the user can retry or open the payment.
             } finally {

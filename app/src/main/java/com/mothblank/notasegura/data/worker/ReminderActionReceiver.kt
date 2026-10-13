@@ -34,7 +34,8 @@ class ReminderActionReceiver : BroadcastReceiver() {
                 // This ID represents every outstanding payment. Rebuild the shared
                 // notification rather than hiding other due or overdue obligations.
                 PaymentReminderReconciler.reconcile(
-                    context.applicationContext, app.paymentRepository, LocalDate.now()
+                    context.applicationContext, app.paymentRepository, LocalDate.now(),
+                    forceRefresh = true
                 )
             } catch (_: Exception) {
                 // Keep the notification visible so the user can retry or open the payment.

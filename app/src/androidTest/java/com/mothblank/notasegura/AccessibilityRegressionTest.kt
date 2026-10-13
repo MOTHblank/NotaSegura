@@ -23,6 +23,9 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -381,6 +384,59 @@ class AccessibilityRegressionTest {
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE)
             .performScrollTo()
             .assertIsDisplayed()
+    }
+
+
+    @Test
+    fun requiredFieldDescriptionsAndPaymentCheckboxRemainAccessibleAtLargeText() {
+        val compactLargeText = DeviceConfigurationOverride.FontScale(1.5f)
+            .then(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 480.dp)))
+        setAppContent(compactLargeText)
+        val context = composeRule.activity
+
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_PRODUCT_FIELD)
+            .performScrollTo()
+            .assertContentDescriptionEquals(
+                context.getString(R.string.field_required_semantics, context.getString(R.string.field_product))
+            )
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_DATE_FIELD)
+            .performScrollTo()
+            .assertContentDescriptionEquals(
+                context.getString(R.string.field_required_semantics, context.getString(R.string.field_purchase_date))
+            )
+        composeRule.onNodeWithTag(AccessibilityTags.WARRANTY_DATE_FIELD)
+            .performScrollTo()
+            .assertContentDescriptionEquals(context.getString(R.string.field_warranty_end))
+
+        composeRule.onNodeWithContentDescription(context.getString(R.string.common_back)).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENTS_TAB).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_TITLE_FIELD)
+            .performScrollTo()
+            .assertContentDescriptionEquals(
+                context.getString(R.string.field_required_semantics, context.getString(R.string.field_payment_name))
+            )
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_AMOUNT_FIELD)
+            .performScrollTo()
+            .assertContentDescriptionEquals(
+                context.getString(R.string.field_required_semantics, context.getString(R.string.field_payment_amount))
+            )
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_DATE_FIELD)
+            .performScrollTo()
+            .assertContentDescriptionEquals(
+                context.getString(R.string.field_required_semantics, context.getString(R.string.field_payment_due_date))
+            )
+
+        // The whole row is one toggleable, named checkbox, not two nested actions.
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_PAID_CHECKBOX)
+            .performScrollTo()
+            .assertHasClickAction()
+            .assertIsOff()
+            .performClick()
+            .assertIsOn()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_SAVE)
+            .performScrollTo().assertIsDisplayed()
     }
 
     @SdkSuppress(minSdkVersion = 34)

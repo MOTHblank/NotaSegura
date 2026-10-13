@@ -15,7 +15,10 @@ import java.time.LocalDate
  * only cancels it after confirming no in-window unpaid obligations remain.
  */
 internal object PaymentReminderReconciler {
-    suspend fun reconcile(context: Context, repository: PaymentRepository, today: LocalDate,
+    suspend fun reconcile(
+        context: Context,
+        repository: PaymentRepository,
+        today: LocalDate,
         forceRefresh: Boolean = false,
         delivery: PaymentReminderDelivery = SystemPaymentReminderDelivery(context)
     ) {
@@ -119,7 +122,12 @@ internal object PaymentReminderReconciler {
 
 /** Injectable transport keeps notification decisions testable without device permission. */
 internal interface PaymentReminderDelivery {
-    fun publish(message: String, destination: Uri, actionLabel: String, markPaidPaymentId: String?): Boolean
+    fun publish(
+        message: String,
+        destination: Uri,
+        actionLabel: String,
+        markPaidPaymentId: String?
+    ): Boolean
     fun cancel()
 }
 
@@ -141,6 +149,7 @@ private class SystemPaymentReminderDelivery(private val context: Context) : Paym
     )
 
     override fun cancel() {
-        NotificationManagerCompat.from(context).cancel(ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID)
+        NotificationManagerCompat.from(context)
+            .cancel(ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID)
     }
 }

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,13 +53,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -67,6 +65,7 @@ import com.mothblank.notasegura.R
 import com.mothblank.notasegura.ViewModelFactory
 import com.mothblank.notasegura.ui.AccessibilityTags
 import com.mothblank.notasegura.ui.components.ReminderPermissionDialog
+import com.mothblank.notasegura.ui.components.RequiredFieldLabel
 import com.mothblank.notasegura.ui.components.EditableDateField
 import com.mothblank.notasegura.ui.components.AndroidCalendarDatePickerDialog
 import com.mothblank.notasegura.util.NotificationPermissionPolicy
@@ -91,6 +90,8 @@ fun AddEditPaymentScreen(
     val isDirty by viewModel.isDirty.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val requiredNameDescription = stringResource(R.string.field_required_semantics, stringResource(R.string.field_payment_name))
+    val requiredAmountDescription = stringResource(R.string.field_required_semantics, stringResource(R.string.field_payment_amount))
     var showDatePicker by remember { mutableStateOf(false) }
     var showReminderPermissionDialog by remember { mutableStateOf(false) }
 
@@ -139,8 +140,9 @@ fun AddEditPaymentScreen(
                 onValueChange = viewModel::onTitleChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag(AccessibilityTags.PAYMENT_TITLE_FIELD),
-                label = { RequiredPaymentLabel(stringResource(R.string.field_payment_name)) },
+                    .testTag(AccessibilityTags.PAYMENT_TITLE_FIELD)
+                    .semantics { contentDescription = requiredNameDescription },
+                label = { RequiredFieldLabel(stringResource(R.string.field_payment_name)) },
                 textStyle = MaterialTheme.typography.bodyLarge,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
@@ -152,8 +154,10 @@ fun AddEditPaymentScreen(
             OutlinedTextField(
                 value = uiState.amount,
                 onValueChange = viewModel::onAmountChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { RequiredPaymentLabel(stringResource(R.string.field_payment_amount)) },
+                modifier = Modifier.fillMaxWidth()
+                    .testTag(AccessibilityTags.PAYMENT_AMOUNT_FIELD)
+                    .semantics { contentDescription = requiredAmountDescription },
+                label = { RequiredFieldLabel(stringResource(R.string.field_payment_amount)) },
                 textStyle = MaterialTheme.typography.bodyLarge,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
@@ -392,18 +396,6 @@ private fun PaymentFormSection(
 }
 
 @Composable
-private fun RequiredPaymentLabel(text: String) {
-    Text(
-        buildAnnotatedString {
-            append("$text ")
-            withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
-                append("*")
-            }
-        }
-    )
-}
-
-@Composable
 private fun PaymentCheckboxRow(
     checked: Boolean,
     title: String,
@@ -413,7 +405,8 @@ private fun PaymentCheckboxRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Checkbox, onClick = onClick),
+            .testTag(AccessibilityTags.PAYMENT_PAID_CHECKBOX)
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onClick() }),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     ) {

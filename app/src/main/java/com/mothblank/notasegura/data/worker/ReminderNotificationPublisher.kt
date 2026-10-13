@@ -88,6 +88,4 @@ internal class ReminderNotificationPublisher(private val context: Context) {
         }
         return false
     }
-
-
 }

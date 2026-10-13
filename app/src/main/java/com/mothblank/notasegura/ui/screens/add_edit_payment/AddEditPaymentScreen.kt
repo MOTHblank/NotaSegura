@@ -90,8 +90,12 @@ fun AddEditPaymentScreen(
     val isDirty by viewModel.isDirty.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val requiredNameDescription = stringResource(R.string.field_required_semantics, stringResource(R.string.field_payment_name))
-    val requiredAmountDescription = stringResource(R.string.field_required_semantics, stringResource(R.string.field_payment_amount))
+    val requiredNameDescription = stringResource(
+        R.string.field_required_semantics, stringResource(R.string.field_payment_name)
+    )
+    val requiredAmountDescription = stringResource(
+        R.string.field_required_semantics, stringResource(R.string.field_payment_amount)
+    )
     var showDatePicker by remember { mutableStateOf(false) }
     var showReminderPermissionDialog by remember { mutableStateOf(false) }
 

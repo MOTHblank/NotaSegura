@@ -165,6 +165,7 @@
     <string name="payment_due_on">Vencimento em %1$s.</string>
 
     <string name="form_required_fields">* Campos obrigatórios</string>
+    <string name="field_required_semantics">%1$s, obrigatório</string>
     <string name="ocr_autofill_notice">Alguns dados foram preenchidos pelo comprovante. Confira antes de salvar.</string>
     <string name="purchase_section_document">Comprovante / documento</string>
     <string name="purchase_section_document_hint">Comece por aqui: adicione uma foto ou imagem para extrair dados da compra. PDFs também podem ser anexados.</string>

@@ -394,6 +394,8 @@ class AccessibilityRegressionTest {
         setAppContent(compactLargeText)
         val context = composeRule.activity
 
+        composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_LIST)
+            .performScrollToNode(hasTestTag(AccessibilityTags.PURCHASE_EMPTY_ACTION))
         composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_EMPTY_ACTION).performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PURCHASE_PRODUCT_FIELD)
             .performScrollTo()
@@ -411,7 +413,8 @@ class AccessibilityRegressionTest {
 
         composeRule.onNodeWithContentDescription(context.getString(R.string.common_back)).performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENTS_TAB).performClick()
-        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION).performClick()
+        composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_EMPTY_ACTION)
+            .performScrollTo().performClick()
         composeRule.onNodeWithTag(AccessibilityTags.PAYMENT_TITLE_FIELD)
             .performScrollTo()
             .assertContentDescriptionEquals(

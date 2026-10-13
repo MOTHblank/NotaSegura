@@ -16,7 +16,8 @@ import java.time.LocalDate
  */
 internal object PaymentReminderReconciler {
     suspend fun reconcile(context: Context, repository: PaymentRepository, today: LocalDate,
-        forceRefresh: Boolean = false
+        forceRefresh: Boolean = false,
+        delivery: PaymentReminderDelivery = SystemPaymentReminderDelivery(context)
     ) {
         // A paid recurring installment must not hide another month's debt.
         repository.refreshOccurrences(today.plusMonths(1))
@@ -92,10 +93,8 @@ internal object PaymentReminderReconciler {
                     context, ReminderDeliveryState.PAYMENT, signature
                 )
             ) {
-                if (notifications.showNotification(
-                        id = ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID,
-                        title = context.getString(R.string.notification_payment_title),
-                        contentText = message,
+                if (delivery.publish(
+                        message = message,
                         destination = destination,
                         actionLabel = context.getString(
                             if (pendingPayments.size == 1) {
@@ -112,9 +111,36 @@ internal object PaymentReminderReconciler {
                 }
             }
         } else {
-            NotificationManagerCompat.from(context)
-                .cancel(ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID)
+            delivery.cancel()
             ReminderDeliveryState.clear(context, ReminderDeliveryState.PAYMENT)
         }
+    }
+}
+
+/** Injectable transport keeps notification decisions testable without device permission. */
+internal interface PaymentReminderDelivery {
+    fun publish(message: String, destination: Uri, actionLabel: String, markPaidPaymentId: String?): Boolean
+    fun cancel()
+}
+
+private class SystemPaymentReminderDelivery(private val context: Context) : PaymentReminderDelivery {
+    private val publisher = ReminderNotificationPublisher(context)
+
+    override fun publish(
+        message: String,
+        destination: Uri,
+        actionLabel: String,
+        markPaidPaymentId: String?
+    ): Boolean = publisher.showNotification(
+        id = ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID,
+        title = context.getString(R.string.notification_payment_title),
+        contentText = message,
+        destination = destination,
+        actionLabel = actionLabel,
+        markPaidPaymentId = markPaidPaymentId
+    )
+
+    override fun cancel() {
+        NotificationManagerCompat.from(context).cancel(ExpirationCheckWorker.PAYMENT_NOTIFICATION_ID)
     }
 }

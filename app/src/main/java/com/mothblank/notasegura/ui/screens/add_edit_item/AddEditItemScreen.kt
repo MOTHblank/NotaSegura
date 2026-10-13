@@ -124,7 +124,9 @@ fun AddEditItemScreen(
     val categorySuggestions by viewModel.categorySuggestions.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val requiredProductDescription = stringResource(R.string.field_required_semantics, stringResource(R.string.field_product))
+    val requiredProductDescription = stringResource(
+        R.string.field_required_semantics, stringResource(R.string.field_product)
+    )
 
     var showAttachmentOptions by remember { mutableStateOf(false) }
     var tempImageUri by rememberSaveable { mutableStateOf<String?>(null) }

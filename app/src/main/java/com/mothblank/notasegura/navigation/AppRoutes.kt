@@ -16,6 +16,8 @@ sealed class AppScreen(val route: String) {
 
     object SecurityPrivacy : AppScreen("security_privacy_screen")
 
+    object DocumentRecovery : AppScreen("document_recovery_screen")
+
     object ReminderSettings : AppScreen("reminder_settings_screen")
 
     object PaymentDetails : AppScreen("payment_details_screen/{paymentId}") {

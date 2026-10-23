@@ -75,6 +75,7 @@
     <string name="recovery_open">Recuperar documentos em quarentena</string>
     <string name="recovery_screen_title">Recuperação de documentos</string>
     <string name="recovery_intro">Documentos abandonados após uma interrupção ficam guardados aqui. Você pode visualizá-los, anexá-los novamente a uma compra ou salvar uma cópia fora do app. A compra original não pode ser identificada automaticamente.</string>
+    <string name="recovery_loading_failed">Não foi possível atualizar a lista de recuperação.</string>
     <string name="recovery_loading">Buscando documentos…</string>
     <string name="recovery_empty">Nenhum documento em quarentena.</string>
     <string name="recovery_size_kb">Tamanho: %1$d KB</string>

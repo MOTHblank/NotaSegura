@@ -112,6 +112,7 @@ object QuarantinedDocumentStore {
                 output.use { destination ->
                     source.inputStream().use { input -> input.copyTo(destination) }
                 }
+                Unit
             }
         }
 

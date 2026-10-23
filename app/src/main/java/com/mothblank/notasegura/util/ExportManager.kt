@@ -1,6 +1,7 @@
 package com.mothblank.notasegura.util
 
 import android.content.Context
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
@@ -8,10 +9,26 @@ import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
 import com.mothblank.notasegura.domain.model.Payment
+import com.mothblank.notasegura.domain.model.AttachmentType
 import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.time.format.DateTimeFormatter
+
+enum class PdfExportFailure {
+    GENERATION, STORAGE, DESTINATION
+}
+
+sealed interface PdfExportResult {
+    data class Success(val file: File) : PdfExportResult
+    data class Failure(val reason: PdfExportFailure, val cause: Exception) : PdfExportResult
+}
+
+sealed interface PdfShareResult {
+    data object Success : PdfShareResult
+    data class Failure(val reason: PdfExportFailure, val cause: Exception) : PdfShareResult
+}
 
 object ExportManager {
     private const val PAGE_WIDTH = 595
@@ -22,13 +39,17 @@ object ExportManager {
     fun createPdf(
         context: Context,
         purchases: List<PurchaseWithAttachments>,
-        payments: List<Payment>
-    ): File? {
-        val document = PdfDocument()
-        val writer = PdfWriter(document)
-        val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-
+        payments: List<Payment>,
+        includeAttachmentIndex: Boolean = false
+    ): PdfExportResult {
+        var document: PdfDocument? = null
+        var outputFile: File? = null
+        var phase = PdfExportFailure.GENERATION
         return try {
+            val pdf = PdfDocument()
+            document = pdf
+            val writer = PdfWriter(pdf)
+            val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
             writer.drawHeading("Relatório NotaSegura")
 
             writer.drawSection("Compras e documentos")
@@ -58,6 +79,34 @@ object ExportManager {
                 }
             }
 
+            if (includeAttachmentIndex) {
+                writer.addSpacing(14f)
+                writer.drawSection("Índice de documentos")
+                val entries = purchases.flatMap { purchase ->
+                    purchase.attachments.map { attachment -> purchase.purchase to attachment }
+                }
+                if (entries.isEmpty()) {
+                    writer.drawBody("Nenhum documento anexado.")
+                } else {
+                    entries.forEach { (purchase, attachment) ->
+                        val type = when (AttachmentType.normalize(attachment.type)) {
+                            AttachmentType.RECEIPT -> "Comprovante"
+                            AttachmentType.INVOICE -> "Nota fiscal"
+                            AttachmentType.WARRANTY -> "Garantia"
+                            AttachmentType.MANUAL -> "Manual"
+                            else -> "Outro"
+                        }
+                        val name = attachment.displayName?.takeIf { it.isNotBlank() }
+                            ?: File(attachment.filePath).name
+                        writer.drawBody(
+                            "Arquivo: ${name} • Tipo: ${type} • Compra: " +
+                                "${purchase.productName} • ID compra: ${purchase.id} • ID documento: " +
+                                "${attachment.id}"
+                        )
+                    }
+                }
+            }
+
             writer.addSpacing(14f)
             writer.drawSection("Pagamentos")
             if (payments.isEmpty()) {
@@ -80,29 +129,44 @@ object ExportManager {
 
             writer.finish()
 
-            val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+            phase = PdfExportFailure.DESTINATION
+            val exportDir = File(context.cacheDir, "exports")
+            if (!exportDir.isDirectory && !exportDir.mkdirs()) {
+                throw IOException("A pasta de exportação não está disponível.")
+            }
+            phase = PdfExportFailure.STORAGE
             val file = File(exportDir, "Relatorio_NotaSegura_${System.currentTimeMillis()}.pdf")
-            FileOutputStream(file).use { output -> document.writeTo(output) }
-            file
-        } catch (_: Exception) {
-            null
+            outputFile = file
+            FileOutputStream(file).use { output -> pdf.writeTo(output) }
+            PdfExportResult.Success(file)
+        } catch (error: Exception) {
+            outputFile?.delete()
+            PdfExportResult.Failure(phase, error)
         } finally {
-            document.close()
+            // A failed page render can leave a page open; never hide the actual export error.
+            runCatching { document?.close() }
         }
     }
 
-    fun sharePdf(context: Context, file: File) {
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    fun sharePdf(context: Context, file: File): PdfShareResult {
+        return try {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, "Compartilhar relatório"))
+            PdfShareResult.Success
+        } catch (error: ActivityNotFoundException) {
+            PdfShareResult.Failure(PdfExportFailure.DESTINATION, error)
+        } catch (error: Exception) {
+            PdfShareResult.Failure(PdfExportFailure.STORAGE, error)
         }
-        context.startActivity(Intent.createChooser(intent, "Compartilhar relatório"))
     }
 
     private class PdfWriter(

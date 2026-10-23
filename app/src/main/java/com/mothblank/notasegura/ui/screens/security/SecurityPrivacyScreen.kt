@@ -21,7 +21,8 @@ import com.mothblank.notasegura.R
 
 @Composable
 fun SecurityPrivacyScreen(
-    onOpenPrivacyPolicy: () -> Unit
+    onOpenPrivacyPolicy: () -> Unit,
+    onOpenRecovery: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -48,6 +49,13 @@ fun SecurityPrivacyScreen(
             title = stringResource(R.string.security_exports_title),
             body = stringResource(R.string.security_exports_body)
         )
+
+        Button(
+            onClick = onOpenRecovery,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.recovery_open))
+        }
 
         Button(
             onClick = onOpenPrivacyPolicy,

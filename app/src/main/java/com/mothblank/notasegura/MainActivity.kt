@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
@@ -71,10 +75,14 @@ import com.mothblank.notasegura.ui.screens.payment_details.PaymentDetailsScreen
 import com.mothblank.notasegura.ui.screens.payments.PaymentsScreen
 import com.mothblank.notasegura.ui.screens.purchase_details.PurchaseDetailsScreen
 import com.mothblank.notasegura.ui.screens.reminders.ReminderSettingsScreen
+import com.mothblank.notasegura.ui.screens.security.DocumentRecoveryScreen
 import com.mothblank.notasegura.ui.screens.security.SecurityPrivacyScreen
 import com.mothblank.notasegura.ui.screens.timeline.TimelineScreen
 import com.mothblank.notasegura.ui.theme.NotaSeguraTheme
 import com.mothblank.notasegura.util.ExportManager
+import com.mothblank.notasegura.util.PdfExportFailure
+import com.mothblank.notasegura.util.PdfExportResult
+import com.mothblank.notasegura.util.PdfShareResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -125,6 +133,7 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
     val isPurchaseDetails = currentRoute == AppScreen.PurchaseDetails.route
     val isPaymentDetails = currentRoute == AppScreen.PaymentDetails.route
     val isSecurityPrivacy = currentRoute == AppScreen.SecurityPrivacy.route
+    val isDocumentRecovery = currentRoute == AppScreen.DocumentRecovery.route
     val isReminderSettings = currentRoute == AppScreen.ReminderSettings.route
     val showPrimaryNavigation =
         currentRoute == AppScreen.Timeline.route || currentRoute == AppScreen.Payments.route
@@ -147,11 +156,14 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
         isPurchaseDetails -> stringResource(R.string.screen_purchase_details)
         isPaymentDetails -> stringResource(R.string.screen_payment_details)
         isSecurityPrivacy -> stringResource(R.string.security_screen_title)
+        isDocumentRecovery -> stringResource(R.string.recovery_screen_title)
         isReminderSettings -> stringResource(R.string.reminder_settings_title)
         else -> null
     }
 
     var menuExpanded by remember { mutableStateOf(false) }
+    var showReportOptions by remember { mutableStateOf(false) }
+    var includeAttachmentIndex by remember { mutableStateOf(false) }
     var showBackupPasswordDialog by remember { mutableStateOf(false) }
     var pendingBackupPassword by remember { mutableStateOf<String?>(null) }
     var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
@@ -277,30 +289,7 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
                                 },
                                 onClick = {
                                     menuExpanded = false
-                                    coroutineScope.launch {
-                                        val purchases = app.purchaseDocumentStore
-                                            .getAllPurchases()
-                                            .first()
-                                        val payments = app.paymentRepository
-                                            .getAllPayments()
-                                            .first()
-                                        val file = withContext(Dispatchers.IO) {
-                                            ExportManager.createPdf(
-                                                context,
-                                                purchases,
-                                                payments
-                                            )
-                                        }
-                                        if (file != null) {
-                                            ExportManager.sharePdf(context, file)
-                                        } else {
-                                            Toast.makeText(
-                                                context,
-                                                context.getString(R.string.report_generation_failed),
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
+                                    showReportOptions = true
                                 }
                             )
 
@@ -519,6 +508,9 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
             }
             composable(AppScreen.SecurityPrivacy.route) {
                 SecurityPrivacyScreen(
+                    onOpenRecovery = {
+                        navController.navigate(AppScreen.DocumentRecovery.route)
+                    },
                     onOpenPrivacyPolicy = {
                         val privacyPolicyUri = Uri.parse(
                             context.getString(R.string.privacy_policy_url)
@@ -536,6 +528,9 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
                         }
                     }
                 )
+            }
+            composable(AppScreen.DocumentRecovery.route) {
+                DocumentRecoveryScreen()
             }
             composable(
                 route = AppScreen.PaymentDetails.route,
@@ -566,6 +561,61 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
                 )
             }
         }
+    }
+
+    if (showReportOptions) {
+        AlertDialog(
+            onDismissRequest = { showReportOptions = false },
+            title = { Text(stringResource(R.string.report_options_title)) },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = includeAttachmentIndex,
+                        onCheckedChange = { includeAttachmentIndex = it }
+                    )
+                    Text(stringResource(R.string.report_attachment_index_option))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showReportOptions = false
+                    val includeIndex = includeAttachmentIndex
+                    coroutineScope.launch {
+                        try {
+                            val purchases = app.purchaseDocumentStore.getAllPurchases().first()
+                            val payments = app.paymentRepository.getAllPayments().first()
+                            val result = withContext(Dispatchers.IO) {
+                                ExportManager.createPdf(
+                                    context, purchases, payments, includeIndex
+                                )
+                            }
+                            val messageRes = when (result) {
+                                is PdfExportResult.Failure -> exportErrorMessage(result.reason)
+                                is PdfExportResult.Success -> when (
+                                    val shared = ExportManager.sharePdf(context, result.file)
+                                ) {
+                                    PdfShareResult.Success -> null
+                                    is PdfShareResult.Failure -> exportErrorMessage(shared.reason)
+                                }
+                            }
+                            if (messageRes != null) {
+                                Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_LONG).show()
+                            }
+                        } catch (_: Exception) {
+                            Toast.makeText(
+                                context, context.getString(R.string.report_generation_failed),
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }) { Text(stringResource(R.string.report_generate)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportOptions = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     if (pendingEditorExit) {
@@ -624,4 +674,10 @@ fun NotaSeguraApp(notificationIntent: Intent? = null) {
             }
         )
     }
+}
+
+private fun exportErrorMessage(reason: PdfExportFailure): Int = when (reason) {
+    PdfExportFailure.GENERATION -> R.string.report_failed_generation
+    PdfExportFailure.STORAGE -> R.string.report_failed_storage
+    PdfExportFailure.DESTINATION -> R.string.report_failed_destination
 }

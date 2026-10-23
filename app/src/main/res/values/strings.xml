@@ -66,6 +66,27 @@
     <string name="backup_save_failed">Não foi possível criar a cópia de segurança criptografada.</string>
     <string name="backup_restored_summary">Dados restaurados: %1$d compras, %2$d documentos e %3$d pagamentos.</string>
     <string name="backup_restore_failed">Não foi possível restaurar. Confira a senha e a integridade do arquivo.</string>
+    <string name="report_attachment_index_option">Incluir índice de documentos (nomes, tipos, compras e IDs)</string>
+    <string name="report_options_title">Opções do relatório PDF</string>
+    <string name="report_generate">Gerar e compartilhar</string>
+    <string name="report_failed_storage">Não foi possível salvar o PDF. Verifique o espaço de armazenamento e tente novamente.</string>
+    <string name="report_failed_generation">Não foi possível montar o PDF com os dados atuais.</string>
+    <string name="report_failed_destination">Não há aplicativo disponível para compartilhar o PDF. Instale um aplicativo compatível.</string>
+    <string name="recovery_open">Recuperar documentos em quarentena</string>
+    <string name="recovery_screen_title">Recuperação de documentos</string>
+    <string name="recovery_intro">Documentos abandonados após uma interrupção ficam guardados aqui. Você pode visualizá-los, anexá-los novamente a uma compra ou salvar uma cópia fora do app. A compra original não pode ser identificada automaticamente.</string>
+    <string name="recovery_loading_failed">Não foi possível atualizar a lista de recuperação.</string>
+    <string name="recovery_loading">Buscando documentos…</string>
+    <string name="recovery_empty">Nenhum documento em quarentena.</string>
+    <string name="recovery_size_kb">Tamanho: %1$d KB</string>
+    <string name="recovery_preview">Visualizar</string>
+    <string name="recovery_restore">Anexar a uma compra</string>
+    <string name="recovery_export">Exportar arquivo</string>
+    <string name="recovery_choose_purchase">Escolha a compra para restaurar este anexo</string>
+    <string name="recovery_restored">Documento restaurado para a compra escolhida.</string>
+    <string name="recovery_restore_failed">Não foi possível restaurar o documento.</string>
+    <string name="recovery_export_success">Documento exportado com sucesso.</string>
+    <string name="recovery_export_failed">Não foi possível exportar o documento.</string>
     <string name="report_generation_failed">Não foi possível gerar o PDF.</string>
 
     <string name="unsaved_exit_title">Sair sem salvar?</string>

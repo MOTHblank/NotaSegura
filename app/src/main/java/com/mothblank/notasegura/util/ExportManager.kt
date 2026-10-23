@@ -143,7 +143,8 @@ object ExportManager {
             outputFile?.delete()
             PdfExportResult.Failure(phase, error)
         } finally {
-            document?.close()
+            // A failed page render can leave a page open; never hide the actual export error.
+            runCatching { document?.close() }
         }
     }
 

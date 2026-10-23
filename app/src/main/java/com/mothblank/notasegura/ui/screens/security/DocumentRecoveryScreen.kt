@@ -63,7 +63,14 @@ fun DocumentRecoveryScreen() {
         loading = false
     }
 
-    LaunchedEffect(Unit) { refresh() }
+    LaunchedEffect(Unit) {
+        try {
+            refresh()
+        } catch (_: Exception) {
+            loading = false
+            Toast.makeText(context, context.getString(R.string.recovery_loading_failed), Toast.LENGTH_LONG).show()
+        }
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -178,7 +185,15 @@ fun DocumentRecoveryScreen() {
                                     ).show()
                                     selectedForRestore = null
                                     busy = false
-                                    refresh()
+                                    try {
+                                        refresh()
+                                    } catch (_: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.recovery_loading_failed),
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

@@ -71,7 +71,7 @@ object QuarantinedDocumentStore {
             if (!destinationDir.isDirectory && !destinationDir.mkdirs()) {
                 throw IOException("Não foi possível criar a pasta de documentos.")
             }
-            val destination = File(destinationDir, "$" + "{id}." +
+            val destination = File(destinationDir, "${id}." +
                 FileStorageManager.extensionFor(mime, source.name))
             try {
                 source.inputStream().use { input ->
@@ -97,7 +97,7 @@ object QuarantinedDocumentStore {
             }
             // Never delete the only copy before the database link is committed.
             if (!source.delete()) {
-                Log.w(TAG, "Restored attachment but quarantine cleanup failed: $" + "{key}")
+                Log.w(TAG, "Restored attachment but quarantine cleanup failed: ${key}")
             }
         }
     }

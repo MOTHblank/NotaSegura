@@ -354,7 +354,7 @@ fun AddEditItemScreen(
                     FieldSuggestion(
                         value = it,
                         onUse = viewModel::applyModelSuggestion,
-                    evidence = uiState.ocrSuggestions?.evidence?.get("modelNumber")
+                        evidence = uiState.ocrSuggestions?.evidence?.get("modelNumber")
                     )
                 }
             }
@@ -371,7 +371,7 @@ fun AddEditItemScreen(
                     FieldSuggestion(
                         value = it,
                         onUse = viewModel::applySerialSuggestion,
-                    evidence = uiState.ocrSuggestions?.evidence?.get("serialNumber")
+                        evidence = uiState.ocrSuggestions?.evidence?.get("serialNumber")
                     )
                 }
             }

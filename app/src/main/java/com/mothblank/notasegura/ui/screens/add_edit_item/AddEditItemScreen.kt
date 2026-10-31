@@ -236,7 +236,8 @@ fun AddEditItemScreen(
             uiState.ocrSuggestions?.merchant?.let {
                 FieldSuggestion(
                     value = it,
-                    onUse = viewModel::applyMerchantSuggestion
+                    onUse = viewModel::applyMerchantSuggestion,
+                    evidence = uiState.ocrSuggestions?.evidence?.get("merchant")
                 )
             }
 
@@ -263,7 +264,8 @@ fun AddEditItemScreen(
             uiState.ocrSuggestions?.purchaseValueCents?.let {
                 FieldSuggestion(
                     value = CurrencyUtils.formatCents(it),
-                    onUse = viewModel::applyPurchaseValueSuggestion
+                    onUse = viewModel::applyPurchaseValueSuggestion,
+                    evidence = uiState.ocrSuggestions?.evidence?.get("purchaseValueCents")
                 )
             }
 
@@ -283,7 +285,8 @@ fun AddEditItemScreen(
             uiState.ocrSuggestions?.purchaseDate?.let {
                 FieldSuggestion(
                     value = it.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                    onUse = viewModel::applyPurchaseDateSuggestion
+                    onUse = viewModel::applyPurchaseDateSuggestion,
+                    evidence = uiState.ocrSuggestions?.evidence?.get("purchaseDate")
                 )
             }
         }
@@ -350,7 +353,8 @@ fun AddEditItemScreen(
                 uiState.ocrSuggestions?.modelNumber?.let {
                     FieldSuggestion(
                         value = it,
-                        onUse = viewModel::applyModelSuggestion
+                        onUse = viewModel::applyModelSuggestion,
+                    evidence = uiState.ocrSuggestions?.evidence?.get("modelNumber")
                     )
                 }
             }
@@ -366,7 +370,8 @@ fun AddEditItemScreen(
                 uiState.ocrSuggestions?.serialNumber?.let {
                     FieldSuggestion(
                         value = it,
-                        onUse = viewModel::applySerialSuggestion
+                        onUse = viewModel::applySerialSuggestion,
+                    evidence = uiState.ocrSuggestions?.evidence?.get("serialNumber")
                     )
                 }
             }
@@ -615,7 +620,8 @@ private fun FormSection(
 @Composable
 private fun FieldSuggestion(
     value: String,
-    onUse: () -> Unit
+    onUse: () -> Unit,
+    evidence: com.mothblank.notasegura.util.OcrEvidence? = null
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -626,12 +632,25 @@ private fun FieldSuggestion(
             modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = stringResource(R.string.ocr_suggestion_found, value),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.ocr_suggestion_found, value),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                evidence?.let {
+                    val confidence = when (it.confidence) {
+                        com.mothblank.notasegura.util.OcrConfidence.HIGH -> "Alta"
+                        com.mothblank.notasegura.util.OcrConfidence.MEDIUM -> "Média"
+                        com.mothblank.notasegura.util.OcrConfidence.LOW -> "Baixa"
+                    }
+                    Text(
+                        text = "Confiança: $confidence · linha ${it.lineNumber}: ${it.sourceLine}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
             TextButton(onClick = onUse) {
                 Text(stringResource(R.string.common_use))
             }

@@ -640,12 +640,20 @@ private fun FieldSuggestion(
                 )
                 evidence?.let {
                     val confidence = when (it.confidence) {
-                        com.mothblank.notasegura.util.OcrConfidence.HIGH -> "Alta"
-                        com.mothblank.notasegura.util.OcrConfidence.MEDIUM -> "Média"
-                        com.mothblank.notasegura.util.OcrConfidence.LOW -> "Baixa"
+                        com.mothblank.notasegura.util.OcrConfidence.HIGH ->
+                            stringResource(R.string.ocr_confidence_high)
+                        com.mothblank.notasegura.util.OcrConfidence.MEDIUM ->
+                            stringResource(R.string.ocr_confidence_medium)
+                        com.mothblank.notasegura.util.OcrConfidence.LOW ->
+                            stringResource(R.string.ocr_confidence_low)
                     }
                     Text(
-                        text = "Confiança: $confidence · linha ${it.lineNumber}: ${it.sourceLine}",
+                        text = stringResource(
+                            R.string.ocr_suggestion_evidence,
+                            confidence,
+                            it.lineNumber,
+                            it.sourceLine
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )

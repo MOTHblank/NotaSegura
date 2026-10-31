@@ -58,9 +58,13 @@ object ReceiptOcrParser {
     )
 
     fun parse(text: String, today: LocalDate = LocalDate.now()): ReceiptOcrSuggestions {
-        val lines = text.lines()
-            .map { normalizeWhitespace(it) }
-            .filter { it.isNotBlank() }
+        val normalizedLines = text.lines()
+            .mapIndexedNotNull { sourceIndex, rawLine ->
+                val normalized = normalizeWhitespace(rawLine)
+                normalized.takeIf { it.isNotBlank() }?.let { sourceIndex + 1 to it }
+            }
+        val sourceLineNumbers = normalizedLines.map { it.first }
+        val lines = normalizedLines.map { it.second }
 
         val merchant = findMerchant(lines)
         val date = findPurchaseDate(lines, today)
@@ -88,7 +92,7 @@ object ReceiptOcrParser {
                         .thenBy { -it.first }
                 )
                 candidate?.let { (index, score) ->
-                    put("merchant", evidenceFor(lines, index, score, 15, 9))
+                    put("merchant", evidenceFor(lines, sourceLineNumbers, index, score, 15, 9))
                 }
             }
             date?.let { chosen ->
@@ -105,7 +109,7 @@ object ReceiptOcrParser {
                             .thenBy { -it.first }
                     )
                 candidate?.let { (index, score) ->
-                    put("purchaseDate", evidenceFor(lines, index, score, 8, 3))
+                    put("purchaseDate", evidenceFor(lines, sourceLineNumbers, index, score, 8, 3))
                 }
             }
             total?.let { chosen ->
@@ -136,17 +140,17 @@ object ReceiptOcrParser {
                 candidate?.let {
                     put(
                         "purchaseValueCents",
-                        evidenceFor(lines, it.lineIndex, it.score, 10, 6)
+                        evidenceFor(lines, sourceLineNumbers, it.lineIndex, it.score, 10, 6)
                     )
                 }
             }
             model?.let { chosen ->
                 val index = lines.indexOfFirst { it.contains(chosen, ignoreCase = true) }
-                if (index >= 0) put("modelNumber", evidenceFor(lines, index, 5, 8, 5))
+                if (index >= 0) put("modelNumber", evidenceFor(lines, sourceLineNumbers, index, 5, 8, 5))
             }
             serial?.let { chosen ->
                 val index = lines.indexOfFirst { it.contains(chosen, ignoreCase = true) }
-                if (index >= 0) put("serialNumber", evidenceFor(lines, index, 5, 8, 5))
+                if (index >= 0) put("serialNumber", evidenceFor(lines, sourceLineNumbers, index, 5, 8, 5))
             }
         }
         return ReceiptOcrSuggestions(
@@ -162,13 +166,14 @@ object ReceiptOcrParser {
 
     private fun evidenceFor(
         lines: List<String>,
+        sourceLineNumbers: List<Int>,
         index: Int,
         score: Int,
         highThreshold: Int,
         mediumThreshold: Int
     ): OcrEvidence = OcrEvidence(
         sourceLine = lines[index],
-        lineNumber = index + 1,
+        lineNumber = sourceLineNumbers[index],
         heuristicScore = score,
         confidence = when {
             score >= highThreshold -> OcrConfidence.HIGH

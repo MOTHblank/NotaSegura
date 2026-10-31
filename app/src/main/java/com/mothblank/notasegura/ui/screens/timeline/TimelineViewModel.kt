@@ -99,6 +99,10 @@ internal fun buildAttentionDashboard(
     )
 }
 
+enum class WarrantyFilter { ALL, ACTIVE, EXPIRING_SOON, EXPIRED, NONE }
+enum class AttachmentFilter { ALL, WITH_DOCUMENTS, WITHOUT_DOCUMENTS }
+enum class PurchasePeriod { ALL, LAST_30_DAYS, THIS_YEAR }
+
 class TimelineViewModel(
     private val documentStore: PurchaseDocumentStore,
     private val paymentRepository: PaymentRepository
@@ -110,6 +114,13 @@ class TimelineViewModel(
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory = _selectedCategory.asStateFlow()
 
+    private val _warrantyFilter = MutableStateFlow(WarrantyFilter.ALL)
+    val warrantyFilter = _warrantyFilter.asStateFlow()
+    private val _attachmentFilter = MutableStateFlow(AttachmentFilter.ALL)
+    val attachmentFilter = _attachmentFilter.asStateFlow()
+    private val _purchasePeriod = MutableStateFlow(PurchasePeriod.ALL)
+    val purchasePeriod = _purchasePeriod.asStateFlow()
+
     private val allPurchases = documentStore.getAllPurchases()
         .stateIn(
             scope = viewModelScope,
@@ -118,26 +129,49 @@ class TimelineViewModel(
         )
 
     val uiState: StateFlow<List<PurchaseWithAttachments>> =
-        combine(allPurchases, _searchQuery, _selectedCategory) { items, query, category ->
-            val normalizedQuery = query.trim()
+        combine(
+            allPurchases, _searchQuery, _selectedCategory,
+            _warrantyFilter, _attachmentFilter, _purchasePeriod
+        ) { values ->
+            @Suppress("UNCHECKED_CAST")
+            val items = values[0] as List<PurchaseWithAttachments>
+            val query = (values[1] as String).trim()
+            val category = values[2] as String?
+            val warranty = values[3] as WarrantyFilter
+            val attachments = values[4] as AttachmentFilter
+            val period = values[5] as PurchasePeriod
+            val today = LocalDate.now()
             items.filter { item ->
                 val purchase = item.purchase
-                val matchesQuery = normalizedQuery.isBlank() ||
-                    purchase.productName.contains(normalizedQuery, ignoreCase = true) ||
-                    purchase.merchant.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
-                    CategoryNormalizer.key(purchase.category).contains(
-                        CategoryNormalizer.key(normalizedQuery)
-                    ) ||
-                    purchase.modelNumber.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
-                    purchase.serialNumber.orEmpty().contains(normalizedQuery, ignoreCase = true) ||
-                    purchase.notes.contains(normalizedQuery, ignoreCase = true) ||
-                    item.attachments.any { attachment ->
-                        attachment.ocrText.orEmpty().contains(normalizedQuery, ignoreCase = true)
-                    }
-
+                val matchesQuery = query.isBlank() ||
+                    purchase.productName.contains(query, ignoreCase = true) ||
+                    purchase.merchant.orEmpty().contains(query, ignoreCase = true) ||
+                    CategoryNormalizer.key(purchase.category).contains(CategoryNormalizer.key(query)) ||
+                    purchase.modelNumber.orEmpty().contains(query, ignoreCase = true) ||
+                    purchase.serialNumber.orEmpty().contains(query, ignoreCase = true) ||
+                    purchase.notes.contains(query, ignoreCase = true) ||
+                    item.attachments.any { it.ocrText.orEmpty().contains(query, ignoreCase = true) }
                 val matchesCategory = category == null ||
                     CategoryNormalizer.key(purchase.category) == CategoryNormalizer.key(category)
-                matchesQuery && matchesCategory
+                val end = purchase.warrantyEndDate
+                val matchesWarranty = when (warranty) {
+                    WarrantyFilter.ALL -> true
+                    WarrantyFilter.ACTIVE -> end != null && !end.isBefore(today)
+                    WarrantyFilter.EXPIRING_SOON -> end != null && !end.isBefore(today) && !end.isAfter(today.plusDays(30))
+                    WarrantyFilter.EXPIRED -> end != null && end.isBefore(today)
+                    WarrantyFilter.NONE -> end == null
+                }
+                val matchesAttachments = when (attachments) {
+                    AttachmentFilter.ALL -> true
+                    AttachmentFilter.WITH_DOCUMENTS -> item.attachments.isNotEmpty()
+                    AttachmentFilter.WITHOUT_DOCUMENTS -> item.attachments.isEmpty()
+                }
+                val matchesPeriod = when (period) {
+                    PurchasePeriod.ALL -> true
+                    PurchasePeriod.LAST_30_DAYS -> !purchase.purchaseDate.isBefore(today.minusDays(30)) && !purchase.purchaseDate.isAfter(today)
+                    PurchasePeriod.THIS_YEAR -> purchase.purchaseDate.year == today.year
+                }
+                matchesQuery && matchesCategory && matchesWarranty && matchesAttachments && matchesPeriod
             }
         }.stateIn(
             scope = viewModelScope,
@@ -181,6 +215,18 @@ class TimelineViewModel(
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+    }
+
+    fun onWarrantyFilterSelected(filter: WarrantyFilter) { _warrantyFilter.value = filter }
+    fun onAttachmentFilterSelected(filter: AttachmentFilter) { _attachmentFilter.value = filter }
+    fun onPurchasePeriodSelected(period: PurchasePeriod) { _purchasePeriod.value = period }
+
+    fun clearFilters() {
+        _searchQuery.value = ""
+        _selectedCategory.value = null
+        _warrantyFilter.value = WarrantyFilter.ALL
+        _attachmentFilter.value = AttachmentFilter.ALL
+        _purchasePeriod.value = PurchasePeriod.ALL
     }
 
     fun onCategorySelected(category: String?) {

@@ -3,13 +3,23 @@ package com.mothblank.notasegura.util
 import java.time.DateTimeException
 import java.time.LocalDate
 
+enum class OcrConfidence { HIGH, MEDIUM, LOW }
+
+data class OcrEvidence(
+    val sourceLine: String,
+    val lineNumber: Int,
+    val heuristicScore: Int,
+    val confidence: OcrConfidence
+)
+
 data class ReceiptOcrSuggestions(
     val merchant: String? = null,
     val purchaseDate: LocalDate? = null,
     val purchaseValueCents: Long? = null,
     val modelNumber: String? = null,
     val serialNumber: String? = null,
-    val rawText: String
+    val rawText: String,
+    val evidence: Map<String, OcrEvidence> = emptyMap()
 )
 
 object ReceiptOcrParser {
@@ -52,15 +62,87 @@ object ReceiptOcrParser {
             .map { normalizeWhitespace(it) }
             .filter { it.isNotBlank() }
 
+        val merchant = findMerchant(lines)
+        val date = findPurchaseDate(lines, today)
+        val total = findPurchaseTotal(lines)
+        val model = modelRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier()
+        val serial = serialRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier()
+        val evidence = buildMap {
+            merchant?.let { chosen ->
+                val index = lines.indexOfFirst { it == chosen }
+                if (index >= 0) {
+                    val cnpjIndex = lines.indices.firstOrNull {
+                        it > index && cnpjRegex.containsMatchIn(lines[it])
+                    }
+                    var score = (10 - index).coerceAtLeast(1)
+                    if (cnpjIndex == index + 1) score += 8
+                    else if (cnpjIndex == index + 2) score += 4
+                    if (merchantPositiveTerms.containsMatchIn(chosen)) score += 4
+                    if (chosen == chosen.uppercase() && chosen.any(Char::isLetter)) score++
+                    if (chosen.count(Char::isDigit) > chosen.length / 3) score -= 4
+                    put("merchant", evidenceFor(lines, index, score, 15, 9))
+                }
+            }
+            date?.let { chosen ->
+                val index = lines.indexOfFirst { line ->
+                    dateRegex.findAll(line).any { parseDate(it) == chosen }
+                }
+                if (index >= 0) {
+                    val line = lines[index]
+                    val score = (if (dateStrongTerms.containsMatchIn(line)) 8 else 0) +
+                        (if (timeRegex.containsMatchIn(line)) 3 else 0) -
+                        (if (dateRejectedTerms.containsMatchIn(line)) 10 else 0)
+                    put("purchaseDate", evidenceFor(lines, index, score, 8, 3))
+                }
+            }
+            total?.let { chosen ->
+                val index = lines.indexOfLast { line ->
+                    moneyRegex.findAll(line).any { moneyToCents(it.groupValues[1]) == chosen }
+                }
+                if (index >= 0) {
+                    val line = lines[index]
+                    val score = (if (totalStrongTerms.containsMatchIn(line)) 10 else if (totalAnyTerm.containsMatchIn(line)) 6 else 0) +
+                        (if (Regex("""\bA\s+PAGAR\b""", RegexOption.IGNORE_CASE).containsMatchIn(line)) 3 else 0) -
+                        (if (totalRejectedTerms.containsMatchIn(line)) 10 else 0)
+                    put("purchaseValueCents", evidenceFor(lines, index, score, 10, 6))
+                }
+            }
+            model?.let { chosen ->
+                val index = lines.indexOfFirst { modelRegex.containsMatchIn(it) && it.contains(chosen, true) }
+                if (index >= 0) put("modelNumber", evidenceFor(lines, index, 5, 8, 5))
+            }
+            serial?.let { chosen ->
+                val index = lines.indexOfFirst { serialRegex.containsMatchIn(it) && it.contains(chosen, true) }
+                if (index >= 0) put("serialNumber", evidenceFor(lines, index, 5, 8, 5))
+            }
+        }
         return ReceiptOcrSuggestions(
-            merchant = findMerchant(lines),
-            purchaseDate = findPurchaseDate(lines, today),
-            purchaseValueCents = findPurchaseTotal(lines),
-            modelNumber = modelRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier(),
-            serialNumber = serialRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier(),
-            rawText = text
+            merchant = merchant,
+            purchaseDate = date,
+            purchaseValueCents = total,
+            modelNumber = model,
+            serialNumber = serial,
+            rawText = text,
+            evidence = evidence
         )
     }
+
+    private fun evidenceFor(
+        lines: List<String>,
+        index: Int,
+        score: Int,
+        highThreshold: Int,
+        mediumThreshold: Int
+    ): OcrEvidence = OcrEvidence(
+        sourceLine = lines[index],
+        lineNumber = index + 1,
+        heuristicScore = score,
+        confidence = when {
+            score >= highThreshold -> OcrConfidence.HIGH
+            score >= mediumThreshold -> OcrConfidence.MEDIUM
+            else -> OcrConfidence.LOW
+        }
+    )
 
     private fun findMerchant(lines: List<String>): String? {
         if (lines.isEmpty()) return null

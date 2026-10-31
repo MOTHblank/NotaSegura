@@ -193,7 +193,7 @@ class TimelineViewModel(
                 val matchesPeriod = when (filters.period) {
                     PurchasePeriod.ALL -> true
                     PurchasePeriod.LAST_30_DAYS ->
-                        !purchase.purchaseDate.isBefore(today.minusDays(30)) &&
+                        !purchase.purchaseDate.isBefore(today.minusDays(29)) &&
                             !purchase.purchaseDate.isAfter(today)
                     PurchasePeriod.THIS_YEAR -> purchase.purchaseDate.year == today.year
                 }

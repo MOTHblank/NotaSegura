@@ -159,52 +159,63 @@ fun TimelineScreen(
                         singleLine = true
                     )
     
-                    Text("Garantia", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.purchase_filter_warranty),
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(WarrantyFilter.entries.toList()) { filter ->
                             FilterChip(
                                 selected = warrantyFilter == filter,
                                 onClick = { viewModel.onWarrantyFilterSelected(filter) },
                                 label = { Text(when (filter) {
-                                    WarrantyFilter.ALL -> "Todas"
-                                    WarrantyFilter.ACTIVE -> "Ativas"
-                                    WarrantyFilter.EXPIRING_SOON -> "Vencem em 30 dias"
-                                    WarrantyFilter.EXPIRED -> "Vencidas"
-                                    WarrantyFilter.NONE -> "Sem garantia"
+                                    WarrantyFilter.ALL -> stringResource(R.string.purchase_filter_all)
+                                    WarrantyFilter.ACTIVE -> stringResource(R.string.purchase_filter_warranty_active)
+                                    WarrantyFilter.EXPIRING_SOON -> stringResource(R.string.purchase_filter_warranty_expiring)
+                                    WarrantyFilter.EXPIRED -> stringResource(R.string.purchase_filter_warranty_expired)
+                                    WarrantyFilter.NONE -> stringResource(R.string.purchase_filter_warranty_none)
                                 }) }
                             )
                         }
                     }
-                    Text("Documentos", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.purchase_filter_documents),
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(AttachmentFilter.entries.toList()) { filter ->
                             FilterChip(
                                 selected = attachmentFilter == filter,
                                 onClick = { viewModel.onAttachmentFilterSelected(filter) },
                                 label = { Text(when (filter) {
-                                    AttachmentFilter.ALL -> "Todos"
-                                    AttachmentFilter.WITH_DOCUMENTS -> "Com anexos"
-                                    AttachmentFilter.WITHOUT_DOCUMENTS -> "Sem anexos"
+                                    AttachmentFilter.ALL -> stringResource(R.string.purchase_filter_documents_all)
+                                    AttachmentFilter.WITH_DOCUMENTS -> stringResource(R.string.purchase_filter_documents_present)
+                                    AttachmentFilter.WITHOUT_DOCUMENTS -> stringResource(R.string.purchase_filter_documents_missing)
                                 }) }
                             )
                         }
                     }
-                    Text("Data da compra", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.purchase_filter_date),
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(PurchasePeriod.entries.toList()) { period ->
                             FilterChip(
                                 selected = purchasePeriod == period,
                                 onClick = { viewModel.onPurchasePeriodSelected(period) },
                                 label = { Text(when (period) {
-                                    PurchasePeriod.ALL -> "Qualquer data"
-                                    PurchasePeriod.LAST_30_DAYS -> "Últimos 30 dias"
-                                    PurchasePeriod.THIS_YEAR -> "Este ano"
+                                    PurchasePeriod.ALL -> stringResource(R.string.purchase_filter_date_all)
+                                    PurchasePeriod.LAST_30_DAYS -> stringResource(R.string.purchase_filter_date_last_30_days)
+                                    PurchasePeriod.THIS_YEAR -> stringResource(R.string.purchase_filter_date_this_year)
                                 }) }
                             )
                         }
                     }
                     if (hasFilters) {
-                        TextButton(onClick = viewModel::clearFilters) { Text("Limpar filtros") }
+                        TextButton(onClick = viewModel::clearFilters) {
+                            Text(stringResource(R.string.purchase_clear_filters))
+                        }
                     }
 
                     if (categories.isNotEmpty()) {

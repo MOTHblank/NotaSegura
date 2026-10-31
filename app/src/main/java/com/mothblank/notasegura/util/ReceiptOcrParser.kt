@@ -141,11 +141,11 @@ object ReceiptOcrParser {
                 }
             }
             model?.let { chosen ->
-                val index = lines.indexOfFirst { modelRegex.containsMatchIn(it) && it.contains(chosen, true) }
+                val index = lines.indexOfFirst { it.contains(chosen, ignoreCase = true) }
                 if (index >= 0) put("modelNumber", evidenceFor(lines, index, 5, 8, 5))
             }
             serial?.let { chosen ->
-                val index = lines.indexOfFirst { serialRegex.containsMatchIn(it) && it.contains(chosen, true) }
+                val index = lines.indexOfFirst { it.contains(chosen, ignoreCase = true) }
                 if (index >= 0) put("serialNumber", evidenceFor(lines, index, 5, 8, 5))
             }
         }

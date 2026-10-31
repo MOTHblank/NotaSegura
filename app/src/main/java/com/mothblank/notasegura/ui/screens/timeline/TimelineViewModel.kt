@@ -103,6 +103,14 @@ enum class WarrantyFilter { ALL, ACTIVE, EXPIRING_SOON, EXPIRED, NONE }
 enum class AttachmentFilter { ALL, WITH_DOCUMENTS, WITHOUT_DOCUMENTS }
 enum class PurchasePeriod { ALL, LAST_30_DAYS, THIS_YEAR }
 
+private data class TimelineFilters(
+    val query: String,
+    val category: String?,
+    val warranty: WarrantyFilter,
+    val attachments: AttachmentFilter,
+    val period: PurchasePeriod
+)
+
 class TimelineViewModel(
     private val documentStore: PurchaseDocumentStore,
     private val paymentRepository: PaymentRepository
@@ -128,50 +136,69 @@ class TimelineViewModel(
             initialValue = emptyList()
         )
 
+    // Database flows need not emit at midnight. Keeping the current date as a
+    // reactive input makes warranty/date filters and deadline labels roll over
+    // correctly while the app remains open.
+    private val currentDate = flow {
+        while (true) {
+            emit(LocalDate.now())
+            delay(60_000L)
+        }
+    }.distinctUntilChanged()
+
+    private val filters = combine(
+        _searchQuery,
+        _selectedCategory,
+        _warrantyFilter,
+        _attachmentFilter,
+        _purchasePeriod
+    ) { query, category, warranty, attachments, period ->
+        TimelineFilters(
+            query = query.trim(),
+            category = category,
+            warranty = warranty,
+            attachments = attachments,
+            period = period
+        )
+    }
+
     val uiState: StateFlow<List<PurchaseWithAttachments>> =
-        combine(
-            allPurchases, _searchQuery, _selectedCategory,
-            _warrantyFilter, _attachmentFilter, _purchasePeriod
-        ) { values ->
-            @Suppress("UNCHECKED_CAST")
-            val items = values[0] as List<PurchaseWithAttachments>
-            val query = (values[1] as String).trim()
-            val category = values[2] as String?
-            val warranty = values[3] as WarrantyFilter
-            val attachments = values[4] as AttachmentFilter
-            val period = values[5] as PurchasePeriod
-            val today = LocalDate.now()
+        combine(allPurchases, filters, currentDate) { items, filters, today ->
             items.filter { item ->
                 val purchase = item.purchase
-                val matchesQuery = query.isBlank() ||
-                    purchase.productName.contains(query, ignoreCase = true) ||
-                    purchase.merchant.orEmpty().contains(query, ignoreCase = true) ||
-                    CategoryNormalizer.key(purchase.category).contains(CategoryNormalizer.key(query)) ||
-                    purchase.modelNumber.orEmpty().contains(query, ignoreCase = true) ||
-                    purchase.serialNumber.orEmpty().contains(query, ignoreCase = true) ||
-                    purchase.notes.contains(query, ignoreCase = true) ||
-                    item.attachments.any { it.ocrText.orEmpty().contains(query, ignoreCase = true) }
-                val matchesCategory = category == null ||
-                    CategoryNormalizer.key(purchase.category) == CategoryNormalizer.key(category)
+                val matchesQuery = filters.query.isBlank() ||
+                    purchase.productName.contains(filters.query, ignoreCase = true) ||
+                    purchase.merchant.orEmpty().contains(filters.query, ignoreCase = true) ||
+                    CategoryNormalizer.key(purchase.category).contains(CategoryNormalizer.key(filters.query)) ||
+                    purchase.modelNumber.orEmpty().contains(filters.query, ignoreCase = true) ||
+                    purchase.serialNumber.orEmpty().contains(filters.query, ignoreCase = true) ||
+                    purchase.notes.contains(filters.query, ignoreCase = true) ||
+                    item.attachments.any { it.ocrText.orEmpty().contains(filters.query, ignoreCase = true) }
+                val matchesCategory = filters.category == null ||
+                    CategoryNormalizer.key(purchase.category) == CategoryNormalizer.key(filters.category)
                 val end = purchase.warrantyEndDate
-                val matchesWarranty = when (warranty) {
+                val matchesWarranty = when (filters.warranty) {
                     WarrantyFilter.ALL -> true
                     WarrantyFilter.ACTIVE -> end != null && !end.isBefore(today)
-                    WarrantyFilter.EXPIRING_SOON -> end != null && !end.isBefore(today) && !end.isAfter(today.plusDays(30))
+                    WarrantyFilter.EXPIRING_SOON ->
+                        end != null && !end.isBefore(today) && !end.isAfter(today.plusDays(30))
                     WarrantyFilter.EXPIRED -> end != null && end.isBefore(today)
                     WarrantyFilter.NONE -> end == null
                 }
-                val matchesAttachments = when (attachments) {
+                val matchesAttachments = when (filters.attachments) {
                     AttachmentFilter.ALL -> true
                     AttachmentFilter.WITH_DOCUMENTS -> item.attachments.isNotEmpty()
                     AttachmentFilter.WITHOUT_DOCUMENTS -> item.attachments.isEmpty()
                 }
-                val matchesPeriod = when (period) {
+                val matchesPeriod = when (filters.period) {
                     PurchasePeriod.ALL -> true
-                    PurchasePeriod.LAST_30_DAYS -> !purchase.purchaseDate.isBefore(today.minusDays(30)) && !purchase.purchaseDate.isAfter(today)
+                    PurchasePeriod.LAST_30_DAYS ->
+                        !purchase.purchaseDate.isBefore(today.minusDays(30)) &&
+                            !purchase.purchaseDate.isAfter(today)
                     PurchasePeriod.THIS_YEAR -> purchase.purchaseDate.year == today.year
                 }
-                matchesQuery && matchesCategory && matchesWarranty && matchesAttachments && matchesPeriod
+                matchesQuery && matchesCategory && matchesWarranty &&
+                    matchesAttachments && matchesPeriod
             }
         }.stateIn(
             scope = viewModelScope,
@@ -189,15 +216,6 @@ class TimelineViewModel(
                 SharingStarted.WhileSubscribed(5_000L),
                 emptyList()
             )
-
-    // A database flow need not emit at midnight. The date is its own
-    // reactive input, so due/overdue labels also change while the app stays open.
-    private val currentDate = flow {
-        while (true) {
-            emit(LocalDate.now())
-            delay(60_000L)
-        }
-    }.distinctUntilChanged()
 
     val attentionDashboard: StateFlow<AttentionDashboardState> =
         combine(allPurchases, paymentRepository.getAllPayments(), currentDate) {

@@ -88,11 +88,16 @@ fun TimelineScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val warrantyFilter by viewModel.warrantyFilter.collectAsState()
+    val attachmentFilter by viewModel.attachmentFilter.collectAsState()
+    val purchasePeriod by viewModel.purchasePeriod.collectAsState()
     val attentionDashboard by viewModel.attentionDashboard.collectAsState()
     val focusManager = LocalFocusManager.current
     var previewAttachment by remember { mutableStateOf<Attachment?>(null) }
 
-    val hasFilters = searchQuery.isNotBlank() || selectedCategory != null
+    val hasFilters = searchQuery.isNotBlank() || selectedCategory != null ||
+        warrantyFilter != WarrantyFilter.ALL || attachmentFilter != AttachmentFilter.ALL ||
+        purchasePeriod != PurchasePeriod.ALL
 
     // The deadlines overview and the purchase list share the same scroll container.
     LazyColumn(
@@ -154,6 +159,54 @@ fun TimelineScreen(
                         singleLine = true
                     )
     
+                    Text("Garantia", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(WarrantyFilter.entries.toList()) { filter ->
+                            FilterChip(
+                                selected = warrantyFilter == filter,
+                                onClick = { viewModel.onWarrantyFilterSelected(filter) },
+                                label = { Text(when (filter) {
+                                    WarrantyFilter.ALL -> "Todas"
+                                    WarrantyFilter.ACTIVE -> "Ativas"
+                                    WarrantyFilter.EXPIRING_SOON -> "Vencem em 30 dias"
+                                    WarrantyFilter.EXPIRED -> "Vencidas"
+                                    WarrantyFilter.NONE -> "Sem garantia"
+                                }) }
+                            )
+                        }
+                    }
+                    Text("Documentos", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(AttachmentFilter.entries.toList()) { filter ->
+                            FilterChip(
+                                selected = attachmentFilter == filter,
+                                onClick = { viewModel.onAttachmentFilterSelected(filter) },
+                                label = { Text(when (filter) {
+                                    AttachmentFilter.ALL -> "Todos"
+                                    AttachmentFilter.WITH_DOCUMENTS -> "Com anexos"
+                                    AttachmentFilter.WITHOUT_DOCUMENTS -> "Sem anexos"
+                                }) }
+                            )
+                        }
+                    }
+                    Text("Data da compra", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(PurchasePeriod.entries.toList()) { period ->
+                            FilterChip(
+                                selected = purchasePeriod == period,
+                                onClick = { viewModel.onPurchasePeriodSelected(period) },
+                                label = { Text(when (period) {
+                                    PurchasePeriod.ALL -> "Qualquer data"
+                                    PurchasePeriod.LAST_30_DAYS -> "Últimos 30 dias"
+                                    PurchasePeriod.THIS_YEAR -> "Este ano"
+                                }) }
+                            )
+                        }
+                    }
+                    if (hasFilters) {
+                        TextButton(onClick = viewModel::clearFilters) { Text("Limpar filtros") }
+                    }
+
                     if (categories.isNotEmpty()) {
                         Text(
                             stringResource(R.string.purchase_filter_category),
@@ -189,8 +242,7 @@ fun TimelineScreen(
                     filtered = hasFilters,
                     onPrimaryAction = {
                         if (hasFilters) {
-                            viewModel.onSearchQueryChange("")
-                            viewModel.onCategorySelected(null)
+                            viewModel.clearFilters()
                         } else {
                             navController.navigate(AppScreen.AddEditItem.createRoute())
                         }

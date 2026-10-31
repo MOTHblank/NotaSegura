@@ -69,42 +69,75 @@ object ReceiptOcrParser {
         val serial = serialRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier()
         val evidence = buildMap {
             merchant?.let { chosen ->
-                val index = lines.indexOfFirst { it == chosen }
-                if (index >= 0) {
+                val candidate = lines.take(10).mapIndexedNotNull { index, line ->
+                    if (line != chosen || !isPlausibleMerchantLine(line)) {
+                        return@mapIndexedNotNull null
+                    }
                     val cnpjIndex = lines.indices.firstOrNull {
                         it > index && cnpjRegex.containsMatchIn(lines[it])
                     }
                     var score = (10 - index).coerceAtLeast(1)
                     if (cnpjIndex == index + 1) score += 8
                     else if (cnpjIndex == index + 2) score += 4
-                    if (merchantPositiveTerms.containsMatchIn(chosen)) score += 4
-                    if (chosen == chosen.uppercase() && chosen.any(Char::isLetter)) score++
-                    if (chosen.count(Char::isDigit) > chosen.length / 3) score -= 4
+                    if (merchantPositiveTerms.containsMatchIn(line)) score += 4
+                    if (line == line.uppercase() && line.any(Char::isLetter)) score++
+                    if (line.count(Char::isDigit) > line.length / 3) score -= 4
+                    Triple(index, score, line)
+                }.maxWithOrNull(
+                    compareBy<Triple<Int, Int, String>> { it.second }
+                        .thenBy { -it.first }
+                )
+                candidate?.let { (index, score) ->
                     put("merchant", evidenceFor(lines, index, score, 15, 9))
                 }
             }
             date?.let { chosen ->
-                val index = lines.indexOfFirst { line ->
-                    dateRegex.findAll(line).any { parseDate(it) == chosen }
-                }
-                if (index >= 0) {
-                    val line = lines[index]
+                val candidate = lines.mapIndexedNotNull { index, line ->
+                    val hasChosenDate = dateRegex.findAll(line).any { parseDate(it) == chosen }
+                    if (!hasChosenDate) return@mapIndexedNotNull null
                     val score = (if (dateStrongTerms.containsMatchIn(line)) 8 else 0) +
                         (if (timeRegex.containsMatchIn(line)) 3 else 0) -
                         (if (dateRejectedTerms.containsMatchIn(line)) 10 else 0)
+                    index to score
+                }.filter { it.second >= 0 }
+                    .maxWithOrNull(
+                        compareBy<Pair<Int, Int>> { it.second }
+                            .thenBy { -it.first }
+                    )
+                candidate?.let { (index, score) ->
                     put("purchaseDate", evidenceFor(lines, index, score, 8, 3))
                 }
             }
             total?.let { chosen ->
-                val index = lines.indexOfLast { line ->
-                    moneyRegex.findAll(line).any { moneyToCents(it.groupValues[1]) == chosen }
-                }
-                if (index >= 0) {
-                    val line = lines[index]
-                    val score = (if (totalStrongTerms.containsMatchIn(line)) 10 else if (totalAnyTerm.containsMatchIn(line)) 6 else 0) +
-                        (if (Regex("""\bA\s+PAGAR\b""", RegexOption.IGNORE_CASE).containsMatchIn(line)) 3 else 0) -
-                        (if (totalRejectedTerms.containsMatchIn(line)) 10 else 0)
-                    put("purchaseValueCents", evidenceFor(lines, index, score, 10, 6))
+                data class TotalEvidenceCandidate(
+                    val lineIndex: Int,
+                    val matchIndex: Int,
+                    val score: Int
+                )
+                val candidate = lines.flatMapIndexed { lineIndex, line ->
+                    moneyRegex.findAll(line).mapIndexedNotNull { matchIndex, match ->
+                        if (moneyToCents(match.groupValues[1]) != chosen) {
+                            return@mapIndexedNotNull null
+                        }
+                        val score =
+                            (if (totalStrongTerms.containsMatchIn(line)) 10
+                            else if (totalAnyTerm.containsMatchIn(line)) 6 else 0) +
+                                (if (Regex("""\bA\s+PAGAR\b""", RegexOption.IGNORE_CASE)
+                                        .containsMatchIn(line)) 3 else 0) -
+                                (if (totalRejectedTerms.containsMatchIn(line)) 10 else 0)
+                        TotalEvidenceCandidate(lineIndex, matchIndex, score)
+                    }.toList()
+                }.filter { it.score >= 0 }
+                    .maxWithOrNull(
+                        compareBy<TotalEvidenceCandidate> { it.score }
+                            .thenBy { it.lineIndex }
+                            .thenBy { it.matchIndex }
+                    )
+                candidate?.let {
+                    put(
+                        "purchaseValueCents",
+                        evidenceFor(lines, it.lineIndex, it.score, 10, 6)
+                    )
                 }
             }
             model?.let { chosen ->
@@ -246,7 +279,10 @@ object ReceiptOcrParser {
             )
             ?.let { return it.cents }
 
-        val uniqueValues = candidates.map { it.cents }.distinct()
+        val uniqueValues = candidates
+            .filter { it.score >= 0 }
+            .map { it.cents }
+            .distinct()
         return uniqueValues.singleOrNull()
     }
 

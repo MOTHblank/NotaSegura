@@ -686,7 +686,17 @@ class AddEditItemViewModel(
             purchaseValueCents = current.purchaseValueCents ?: next.purchaseValueCents,
             modelNumber = current.modelNumber ?: next.modelNumber,
             serialNumber = current.serialNumber ?: next.serialNumber,
-            rawText = current.rawText + "\n" + next.rawText
+            rawText = current.rawText + "\n" + next.rawText,
+            evidence = next.evidence + current.evidence.filterKeys { key ->
+                when (key) {
+                    "merchant" -> current.merchant != null
+                    "purchaseDate" -> current.purchaseDate != null
+                    "purchaseValueCents" -> current.purchaseValueCents != null
+                    "modelNumber" -> current.modelNumber != null
+                    "serialNumber" -> current.serialNumber != null
+                    else -> false
+                }
+            }
         )
     }
 }

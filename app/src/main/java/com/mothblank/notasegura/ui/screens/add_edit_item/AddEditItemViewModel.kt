@@ -680,6 +680,19 @@ class AddEditItemViewModel(
         next: ReceiptOcrSuggestions
     ): ReceiptOcrSuggestions {
         if (current == null) return next
+        val mergedEvidence = buildMap {
+            fun copyEvidence(key: String, keepCurrent: Boolean) {
+                val evidence = if (keepCurrent) current.evidence[key] else next.evidence[key]
+                evidence?.let { put(key, it) }
+            }
+
+            copyEvidence("merchant", current.merchant != null)
+            copyEvidence("purchaseDate", current.purchaseDate != null)
+            copyEvidence("purchaseValueCents", current.purchaseValueCents != null)
+            copyEvidence("modelNumber", current.modelNumber != null)
+            copyEvidence("serialNumber", current.serialNumber != null)
+        }
+
         return ReceiptOcrSuggestions(
             merchant = current.merchant ?: next.merchant,
             purchaseDate = current.purchaseDate ?: next.purchaseDate,
@@ -687,16 +700,7 @@ class AddEditItemViewModel(
             modelNumber = current.modelNumber ?: next.modelNumber,
             serialNumber = current.serialNumber ?: next.serialNumber,
             rawText = current.rawText + "\n" + next.rawText,
-            evidence = next.evidence + current.evidence.filterKeys { key ->
-                when (key) {
-                    "merchant" -> current.merchant != null
-                    "purchaseDate" -> current.purchaseDate != null
-                    "purchaseValueCents" -> current.purchaseValueCents != null
-                    "modelNumber" -> current.modelNumber != null
-                    "serialNumber" -> current.serialNumber != null
-                    else -> false
-                }
-            }
+            evidence = mergedEvidence
         )
     }
 }

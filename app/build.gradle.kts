@@ -55,6 +55,8 @@ dependencies {
     implementation(project(":ppocr-sdk"))
     implementation(libs.androidx.exifinterface)
     implementation(libs.pdfbox.android)
+    // Receipt image enhancement uses the same OpenCV version as the OCR SDK.
+    implementation(libs.opencv.android)
     implementation(libs.androidx.work.manager.ktx)
     implementation(libs.coil.compose)
 

@@ -429,10 +429,10 @@ class AddEditItemViewModel(
                 val pdfText = receiptOcrEngine.recognizePdf(file, scanImagePages)
                 pdfText to ReceiptOcrParser.parse(pdfText)
             } else {
-                // Keep each image line's coordinates and confidence until the
-                // fields have been selected. Only plain text is persisted.
-                val regions = receiptOcrEngine.recognizeLines(file)
-                regions.joinToString("\n") { it.text } to ReceiptOcrParser.parse(regions)
+                // Adaptive receipt OCR keeps the original image untouched,
+                // retries difficult scans locally and returns reviewable evidence.
+                val scan = receiptOcrEngine.recognizeReceipt(file)
+                scan.text to scan.suggestions
             }
             val staged = stagedAttachments[attachmentId] ?: return
             stagedAttachments[attachmentId] = staged.copy(ocrText = text)

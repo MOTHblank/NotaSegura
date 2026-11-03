@@ -9,12 +9,22 @@ import com.paddle.ocr.EngineConfig
 import com.paddle.ocr.PaddleOCR
 import com.paddle.ocr.PaddleOCRConfig
 import com.paddle.ocr.util.OpenCVUtils
+import com.mothblank.notasegura.util.OcrConfidence
 import com.mothblank.notasegura.util.OcrTextRegion
+import com.mothblank.notasegura.util.ReceiptOcrParser
+import com.mothblank.notasegura.util.ReceiptOcrSuggestions
+import com.mothblank.notasegura.util.ReceiptPriceAnalyzer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+
+data class ReceiptImageScan(
+    val text: String,
+    val suggestions: ReceiptOcrSuggestions
+)
 
 class ReceiptOcrEngine(
     context: Context
@@ -39,37 +49,217 @@ class ReceiptOcrEngine(
     }
 
     /**
-     * Unlike the plain-text helper, this keeps each PaddleOCR text box and its
-     * recognition confidence so the receipt parser can match labels to amounts.
+     * Kept for existing integrations that want OCR geometry without recovery.
+     * Receipt capture uses recognizeReceipt() to enable bounded adaptive passes.
      */
     suspend fun recognizeLines(imageFile: File): List<OcrTextRegion> =
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                require(imageFile.isFile && imageFile.length() > 0L) {
-                    "Imagem de OCR ausente ou vazia."
-                }
+                require(imageFile.isFile && imageFile.length() > 0L)
                 val bitmap = decodeForOcr(imageFile)
                 try {
-                    getOrCreateEngine().recognize(bitmap).results.mapIndexedNotNull { index, item ->
-                        val text = item.text.trim()
-                        if (text.isBlank()) return@mapIndexedNotNull null
-                        val points = item.box.points
-                        OcrTextRegion(
-                            text = text,
-                            lineNumber = index + 1,
-                            recognitionConfidence = item.confidence
-                                .takeIf { it.isFinite() }
-                                ?.coerceIn(0f, 1f),
-                            left = points.minOf { it.x },
-                            top = points.minOf { it.y },
-                            right = points.maxOf { it.x },
-                            bottom = points.maxOf { it.y }
-                        )
-                    }
+                    recognizeBitmapLines(bitmap)
                 } finally {
                     bitmap.recycle()
                 }
             }
+        }
+
+    /**
+     * First use the untouched photo. Only uncertain readings get a gentle
+     * contrast pass and (at most) one higher-resolution monetary crop.
+     * Conflicting OCR passes never lead to high-confidence price autofill.
+     */
+    suspend fun recognizeReceipt(imageFile: File): ReceiptImageScan =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                require(imageFile.isFile && imageFile.length() > 0L)
+                val original = decodeForOcr(imageFile)
+                try {
+                    val baseline = recognizeBitmapLines(original)
+                    var chosen = baseline
+                    var conflicting = false
+
+                    if (ReceiptRecoveryPolicy.shouldEnhance(baseline)) {
+                        val enhanced = ReceiptImagePreprocessor(appContext)
+                            .enhanceContrast(original)
+                        if (enhanced != null) {
+                            try {
+                                val alternative = recognizeBitmapLines(enhanced)
+                                conflicting = ReceiptRecoveryPolicy.contradict(
+                                    baseline, alternative
+                                )
+                                chosen = ReceiptRecoveryPolicy.chooseScan(
+                                    baseline, alternative
+                                )
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                // A failed optional enhancement must not discard
+                                // the original successful OCR reading.
+                            } finally {
+                                enhanced.recycle()
+                            }
+                        }
+                    }
+
+                    var parsed = ReceiptOcrParser.parse(chosen)
+                    val firstPrice = ReceiptPriceAnalyzer.findTotal(chosen)
+                    val plan = ReceiptRecoveryPolicy.proposeCrop(
+                        chosen, original.width, original.height
+                    )
+
+                    if (plan != null) {
+                        try {
+                            val details = recognizePriceCrop(imageFile, original, plan)
+                            val reread = ReceiptRecoveryPolicy.isolatedPrice(details)
+                            if (reread != null) {
+                                val originalAmount = firstPrice?.amountCents
+                                val rereadConfidence =
+                                    reread.evidence.recognitionConfidence ?: 0f
+
+                                if (originalAmount != null &&
+                                    originalAmount != reread.amountCents
+                                ) {
+                                    conflicting = true
+                                } else if (originalAmount == reread.amountCents &&
+                                    !conflicting &&
+                                    firstPrice != null &&
+                                    firstPrice.evidence.heuristicScore >= 12 &&
+                                    rereadConfidence >= 0.92f
+                                ) {
+                                    // Agreement between independent full and cropped
+                                    // OCR passes can upgrade an uncertain digit.
+                                    val confirmed = firstPrice.evidence.copy(
+                                        confidence = OcrConfidence.HIGH,
+                                        recognitionConfidence = rereadConfidence
+                                    )
+                                    parsed = parsed.copy(
+                                        evidence = parsed.evidence +
+                                            ("purchaseValueCents" to confirmed)
+                                    )
+                                } else if (originalAmount == null &&
+                                    rereadConfidence >= 0.85f
+                                ) {
+                                    // A recovered but previously unread number
+                                    // stays a manual suggestion, never autofill.
+                                    val cautious = reread.evidence.copy(
+                                        confidence = OcrConfidence.LOW,
+                                        sourceLine = "Releitura: " +
+                                            reread.evidence.sourceLine
+                                    )
+                                    parsed = parsed.copy(
+                                        purchaseValueCents = reread.amountCents,
+                                        evidence = parsed.evidence +
+                                            ("purchaseValueCents" to cautious)
+                                    )
+                                }
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            // High-resolution retries are optional; preserve the
+                            // original detected fields if the crop fails.
+                        }
+                    }
+
+                    if (conflicting) {
+                        val evidence = parsed.evidence["purchaseValueCents"]
+                        if (evidence != null) {
+                            parsed = parsed.copy(
+                                evidence = parsed.evidence +
+                                    ("purchaseValueCents" to evidence.copy(
+                                        confidence = OcrConfidence.LOW
+                                    ))
+                            )
+                        }
+                    }
+                    ReceiptImageScan(
+                        text = chosen.joinToString("\n") { it.text },
+                        suggestions = parsed
+                    )
+                } finally {
+                    original.recycle()
+                }
+            }
+        }
+
+    private suspend fun recognizePriceCrop(
+        imageFile: File,
+        original: Bitmap,
+        plan: ReceiptCrop
+    ): List<OcrTextRegion> {
+        // Only decode a larger image after a full-frame scan identifies an
+        // uncertain total. EXIF rotation is applied to both decodes.
+        val highResolution = decodeForOcr(imageFile, MAX_DETAIL_DECODE_SIDE)
+        try {
+            val scaleX = highResolution.width.toFloat() / original.width
+            val scaleY = highResolution.height.toFloat() / original.height
+            val left = (plan.left * scaleX).toInt().coerceIn(
+                0, highResolution.width - 1
+            )
+            val top = (plan.top * scaleY).toInt().coerceIn(
+                0, highResolution.height - 1
+            )
+            val right = (plan.right * scaleX).toInt().coerceIn(
+                left + 1, highResolution.width
+            )
+            val bottom = (plan.bottom * scaleY).toInt().coerceIn(
+                top + 1, highResolution.height
+            )
+            val crop = Bitmap.createBitmap(
+                highResolution, left, top, right - left, bottom - top
+            )
+            val prepared = try {
+                // Keep a cropped region within the detector's 2048px limit.
+                // Small crops can be enlarged for recognition without loading
+                // or rescanning the rest of the high-resolution photo.
+                val longest = maxOf(crop.width, crop.height)
+                when {
+                    longest > MAX_DECODE_SIDE ->
+                        scaleToMaximumSide(crop, MAX_DECODE_SIDE)
+                    longest < MIN_DETAIL_SIDE -> {
+                        val factor = MIN_DETAIL_SIDE.toFloat() / longest
+                        Bitmap.createScaledBitmap(
+                            crop,
+                            (crop.width * factor).toInt().coerceAtLeast(1),
+                            (crop.height * factor).toInt().coerceAtLeast(1),
+                            true
+                        )
+                    }
+                    else -> crop
+                }
+            } catch (error: Throwable) {
+                crop.recycle()
+                throw error
+            }
+            if (prepared !== crop) crop.recycle()
+            try {
+                return recognizeBitmapLines(prepared)
+            } finally {
+                prepared.recycle()
+            }
+        } finally {
+            highResolution.recycle()
+        }
+    }
+
+    private suspend fun recognizeBitmapLines(bitmap: Bitmap): List<OcrTextRegion> =
+        getOrCreateEngine().recognize(bitmap).results.mapIndexedNotNull { index, item ->
+            val text = item.text.trim()
+            if (text.isBlank()) return@mapIndexedNotNull null
+            val points = item.box.points
+            OcrTextRegion(
+                text = text,
+                lineNumber = index + 1,
+                recognitionConfidence = item.confidence
+                    .takeIf { it.isFinite() }
+                    ?.coerceIn(0f, 1f),
+                left = points.minOf { it.x },
+                top = points.minOf { it.y },
+                right = points.maxOf { it.x },
+                bottom = points.maxOf { it.y }
+            )
         }
 
     /** Caller retains ownership of bitmaps rendered from PDF pages. */
@@ -111,7 +301,7 @@ class ReceiptOcrEngine(
         ).also { engine = it }
     }
 
-    private fun decodeForOcr(file: File): Bitmap {
+    private fun decodeForOcr(file: File, maximumSide: Int = MAX_DECODE_SIDE): Bitmap {
         val bounds = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
@@ -121,9 +311,11 @@ class ReceiptOcrEngine(
         }
 
         var sampleSize = 1
+        val longestInput = maxOf(bounds.outWidth, bounds.outHeight)
         while (
-            maxOf(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >=
-            MAX_DECODE_SIDE
+            longestInput / (sampleSize * 2) >= maximumSide ||
+            (maximumSide > MAX_DECODE_SIDE &&
+                longestInput / sampleSize > maximumSide + 1024)
         ) {
             sampleSize *= 2
         }
@@ -136,7 +328,7 @@ class ReceiptOcrEngine(
             }
         ) ?: error("Não foi possível decodificar a imagem para OCR.")
 
-        val scaled = scaleToMaximumSide(decoded, MAX_DECODE_SIDE)
+        val scaled = scaleToMaximumSide(decoded, maximumSide)
         if (scaled !== decoded) {
             decoded.recycle()
         }
@@ -178,5 +370,7 @@ class ReceiptOcrEngine(
 
     companion object {
         private const val MAX_DECODE_SIDE = 2048
+        private const val MAX_DETAIL_DECODE_SIDE = 3200
+        private const val MIN_DETAIL_SIDE = 1500
     }
 }

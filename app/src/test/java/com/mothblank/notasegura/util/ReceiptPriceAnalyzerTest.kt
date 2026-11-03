@@ -136,6 +136,14 @@ class ReceiptPriceAnalyzerTest {
         assertNull(result.purchaseValueCents)
     }
 
+    @Test
+    fun totalPaidIsNotTreatedAsInvoiceTotal() {
+        val result = ReceiptOcrParser.parse(
+            "VALOR TOTAL PAGO R$ 70,00\nTOTAL DA NOTA R$ 82,00"
+        )
+        assertEquals(8200L, result.purchaseValueCents)
+    }
+
     private fun region(
         text: String,
         index: Int,

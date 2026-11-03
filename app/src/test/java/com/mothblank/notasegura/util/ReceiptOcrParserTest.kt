@@ -131,6 +131,18 @@ class ReceiptOcrParserTest {
     }
 
     @Test
+    fun authorizationAndDispatchDatesAloneAreNotPurchaseDates() {
+        val text = """
+            DANFE
+            PROTOCOLO DE AUTORIZACAO 01/11/2026 12:00
+            DATA DE SAIDA 02/11/2026
+            VALOR TOTAL DA NOTA 100,00
+        """.trimIndent()
+        val result = ReceiptOcrParser.parse(text, LocalDate.of(2026, 11, 2))
+        assertNull(result.purchaseDate)
+    }
+
+    @Test
     fun acceptsCommonModelAndSerialLabels() {
         val text = """
             LOJA TESTE LTDA

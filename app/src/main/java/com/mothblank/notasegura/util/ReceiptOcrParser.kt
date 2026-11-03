@@ -49,7 +49,7 @@ object ReceiptOcrParser {
         """(?i)\b(?:DATA\s+(?:DA\s+)?(?:COMPRA|VENDA|EMISS[AÃ]O)|EMISS[AÃ]O)\b"""
     )
     private val dateRejectedTerms = Regex(
-        """(?i)\b(?:VENCIMENTO|VALIDADE|GARANTIA|ENTREGA|PREVIS[AÃ]O)\b"""
+        """(?i)\b(?:VENCIMENTO|VALIDADE|GARANTIA|ENTREGA|PREVIS[AÃ]O|PROTOCOLO|AUTORIZA[CÇ][AÃ]O|CONSULTA|SA[IÍ]DA|ENTRADA|RECEBIMENTO|CANCELAMENTO)\b"""
     )
 
     fun parse(text: String, today: LocalDate = LocalDate.now()): ReceiptOcrSuggestions {

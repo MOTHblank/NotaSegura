@@ -31,21 +31,30 @@ object ReceiptPriceAnalyzer {
         """(?<!\d)(?:R\$\s*)?(\d+(?:[.,\s]\d{3})*[.,]\d{2}|\d+[.,]\d{2})(?!\d)""",
         RegexOption.IGNORE_CASE
     )
-    private val strongLabels = Regex(
-        """(?i)\b(?:TOTAL\s+A\s+PAGAR|VALOR\s+TOTAL|TOTAL\s+GERAL|TOTAL\s+(?:DA|DE)\s+(?:COMPRA|VENDA|NOTA)|VALOR\s+(?:A\s+PAGAR|DA\s+NOTA))\b"""
+    // Fiscal receipts can show both a gross item total and a net payable
+    // amount after discounts. Prefer the latter when explicitly labelled.
+    private val payableLabels = Regex(
+        """(?i)\b(?:TOTAL\s+A\s+PAGAR|VALOR\s+A\s+PAGAR|TOTAL\s+L[IÍ]QUIDO|VALOR\s+L[IÍ]QUIDO\s+A\s+PAGAR)\b"""
     )
-    private val otherLabels = Regex(
-        """(?i)\b(?:TOTAL|A\s+PAGAR|VALOR\s+L[IÍ]QUIDO|VALOR\s+FINAL)\b"""
+    private val invoiceLabels = Regex(
+        """(?i)\b(?:VALOR\s+TOTAL\s+DA\s+(?:NOTA(?:\s+FISCAL)?|NF[\s-]?E)|TOTAL\s+DA\s+(?:NOTA(?:\s+FISCAL)?|NF[\s-]?E)|VALOR\s+DA\s+NOTA(?:\s+FISCAL)?)\b"""
     )
-    private val rejectedLabels = Regex(
-        """(?i)\b(?:SUB\s*TOTAL|TOTAL\s+(?:DE|DOS|DAS)\s+(?:ITENS?|PRODUTOS?|TRIBUTOS?|IMPOSTOS?|DESCONTOS?)|DESCONTO|TROCO|ACR[ÉE]SCIMO|VALOR\s+PAGO|DINHEIRO|CART[AÃ]O|PIX|IMPOSTO|TRIBUTO|VALOR\s+UNIT[AÁ]RIO|QUANTIDADE|QTD|PARCELA|TAXA|FRETE)\b"""
+    private val totalStrongTerms = Regex(
+        """(?i)\b(?:VALOR\s+TOTAL|TOTAL\s+GERAL|TOTAL\s+DA\s+(?:COMPRA|VENDA)|TOTAL\s+R\$)\b"""
+    )
+    private val totalAnyTerm = Regex(
+        """(?i)\b(?:TOTAL|VALOR\s+FINAL)\b"""
+    )
+    private val totalRejectedTerms = Regex(
+        """(?i)\b(?:SUB\s*TOTAL|TOTAL\s+(?:DE|DOS|DAS)\s+(?:ITENS?|PRODUTOS?|SERVI[CÇ]OS?|TRIBUTOS?|IMPOSTOS?|DESCONTOS?)|VALOR\s+(?:TOTAL\s+)?(?:DOS?|DAS?)\s+(?:PRODUTOS?|SERVI[CÇ]OS?|ITENS?|TRIBUTOS?|IMPOSTOS?)|DESCONTO|TROCO|ACR[ÉE]SCIMO|VALOR\s+PAGO|VALOR\s+RECEBIDO|DINHEIRO|CART[AÃ]O|PIX|IMPOSTO|TRIBUTO|ICMS|ISSQN|PIS|COFINS|BASE\s+DE\s+C[AÁ]LCULO|VALOR\s+UNIT[AÁ]RIO|QUANTIDADE|QTD|PARCELA|TAXA|FRETE|FORMA\s+DE\s+PAGAMENTO)\b"""
     )
 
     private data class RankedAmount(
         val cents: Long,
         val score: Int,
         val region: OcrTextRegion,
-        val source: String
+        val source: String,
+        val textOnlyAssociation: Boolean
     )
 
     fun findTotal(regions: List<OcrTextRegion>): ReceiptPriceCandidate? {
@@ -63,6 +72,7 @@ object ReceiptPriceAnalyzer {
                     if (score < 0) return@forEach
 
                     var source = region.text
+                    var textOnlyAssociation = false
                     if (score == 0) {
                         val label = readable.mapIndexedNotNull { labelIndex, other ->
                             if (index == labelIndex || amountRegex.containsMatchIn(other.text)) {
@@ -79,11 +89,12 @@ object ReceiptPriceAnalyzer {
                         if (label != null && label.first > score) {
                             score = label.first
                             source = label.second + " → " + region.text
+                            textOnlyAssociation = region.left == null
                         }
                     }
 
                     if (score >= MIN_CANDIDATE_SCORE) {
-                        add(RankedAmount(cents, score, region, source))
+                        add(RankedAmount(cents, score, region, source, textOnlyAssociation))
                     }
                 }
             }
@@ -101,7 +112,8 @@ object ReceiptPriceAnalyzer {
         val confidence = best.region.recognitionConfidence?.takeIf { it.isFinite() }
             ?.coerceIn(0f, 1f)
         val rating = when {
-            best.score >= 13 && (confidence == null || confidence >= 0.90f) ->
+            best.score >= 13 && !best.textOnlyAssociation &&
+                (confidence == null || confidence >= 0.90f) ->
                 OcrConfidence.HIGH
             best.score >= 7 && (confidence == null || confidence >= 0.70f) ->
                 OcrConfidence.MEDIUM
@@ -120,11 +132,17 @@ object ReceiptPriceAnalyzer {
     }
 
     private fun labelScore(text: String, amountOffset: Int = Int.MAX_VALUE): Int {
-        if (rejectedLabels.containsMatchIn(text)) return -1
-        val strong = strongLabels.find(text)
-        if (strong != null && strong.range.last < amountOffset) return 16
-        val normal = otherLabels.find(text)
-        return if (normal != null && normal.range.last < amountOffset) 9 else 0
+        if (totalRejectedTerms.containsMatchIn(text)) return -1
+        fun beforeAmount(pattern: Regex): Boolean =
+            pattern.find(text)?.range?.last?.let { it < amountOffset } == true
+
+        return when {
+            beforeAmount(payableLabels) -> 20
+            beforeAmount(invoiceLabels) -> 17
+            beforeAmount(totalStrongTerms) -> 15
+            beforeAmount(totalAnyTerm) -> 9
+            else -> 0
+        }
     }
 
     /**

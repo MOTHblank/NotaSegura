@@ -79,6 +79,63 @@ class ReceiptPriceAnalyzerTest {
         assertNull(ReceiptOcrParser.parse(boxes).purchaseValueCents)
     }
 
+    @Test
+    fun nfcePrefersNetPayableOverGrossTotalAndPaymentBreakdown() {
+        val result = ReceiptOcrParser.parse(
+            """
+            Qtde total de itens 4
+            Valor total R$ 138,74
+            Desconto R$ 8,00
+            Valor a Pagar R$ 130,74
+            FORMA PAGAMENTO
+            Cartao de credito R$ 100,00
+            PIX R$ 30,74
+            Valor pago R$ 130,74
+            """.trimIndent()
+        )
+        assertEquals(13074L, result.purchaseValueCents)
+        assertEquals(OcrConfidence.HIGH, result.evidence["purchaseValueCents"]?.confidence)
+    }
+
+    @Test
+    fun danfeFindsInvoiceTotalWithoutConfusingTaxBase() {
+        val result = ReceiptOcrParser.parse(
+            """
+            VALOR TOTAL DOS PRODUTOS 1.200,00
+            BASE DE CALCULO DO ICMS 1.200,00
+            ICMS 216,00
+            FRETE 25,00
+            VALOR TOTAL DA NOTA FISCAL R$ 1.225,00
+            """.trimIndent()
+        )
+        assertEquals(122500L, result.purchaseValueCents)
+    }
+
+    @Test
+    fun splitValueToPayRemainsSuggestionRatherThanHighConfidenceAutofill() {
+        val result = ReceiptOcrParser.parse(
+            "VALOR A PAGAR\nR$ 149,90\nVALOR PAGO\nR$ 149,90"
+        )
+        assertEquals(14990L, result.purchaseValueCents)
+        assertEquals(OcrConfidence.MEDIUM, result.evidence["purchaseValueCents"]?.confidence)
+    }
+
+    @Test
+    fun paymentMethodsWithoutFinalTotalAreNotUsed() {
+        val result = ReceiptOcrParser.parse(
+            "FORMA DE PAGAMENTO\nPIX 40,00\nCARTAO 10,00\nVALOR PAGO 50,00"
+        )
+        assertNull(result.purchaseValueCents)
+    }
+
+    @Test
+    fun competingIdenticalInvoiceLabelsWithDifferentValuesAreAmbiguous() {
+        val result = ReceiptOcrParser.parse(
+            "VALOR TOTAL DA NOTA R$ 99,00\nVALOR TOTAL DA NOTA R$ 89,00"
+        )
+        assertNull(result.purchaseValueCents)
+    }
+
     private fun region(
         text: String,
         index: Int,

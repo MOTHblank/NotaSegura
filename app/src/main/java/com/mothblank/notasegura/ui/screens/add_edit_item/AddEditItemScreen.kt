@@ -204,6 +204,13 @@ fun AddEditItemScreen(
                 onEdit = { editingAttachment = it },
                 onRemove = viewModel::removeAttachment
             )
+            uiState.ocrSuggestions?.issuerCnpj?.let { cnpj ->
+                Text(
+                    stringResource(R.string.ocr_issuer_cnpj_found, cnpj),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         if (uiState.hasOcrAutofill) {

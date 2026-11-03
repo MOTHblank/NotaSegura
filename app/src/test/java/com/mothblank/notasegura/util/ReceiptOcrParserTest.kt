@@ -116,6 +116,21 @@ class ReceiptOcrParserTest {
     }
 
     @Test
+    fun lowRecognitionConfidenceCapsMerchantAndFiscalDateAutofill() {
+        val regions = listOf(
+            OcrTextRegion("LOJA EXEMPLO LTDA", 1, 0.55f),
+            OcrTextRegion("CNPJ 11.222.333/0001-81", 2, 0.99f),
+            OcrTextRegion("EMISSAO 01/11/2026", 3, 0.78f),
+            OcrTextRegion("VALOR A PAGAR R$ 49,90", 4, 0.99f)
+        )
+        val result = ReceiptOcrParser.parse(regions, LocalDate.of(2026, 11, 2))
+        assertEquals("LOJA EXEMPLO LTDA", result.merchant)
+        assertEquals(OcrConfidence.LOW, result.evidence["merchant"]?.confidence)
+        assertEquals(OcrConfidence.MEDIUM, result.evidence["purchaseDate"]?.confidence)
+        assertEquals(OcrConfidence.HIGH, result.evidence["purchaseValueCents"]?.confidence)
+    }
+
+    @Test
     fun acceptsCommonModelAndSerialLabels() {
         val text = """
             LOJA TESTE LTDA

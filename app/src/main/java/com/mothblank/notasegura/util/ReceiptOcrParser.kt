@@ -20,6 +20,7 @@ data class ReceiptOcrSuggestions(
     val modelNumber: String? = null,
     val serialNumber: String? = null,
     val rawText: String,
+    val issuerCnpj: String? = null,
     val evidence: Map<String, OcrEvidence> = emptyMap()
 )
 
@@ -60,8 +61,15 @@ object ReceiptOcrParser {
         val sourceLineNumbers = normalizedLines.map { it.first }
         val lines = normalizedLines.map { it.second }
 
-        val merchant = findMerchant(lines)
-        val date = findPurchaseDate(lines, today)
+        // Fiscal headers distinguish the issuing merchant from recipient data,
+        // and emission dates from authorization, validity, and delivery dates.
+        val fiscal = BrazilianFiscalDocumentParser.extract(normalizedLines, today)
+        val merchant = fiscal.issuerName ?: findMerchant(lines)
+        // Competing equally labelled issue dates must not silently select one.
+        val date = when {
+            fiscal.ambiguousIssueDate -> null
+            else -> fiscal.issueDate ?: findPurchaseDate(lines, today)
+        }
         val totalResult = ReceiptPriceAnalyzer.findTotal(
             normalizedLines.map { (lineNumber, line) -> OcrTextRegion(line, lineNumber) }
         )
@@ -70,6 +78,9 @@ object ReceiptOcrParser {
         val serial = serialRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier()
         val evidence = buildMap {
             merchant?.let { chosen ->
+                if (fiscal.issuerName == chosen && fiscal.issuerEvidence != null) {
+                    put("merchant", fiscal.issuerEvidence)
+                }
                 val candidate = lines.take(10).mapIndexedNotNull { index, line ->
                     if (line != chosen || !isPlausibleMerchantLine(line)) {
                         return@mapIndexedNotNull null
@@ -89,10 +100,15 @@ object ReceiptOcrParser {
                         .thenBy { -it.first }
                 )
                 candidate?.let { (index, score) ->
-                    put("merchant", evidenceFor(lines, sourceLineNumbers, index, score, 15, 9))
+                    if ("merchant" !in this) {
+                        put("merchant", evidenceFor(lines, sourceLineNumbers, index, score, 15, 9))
+                    }
                 }
             }
             date?.let { chosen ->
+                if (fiscal.issueDate == chosen && fiscal.dateEvidence != null) {
+                    put("purchaseDate", fiscal.dateEvidence)
+                }
                 val candidate = lines.mapIndexedNotNull { index, line ->
                     val hasChosenDate = dateRegex.findAll(line).any { parseDate(it) == chosen }
                     if (!hasChosenDate) return@mapIndexedNotNull null
@@ -106,7 +122,9 @@ object ReceiptOcrParser {
                             .thenBy { -it.first }
                     )
                 candidate?.let { (index, score) ->
-                    put("purchaseDate", evidenceFor(lines, sourceLineNumbers, index, score, 8, 3))
+                    if ("purchaseDate" !in this) {
+                        put("purchaseDate", evidenceFor(lines, sourceLineNumbers, index, score, 8, 3))
+                    }
                 }
             }
             totalResult?.let { result ->
@@ -128,6 +146,7 @@ object ReceiptOcrParser {
             modelNumber = model,
             serialNumber = serial,
             rawText = text,
+            issuerCnpj = fiscal.issuerCnpj,
             evidence = evidence
         )
     }
@@ -143,12 +162,31 @@ object ReceiptOcrParser {
         val text = regions.joinToString("\n") { it.text }
         val base = parse(text, today)
         val price = ReceiptPriceAnalyzer.findTotal(regions)
+        val evidence = base.evidence.toMutableMap().apply {
+            remove("purchaseValueCents")
+            // The parser provides contextual confidence, but the photographed
+            // glyphs themselves may be uncertain. Require both to be credible.
+            for ((field, detail) in toMap()) {
+                val recognized = regions.getOrNull(detail.lineNumber - 1)
+                    ?.recognitionConfidence
+                    ?.takeIf { it.isFinite() }
+                    ?.coerceIn(0f, 1f) ?: continue
+                val adjusted = when {
+                    recognized < 0.70f -> OcrConfidence.LOW
+                    recognized < 0.90f && detail.confidence == OcrConfidence.HIGH ->
+                        OcrConfidence.MEDIUM
+                    else -> detail.confidence
+                }
+                put(field, detail.copy(
+                    confidence = adjusted,
+                    recognitionConfidence = recognized
+                ))
+            }
+            price?.let { put("purchaseValueCents", it.evidence) }
+        }
         return base.copy(
             purchaseValueCents = price?.amountCents,
-            evidence = base.evidence.toMutableMap().apply {
-                remove("purchaseValueCents")
-                price?.let { put("purchaseValueCents", it.evidence) }
-            }
+            evidence = evidence
         )
     }
 

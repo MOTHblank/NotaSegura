@@ -747,6 +747,11 @@ class AddEditItemViewModel(
             modelNumber = current.modelNumber ?: next.modelNumber,
             serialNumber = current.serialNumber ?: next.serialNumber,
             rawText = current.rawText + "\n" + next.rawText,
+            issuerCnpj = when {
+                current.issuerCnpj == null -> next.issuerCnpj
+                next.issuerCnpj == null || current.issuerCnpj == next.issuerCnpj -> current.issuerCnpj
+                else -> null // Different issuers: never present a merged fiscal identity.
+            },
             evidence = mergedEvidence
         )
     }

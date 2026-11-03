@@ -14,6 +14,7 @@ import com.mothblank.notasegura.util.OcrTextRegion
 import com.mothblank.notasegura.util.ReceiptOcrParser
 import com.mothblank.notasegura.util.ReceiptOcrSuggestions
 import com.mothblank.notasegura.util.ReceiptPriceAnalyzer
+import com.mothblank.notasegura.util.ReceiptQrNoiseFilter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -32,6 +33,8 @@ class ReceiptOcrEngine(
     private val appContext = context.applicationContext
     private val mutex = Mutex()
     private var engine: PaddleOCR? = null
+    // One detector per OCR engine avoids repeated native setup across passes.
+    private val qrDetector by lazy { ReceiptQrDetector(appContext) }
 
     suspend fun recognize(imageFile: File): String = withContext(Dispatchers.IO) {
         mutex.withLock {
@@ -297,23 +300,33 @@ class ReceiptOcrEngine(
         }
     }
 
-    private suspend fun recognizeBitmapLines(bitmap: Bitmap): List<OcrTextRegion> =
-        getOrCreateEngine().recognize(bitmap).results.mapIndexedNotNull { index, item ->
-            val text = item.text.trim()
-            if (text.isBlank()) return@mapIndexedNotNull null
-            val points = item.box.points
-            OcrTextRegion(
-                text = text,
-                lineNumber = index + 1,
-                recognitionConfidence = item.confidence
-                    .takeIf { it.isFinite() }
-                    ?.coerceIn(0f, 1f),
-                left = points.minOf { it.x },
-                top = points.minOf { it.y },
-                right = points.maxOf { it.x },
-                bottom = points.maxOf { it.y }
-            )
-        }
+    private suspend fun recognizeBitmapLines(bitmap: Bitmap): List<OcrTextRegion> {
+        val raw = getOrCreateEngine().recognize(bitmap).results
+            .mapIndexedNotNull { index, item ->
+                val text = item.text.trim()
+                if (text.isBlank()) return@mapIndexedNotNull null
+                val points = item.box.points
+                OcrTextRegion(
+                    text = text,
+                    lineNumber = index + 1,
+                    recognitionConfidence = item.confidence
+                        .takeIf { it.isFinite() }
+                        ?.coerceIn(0f, 1f),
+                    left = points.minOf { it.x },
+                    top = points.minOf { it.y },
+                    right = points.maxOf { it.x },
+                    bottom = points.maxOf { it.y }
+                )
+            }
+
+        // QR codes in NFC-e photos can produce plausible-looking OCR fragments.
+        // Detect only when the recognized text suggests a fiscal QR or key.
+        // Detection is fully local, and failure leaves lexical filtering active.
+        val qr = if (ReceiptQrNoiseFilter.shouldDetectQr(raw)) {
+            qrDetector.findBounds(bitmap)
+        } else null
+        return ReceiptQrNoiseFilter.mark(raw, qr)
+    }
 
     /** Caller retains ownership of bitmaps rendered from PDF pages. */
     suspend fun recognize(bitmap: Bitmap): String = withContext(Dispatchers.IO) {

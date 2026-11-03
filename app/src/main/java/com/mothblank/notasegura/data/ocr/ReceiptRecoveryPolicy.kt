@@ -2,6 +2,7 @@ package com.mothblank.notasegura.data.ocr
 
 import com.mothblank.notasegura.util.OcrConfidence
 import com.mothblank.notasegura.util.OcrTextRegion
+import com.mothblank.notasegura.util.ReceiptQrNoiseFilter
 import com.mothblank.notasegura.util.ReceiptOcrParser
 import com.mothblank.notasegura.util.ReceiptPriceAnalyzer
 import com.mothblank.notasegura.util.ReceiptPriceCandidate
@@ -30,7 +31,7 @@ internal object ReceiptRecoveryPolicy {
     fun shouldEnhance(regions: List<OcrTextRegion>): Boolean {
         val price = ReceiptPriceAnalyzer.findTotal(regions)
         if (price?.evidence?.confidence != OcrConfidence.HIGH) return true
-        val readable = regions.mapNotNull { it.recognitionConfidence }
+        val readable = ReceiptQrNoiseFilter.eligible(regions).mapNotNull { it.recognitionConfidence }
         return readable.isNotEmpty() && readable.average() < 0.80
     }
 
@@ -60,10 +61,11 @@ internal object ReceiptRecoveryPolicy {
             OcrConfidence.LOW -> 6.0
             null -> 0.0
         }
-        val confidence = regions.mapNotNull { it.recognitionConfidence }
+        val clean = ReceiptQrNoiseFilter.eligible(regions)
+        val confidence = clean.mapNotNull { it.recognitionConfidence }
             .takeIf { it.isNotEmpty() }?.average() ?: 0.0
         return priceWeight + confidence * 30.0 +
-            min(regions.count { it.text.isNotBlank() }, 25) * 0.3
+            min(clean.count { it.text.isNotBlank() }, 25) * 0.3
     }
 
     /**
@@ -78,15 +80,16 @@ internal object ReceiptRecoveryPolicy {
     ): ReceiptCrop? {
         val price = ReceiptPriceAnalyzer.findTotal(regions)
         if (price?.evidence?.confidence == OcrConfidence.HIGH) return null
+        val clean = ReceiptQrNoiseFilter.eligible(regions)
 
         val amountRegion = price?.let { candidate ->
-            regions.firstOrNull {
+            clean.firstOrNull {
                 it.lineNumber == candidate.evidence.lineNumber &&
                     it.left != null && it.right != null &&
                     it.top != null && it.bottom != null
             }
         }
-        val label = regions.firstOrNull { region ->
+        val label = clean.firstOrNull { region ->
             strongTotalLabel.containsMatchIn(region.text) &&
                 !forbiddenLabel.containsMatchIn(region.text) &&
                 region.left != null && region.right != null &&
@@ -122,7 +125,7 @@ internal object ReceiptRecoveryPolicy {
      * established in the initial full-frame read.
      */
     fun isolatedPrice(regions: List<OcrTextRegion>): ReceiptPriceCandidate? {
-        val options = regions.mapNotNull { region ->
+        val options = ReceiptQrNoiseFilter.eligible(regions).mapNotNull { region ->
             val fauxLabel = OcrTextRegion("TOTAL A PAGAR", 0)
             ReceiptPriceAnalyzer.findTotal(
                 listOf(fauxLabel, region.copy(

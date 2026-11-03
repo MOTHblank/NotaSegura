@@ -14,7 +14,8 @@ data class OcrTextRegion(
     val left: Float? = null,
     val top: Float? = null,
     val right: Float? = null,
-    val bottom: Float? = null
+    val bottom: Float? = null,
+    val isQrNoise: Boolean = false
 )
 
 data class ReceiptPriceCandidate(
@@ -58,7 +59,7 @@ object ReceiptPriceAnalyzer {
     )
 
     fun findTotal(regions: List<OcrTextRegion>): ReceiptPriceCandidate? {
-        val readable = regions.filter { it.text.isNotBlank() }
+        val readable = ReceiptQrNoiseFilter.eligible(regions).filter { it.text.isNotBlank() }
         val candidates = buildList {
             readable.forEachIndexed { index, region ->
                 val matches = amountRegex.findAll(region.text).toList()

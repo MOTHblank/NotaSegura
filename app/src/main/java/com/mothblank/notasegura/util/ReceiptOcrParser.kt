@@ -159,16 +159,18 @@ object ReceiptOcrParser {
         regions: List<OcrTextRegion>,
         today: LocalDate = LocalDate.now()
     ): ReceiptOcrSuggestions {
-        val text = regions.joinToString("\n") { it.text }
+        val rawText = regions.joinToString("\n") { it.text }
+        val sanitized = ReceiptQrNoiseFilter.eligible(regions)
+        val text = sanitized.joinToString("\n") { it.text }
         val base = parse(text, today)
-        val price = ReceiptPriceAnalyzer.findTotal(regions)
+        val price = ReceiptPriceAnalyzer.findTotal(sanitized)
         val evidence = base.evidence.toMutableMap().apply {
             remove("purchaseValueCents")
             // The parser provides contextual confidence, but the photographed
             // glyphs themselves may be uncertain. Require both to be credible.
             for ((field, detail) in toMap()) {
-                val recognized = regions.getOrNull(detail.lineNumber - 1)
-                    ?.recognitionConfidence
+                val source = sanitized.getOrNull(detail.lineNumber - 1) ?: continue
+                val recognized = source.recognitionConfidence
                     ?.takeIf { it.isFinite() }
                     ?.coerceIn(0f, 1f) ?: continue
                 val adjusted = when {
@@ -179,13 +181,15 @@ object ReceiptOcrParser {
                 }
                 put(field, detail.copy(
                     confidence = adjusted,
-                    recognitionConfidence = recognized
+                    recognitionConfidence = recognized,
+                    lineNumber = source.lineNumber
                 ))
             }
             price?.let { put("purchaseValueCents", it.evidence) }
         }
         return base.copy(
             purchaseValueCents = price?.amountCents,
+            rawText = rawText,
             evidence = evidence
         )
     }

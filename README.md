@@ -40,6 +40,10 @@ For uncertain receipt photos, the OCR pipeline now performs a bounded second pas
 
 Brazilian fiscal-document handling recognizes common **NFC-e / DANFE** issuer and total labels, prioritizes the final amount payable over a pre-discount item total, and avoids treating payment methods, change, or taxes as the purchase amount. Issue dates are distinguished from authorization, dispatch, expiry, and delivery dates. When available, a CNPJ associated with the issuing merchant is validated locally using the numeric or 2026 alphanumeric check-digit format and displayed in the editor as an identification hint. A recipient's CNPJ is not used as the issuer. This hint is not a separate purchase database field: the document's extracted text remains available in its indexed attachment. Conflicting fiscal totals or issuance dates are left for review. OCR recognition confidence also limits automatic filling of the merchant and date fields.
 
+For photographed NFC-e receipts, OCR now recognizes fiscal QR-code regions on-device when QR/access-key indicators are present. OCR fragments inside the detected code and URLs or long fiscal-key payloads are excluded from purchase-field inference. The full OCR text remains available for attachment search. QR payloads are never decoded, opened, or uploaded by this protection.
+
+An opt-in private-photo evaluation class is available for receipt quality and unsafe-autofill analysis, with aggregate output grouped by clear, faded, QR, difficult-digit, and perspective conditions. No photos or measured accuracy numbers are bundled. See [Local receipt OCR evaluation](docs/OCR_EVALUATION.md) for private fixture instructions.
+
 Search covers structured purchase fields and stored OCR text, so an old receipt can be found by merchant, model, serial number, or recognized receipt content.
 
 The first development build downloads the pinned PP-OCRv6_small detection and recognition assets into Gradle's local cache, verifies their exact size and SHA-256 digests, and packages them into the app. Subsequent clean builds reuse the verified cache. Production installs never download OCR models at runtime.

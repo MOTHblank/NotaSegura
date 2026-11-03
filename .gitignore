@@ -10,3 +10,6 @@
 local.properties
 /app/release
 /ppocr-sdk/build
+
+# Private receipt photographs/annotations for local OCR evaluation.
+/app/src/androidTest/assets/receipt_ocr_cases/

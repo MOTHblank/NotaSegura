@@ -64,6 +64,7 @@ data class AddEditUiState(
     val ocrSuggestions: ReceiptOcrSuggestions? = null,
     val hasOcrAutofill: Boolean = false,
     val isAnalyzingDocument: Boolean = false,
+    val pdfOcrFallbackEnabled: Boolean = false,
     val isSaving: Boolean = false,
     @StringRes val errorMessageRes: Int? = null,
     @StringRes val infoMessageRes: Int? = null
@@ -278,6 +279,10 @@ class AddEditItemViewModel(
         }
     }
 
+    fun onPdfOcrFallbackChange(enabled: Boolean) {
+        _uiState.update { it.copy(pdfOcrFallbackEnabled = enabled) }
+    }
+
     fun onAttachmentSelected(uri: Uri) {
         viewModelScope.launch {
             when (val result = documentStore.stageAttachment(uri)) {
@@ -323,8 +328,16 @@ class AddEditItemViewModel(
                         )
                     }
 
-                    if (staged.stagedFile.mimeType.startsWith("image/")) {
-                        processImageForOcr(staged.stagedFile.path, staged.stagedFile.id)
+                    if (
+                        staged.stagedFile.mimeType.startsWith("image/") ||
+                        staged.stagedFile.mimeType == "application/pdf"
+                    ) {
+                        processDocumentForSearch(
+                            staged.stagedFile.path,
+                            staged.stagedFile.id,
+                            staged.stagedFile.mimeType,
+                            _uiState.value.pdfOcrFallbackEnabled
+                        )
                     }
                 }
                 StageAttachmentResult.UnsupportedType -> showAttachmentError(
@@ -400,21 +413,38 @@ class AddEditItemViewModel(
         }
     }
 
-    private suspend fun processImageForOcr(imagePath: String, attachmentId: String) {
+    private suspend fun processDocumentForSearch(
+        documentPath: String,
+        attachmentId: String,
+        mimeType: String,
+        scanImagePages: Boolean
+    ) {
         pendingOcrCount += 1
         _uiState.update { it.copy(isAnalyzingDocument = true) }
 
         try {
-            val text = receiptOcrEngine.recognize(File(imagePath))
-            val staged = stagedAttachments[attachmentId] ?: return
-
-            stagedAttachments[attachmentId] = staged.copy(ocrText = text)
-            val parsed = ReceiptOcrParser.parse(text)
-            _uiState.update { state ->
-                applyOcrResult(state, parsed)
+            val file = File(documentPath)
+            val text = if (mimeType == "application/pdf") {
+                receiptOcrEngine.recognizePdf(file, scanImagePages)
+            } else {
+                receiptOcrEngine.recognize(file)
             }
-        } catch (error: CancellationException) {
-            throw error
+            val staged = stagedAttachments[attachmentId] ?: return
+            stagedAttachments[attachmentId] = staged.copy(ocrText = text)
+
+            if (text.isNotBlank()) {
+                val parsed = ReceiptOcrParser.parse(text)
+                _uiState.update { state -> applyOcrResult(state, parsed) }
+            } else if (mimeType == "application/pdf") {
+                _uiState.update {
+                    it.copy(
+                        infoMessageRes = R.string.pdf_no_searchable_text,
+                        errorMessageRes = null
+                    )
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             if (attachmentId in stagedAttachments) {
                 _uiState.update {

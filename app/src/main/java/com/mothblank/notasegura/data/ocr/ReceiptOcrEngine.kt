@@ -30,17 +30,27 @@ class ReceiptOcrEngine(
 
             val bitmap = decodeForOcr(imageFile)
             try {
-                val result = getOrCreateEngine().recognize(bitmap)
-                result.results
-                    .asSequence()
-                    .map { it.text.trim() }
-                    .filter { it.isNotEmpty() }
-                    .joinToString("\n")
+                extractBitmapText(bitmap)
             } finally {
                 bitmap.recycle()
             }
         }
     }
+
+    /** Caller retains ownership of bitmaps rendered from PDF pages. */
+    suspend fun recognize(bitmap: Bitmap): String = withContext(Dispatchers.IO) {
+        mutex.withLock { extractBitmapText(bitmap) }
+    }
+
+    suspend fun recognizePdf(pdfFile: File, scanImagePages: Boolean = false): String =
+        PdfAttachmentTextExtractor(appContext, this).extract(pdfFile, scanImagePages)
+
+    private suspend fun extractBitmapText(bitmap: Bitmap): String =
+        getOrCreateEngine().recognize(bitmap).results
+            .asSequence()
+            .map { it.text.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
 
     private suspend fun getOrCreateEngine(): PaddleOCR {
         engine?.let { return it }

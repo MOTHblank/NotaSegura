@@ -32,7 +32,9 @@ Os bancos de dados existentes são migrados de versão 1 para 2 sem apagar as co
 
 Images from the camera or document picker are copied into app-private storage. PDFs are also supported as real attachments.
 
-Image OCR uses the bundled PP-OCRv6_small models and runs locally on the device. The app stores recognized text with the attachment and extracts possible merchant, purchase date, total, model, and serial number as reviewable suggestions. OCR never invents warranty dates, requires no runtime model download, and does not transmit receipt contents.
+Image OCR uses the bundled PP-OCRv6_small models and runs locally on the device. PDF attachments are also indexed locally: PdfBox-Android extracts selectable text page by page without rendering the whole document. Before adding a scanned PDF, the user can opt into OCR for pages with little or no selectable text. Those pages are rendered one at a time using Android's PdfRenderer and the same bundled OCR models. This option is off by default because it is slower.
+
+The app stores extracted image/PDF text in the existing attachment OCR text field, supplying the same purchase search and reviewable merchant, purchase-date, total, model, and serial-number suggestions. Extraction never invents warranty dates, requires no runtime model download, and does not transmit document contents. Indexing is bounded to the first 500 PDF pages and 96,000 characters per attachment; opt-in PDF OCR is limited to 24 pages needing OCR. The original PDFs are stored at full quality irrespective of these search limits.
 
 Search covers structured purchase fields and stored OCR text, so an old receipt can be found by merchant, model, serial number, or recognized receipt content.
 
@@ -119,7 +121,6 @@ The purchases screen includes an upcoming-deadlines dashboard for overdue/upcomi
 
 ## Next work
 
-- add local PDF text extraction, using OCR only when a PDF has no usable embedded text;
 - run and extend the new backup/restore and persistence regression tests on Android devices, including near-limit archives and interruption recovery;
 - complete release-hardening tests for process death, large font scales, notification states, file-picker/camera cancellation, and large documents.
 

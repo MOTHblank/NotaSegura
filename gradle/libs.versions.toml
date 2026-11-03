@@ -15,6 +15,7 @@ onnxruntime = "1.27.0"
 opencv = "4.13.0"
 kotlinx-coroutines = "1.9.0"
 exifinterface = "1.4.2"
+pdfboxAndroid = "2.0.27.0"
 workmanager = "2.12.0"
 coil = "3.6.3"
 
@@ -47,6 +48,7 @@ onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime
 opencv-android = { group = "org.opencv", name = "opencv", version.ref = "opencv" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 androidx-work-manager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }

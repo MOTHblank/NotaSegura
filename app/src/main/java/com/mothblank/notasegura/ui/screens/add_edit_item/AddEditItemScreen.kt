@@ -38,6 +38,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -196,6 +197,8 @@ fun AddEditItemScreen(
             AttachmentSection(
                 attachments = uiState.attachments,
                 isAnalyzing = uiState.isAnalyzingDocument,
+                pdfOcrFallbackEnabled = uiState.pdfOcrFallbackEnabled,
+                onPdfOcrFallbackChange = viewModel::onPdfOcrFallbackChange,
                 onAdd = { showAttachmentOptions = true },
                 onPreview = { previewAttachment = it },
                 onEdit = { editingAttachment = it },
@@ -670,12 +673,39 @@ private fun FieldSuggestion(
 private fun AttachmentSection(
     attachments: List<PurchaseAttachmentUi>,
     isAnalyzing: Boolean,
+    pdfOcrFallbackEnabled: Boolean,
+    onPdfOcrFallbackChange: (Boolean) -> Unit,
     onAdd: () -> Unit,
     onPreview: (PurchaseAttachmentUi) -> Unit,
     onEdit: (PurchaseAttachmentUi) -> Unit,
     onRemove: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Checkbox) {
+                    onPdfOcrFallbackChange(!pdfOcrFallbackEnabled)
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = pdfOcrFallbackEnabled,
+                onCheckedChange = null
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.pdf_ocr_fallback_label),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    stringResource(R.string.pdf_ocr_fallback_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         if (isAnalyzing) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

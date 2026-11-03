@@ -8,6 +8,7 @@ Notable components include:
   Vendored Android SDK source, model provenance, and license information are documented under `ppocr-sdk/`.
 - **ONNX Runtime** — MIT License.
   The corresponding license text is included at `ppocr-sdk/LICENSE-ONNXRuntime.txt`.
+- **PdfBox-Android (Apache PDFBox / FontBox port)** — Apache License 2.0. Used for on-device PDF text extraction. Original project: https://github.com/TomRoush/PdfBox-Android.
 - **OpenCV** — Apache License 2.0.
   The corresponding license text is included at `ppocr-sdk/LICENSE-OpenCV.txt`.
 - **AndroidX, Jetpack Compose, Room, WorkManager, Coil, Kotlin coroutines, and other Gradle dependencies** retain the licenses published by their respective copyright holders.

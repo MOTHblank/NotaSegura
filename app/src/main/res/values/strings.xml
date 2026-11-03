@@ -202,7 +202,7 @@
     <string name="field_required_semantics">%1$s, obrigatório</string>
     <string name="ocr_autofill_notice">Alguns dados foram preenchidos pelo comprovante. Confira antes de salvar.</string>
     <string name="purchase_section_document">Comprovante / documento</string>
-    <string name="purchase_section_document_hint">Comece por aqui: adicione uma foto ou imagem para extrair dados da compra. PDFs também podem ser anexados.</string>
+    <string name="purchase_section_document_hint">Comece por aqui: adicione uma foto, imagem ou PDF para extrair dados da compra. O reconhecimento é local.</string>
     <string name="purchase_section_purchase">Compra</string>
     <string name="purchase_section_purchase_hint">Quando e onde a compra foi feita.</string>
     <string name="purchase_section_product">Produto</string>
@@ -236,7 +236,10 @@
     <string name="ocr_confidence_low">Baixa</string>
     <string name="ocr_suggestion_evidence">Confiança: %1$s · linha %2$d: %3$s</string>
     <string name="attachment_reading">Lendo documento no aparelho...</string>
-    <string name="ocr_read_failed">Documento anexado. Não foi possível preencher os dados automaticamente desta imagem.</string>
+    <string name="ocr_read_failed">Documento anexado. Não foi possível extrair texto automaticamente.</string>
+    <string name="pdf_no_searchable_text">PDF anexado sem texto identificável. Para documentos digitalizados, ative OCR para novos PDFs antes de anexá-los.</string>
+    <string name="pdf_ocr_fallback_label">Usar OCR em páginas de PDF digitalizadas</string>
+    <string name="pdf_ocr_fallback_hint">Opcional para novos PDFs. Mais lento; páginas com texto selecionável são lidas diretamente.</string>
     <string name="attachment_none">Nenhum documento anexado.</string>
     <string name="attachment_open_hint">Toque em um documento para abrir e ampliar.</string>
     <string name="attachment_add">Adicionar foto ou documento</string>

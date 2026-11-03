@@ -54,6 +54,7 @@ dependencies {
 
     implementation(project(":ppocr-sdk"))
     implementation(libs.androidx.exifinterface)
+    implementation(libs.pdfbox.android)
     implementation(libs.androidx.work.manager.ktx)
     implementation(libs.coil.compose)
 

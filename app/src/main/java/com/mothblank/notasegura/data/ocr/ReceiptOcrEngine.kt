@@ -66,9 +66,10 @@ class ReceiptOcrEngine(
         }
 
     /**
-     * First use the untouched photo. Only uncertain readings get a gentle
-     * contrast pass and (at most) one higher-resolution monetary crop.
-     * Conflicting OCR passes never lead to high-confidence price autofill.
+     * Read the untouched photo first. Only uncertain scans can use a validated
+     * document perspective correction, then gentle contrast enhancement and
+     * at most one monetary detail crop. Conflicting readings cannot silently
+     * increase price confidence.
      */
     suspend fun recognizeReceipt(imageFile: File): ReceiptImageScan =
         withContext(Dispatchers.IO) {
@@ -78,106 +79,152 @@ class ReceiptOcrEngine(
                 try {
                     val baseline = recognizeBitmapLines(original)
                     var chosen = baseline
+                    // At most one derived full-frame bitmap is retained. Its
+                    // OCR boxes are measured in that bitmap's own coordinates.
+                    var selectedVariant: Bitmap? = null
                     var conflicting = false
 
-                    if (ReceiptRecoveryPolicy.shouldEnhance(baseline)) {
-                        val enhanced = ReceiptImagePreprocessor(appContext)
-                            .enhanceContrast(original)
-                        if (enhanced != null) {
+                    try {
+                        if (ReceiptRecoveryPolicy.shouldEnhance(baseline)) {
+                            val rectified = ReceiptDocumentRectifier(appContext)
+                                .rectifyIfConfident(original)
+                            if (rectified != null) {
+                                var keepRectified = false
+                                try {
+                                    val alternative = recognizeBitmapLines(rectified)
+                                    if (ReceiptRecoveryPolicy.contradict(chosen, alternative)) {
+                                        conflicting = true
+                                    } else if (
+                                        ReceiptRecoveryPolicy.chooseScan(chosen, alternative) ===
+                                        alternative
+                                    ) {
+                                        chosen = alternative
+                                        selectedVariant = rectified
+                                        keepRectified = true
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    // Optional correction cannot block attachment import.
+                                } finally {
+                                    if (!keepRectified) rectified.recycle()
+                                }
+                            }
+
+                            if (ReceiptRecoveryPolicy.shouldEnhance(chosen)) {
+                                val source = selectedVariant ?: original
+                                val enhanced = ReceiptImagePreprocessor(appContext)
+                                    .enhanceContrast(source)
+                                if (enhanced != null) {
+                                    var keepEnhanced = false
+                                    try {
+                                        val alternative = recognizeBitmapLines(enhanced)
+                                        if (ReceiptRecoveryPolicy.contradict(chosen, alternative)) {
+                                            conflicting = true
+                                        } else if (
+                                            ReceiptRecoveryPolicy.chooseScan(chosen, alternative) ===
+                                            alternative
+                                        ) {
+                                            chosen = alternative
+                                            keepEnhanced = true
+                                            selectedVariant?.recycle()
+                                            selectedVariant = enhanced
+                                        }
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        // Prefer the existing OCR result on failure.
+                                    } finally {
+                                        if (!keepEnhanced) enhanced.recycle()
+                                    }
+                                }
+                            }
+                        }
+
+                        var parsed = ReceiptOcrParser.parse(chosen)
+                        val firstPrice = ReceiptPriceAnalyzer.findTotal(chosen)
+                        val referenceImage = selectedVariant ?: original
+                        val plan = ReceiptRecoveryPolicy.proposeCrop(
+                            chosen, referenceImage.width, referenceImage.height
+                        )
+
+                        if (plan != null) {
                             try {
-                                val alternative = recognizeBitmapLines(enhanced)
-                                conflicting = ReceiptRecoveryPolicy.contradict(
-                                    baseline, alternative
+                                val details = recognizePriceCrop(
+                                    imageFile,
+                                    referenceImage,
+                                    plan,
+                                    useOriginalDetailDecode = selectedVariant == null
                                 )
-                                chosen = ReceiptRecoveryPolicy.chooseScan(
-                                    baseline, alternative
-                                )
+                                val reread = ReceiptRecoveryPolicy.isolatedPrice(details)
+                                if (reread != null) {
+                                    val originalAmount = firstPrice?.amountCents
+                                    val rereadConfidence =
+                                        reread.evidence.recognitionConfidence ?: 0f
+
+                                    if (originalAmount != null &&
+                                        originalAmount != reread.amountCents
+                                    ) {
+                                        conflicting = true
+                                    } else if (originalAmount == reread.amountCents &&
+                                        !conflicting &&
+                                        firstPrice != null &&
+                                        firstPrice.evidence.heuristicScore >= 12 &&
+                                        rereadConfidence >= 0.92f
+                                    ) {
+                                        // Agreement between independent full and cropped
+                                        // OCR passes can upgrade an uncertain digit.
+                                        val confirmed = firstPrice.evidence.copy(
+                                            confidence = OcrConfidence.HIGH,
+                                            recognitionConfidence = rereadConfidence
+                                        )
+                                        parsed = parsed.copy(
+                                            evidence = parsed.evidence +
+                                                ("purchaseValueCents" to confirmed)
+                                        )
+                                    } else if (originalAmount == null &&
+                                        rereadConfidence >= 0.85f
+                                    ) {
+                                        // A recovered but previously unread number
+                                        // stays a manual suggestion, never autofill.
+                                        val cautious = reread.evidence.copy(
+                                            confidence = OcrConfidence.LOW,
+                                            sourceLine = "Releitura: " +
+                                                reread.evidence.sourceLine
+                                        )
+                                        parsed = parsed.copy(
+                                            purchaseValueCents = reread.amountCents,
+                                            evidence = parsed.evidence +
+                                                ("purchaseValueCents" to cautious)
+                                        )
+                                    }
+                                }
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
                             } catch (_: Exception) {
-                                // A failed optional enhancement must not discard
-                                // the original successful OCR reading.
-                            } finally {
-                                enhanced.recycle()
+                                // High-resolution retries are optional; preserve the
+                                // original detected fields if the crop fails.
                             }
                         }
-                    }
 
-                    var parsed = ReceiptOcrParser.parse(chosen)
-                    val firstPrice = ReceiptPriceAnalyzer.findTotal(chosen)
-                    val plan = ReceiptRecoveryPolicy.proposeCrop(
-                        chosen, original.width, original.height
-                    )
-
-                    if (plan != null) {
-                        try {
-                            val details = recognizePriceCrop(imageFile, original, plan)
-                            val reread = ReceiptRecoveryPolicy.isolatedPrice(details)
-                            if (reread != null) {
-                                val originalAmount = firstPrice?.amountCents
-                                val rereadConfidence =
-                                    reread.evidence.recognitionConfidence ?: 0f
-
-                                if (originalAmount != null &&
-                                    originalAmount != reread.amountCents
-                                ) {
-                                    conflicting = true
-                                } else if (originalAmount == reread.amountCents &&
-                                    !conflicting &&
-                                    firstPrice != null &&
-                                    firstPrice.evidence.heuristicScore >= 12 &&
-                                    rereadConfidence >= 0.92f
-                                ) {
-                                    // Agreement between independent full and cropped
-                                    // OCR passes can upgrade an uncertain digit.
-                                    val confirmed = firstPrice.evidence.copy(
-                                        confidence = OcrConfidence.HIGH,
-                                        recognitionConfidence = rereadConfidence
-                                    )
-                                    parsed = parsed.copy(
-                                        evidence = parsed.evidence +
-                                            ("purchaseValueCents" to confirmed)
-                                    )
-                                } else if (originalAmount == null &&
-                                    rereadConfidence >= 0.85f
-                                ) {
-                                    // A recovered but previously unread number
-                                    // stays a manual suggestion, never autofill.
-                                    val cautious = reread.evidence.copy(
-                                        confidence = OcrConfidence.LOW,
-                                        sourceLine = "Releitura: " +
-                                            reread.evidence.sourceLine
-                                    )
-                                    parsed = parsed.copy(
-                                        purchaseValueCents = reread.amountCents,
-                                        evidence = parsed.evidence +
-                                            ("purchaseValueCents" to cautious)
-                                    )
-                                }
+                        if (conflicting) {
+                            val evidence = parsed.evidence["purchaseValueCents"]
+                            if (evidence != null) {
+                                parsed = parsed.copy(
+                                    evidence = parsed.evidence +
+                                        ("purchaseValueCents" to evidence.copy(
+                                            confidence = OcrConfidence.LOW
+                                        ))
+                                )
                             }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            // High-resolution retries are optional; preserve the
-                            // original detected fields if the crop fails.
                         }
+                        ReceiptImageScan(
+                            text = chosen.joinToString("\n") { it.text },
+                            suggestions = parsed
+                        )
+                    } finally {
+                        selectedVariant?.recycle()
                     }
-
-                    if (conflicting) {
-                        val evidence = parsed.evidence["purchaseValueCents"]
-                        if (evidence != null) {
-                            parsed = parsed.copy(
-                                evidence = parsed.evidence +
-                                    ("purchaseValueCents" to evidence.copy(
-                                        confidence = OcrConfidence.LOW
-                                    ))
-                            )
-                        }
-                    }
-                    ReceiptImageScan(
-                        text = chosen.joinToString("\n") { it.text },
-                        suggestions = parsed
-                    )
                 } finally {
                     original.recycle()
                 }
@@ -186,15 +233,21 @@ class ReceiptOcrEngine(
 
     private suspend fun recognizePriceCrop(
         imageFile: File,
-        original: Bitmap,
-        plan: ReceiptCrop
+        referenceImage: Bitmap,
+        plan: ReceiptCrop,
+        useOriginalDetailDecode: Boolean
     ): List<OcrTextRegion> {
-        // Only decode a larger image after a full-frame scan identifies an
-        // uncertain total. EXIF rotation is applied to both decodes.
-        val highResolution = decodeForOcr(imageFile, MAX_DETAIL_DECODE_SIDE)
+        // For the original view we may decode additional camera detail.
+        // Rectified or enhanced OCR boxes cannot be mapped onto that decode:
+        // crop directly in the selected variant's coordinate space instead.
+        val highResolution = if (useOriginalDetailDecode) {
+            decodeForOcr(imageFile, MAX_DETAIL_DECODE_SIDE)
+        } else {
+            referenceImage
+        }
         try {
-            val scaleX = highResolution.width.toFloat() / original.width
-            val scaleY = highResolution.height.toFloat() / original.height
+            val scaleX = highResolution.width.toFloat() / referenceImage.width
+            val scaleY = highResolution.height.toFloat() / referenceImage.height
             val left = (plan.left * scaleX).toInt().coerceIn(
                 0, highResolution.width - 1
             )
@@ -240,7 +293,7 @@ class ReceiptOcrEngine(
                 prepared.recycle()
             }
         } finally {
-            highResolution.recycle()
+            if (highResolution !== referenceImage) highResolution.recycle()
         }
     }
 

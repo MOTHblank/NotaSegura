@@ -17,6 +17,7 @@ import com.mothblank.notasegura.domain.model.PurchaseWithAttachments
 import com.mothblank.notasegura.util.CategoryNormalizer
 import com.mothblank.notasegura.util.CurrencyUtils
 import com.mothblank.notasegura.util.DateUtils
+import com.mothblank.notasegura.util.OcrConfidence
 import com.mothblank.notasegura.util.ReceiptOcrParser
 import com.mothblank.notasegura.util.ReceiptOcrSuggestions
 import kotlinx.coroutines.CancellationException
@@ -424,16 +425,19 @@ class AddEditItemViewModel(
 
         try {
             val file = File(documentPath)
-            val text = if (mimeType == "application/pdf") {
-                receiptOcrEngine.recognizePdf(file, scanImagePages)
+            val (text, parsed) = if (mimeType == "application/pdf") {
+                val pdfText = receiptOcrEngine.recognizePdf(file, scanImagePages)
+                pdfText to ReceiptOcrParser.parse(pdfText)
             } else {
-                receiptOcrEngine.recognize(file)
+                // Keep each image line's coordinates and confidence until the
+                // fields have been selected. Only plain text is persisted.
+                val regions = receiptOcrEngine.recognizeLines(file)
+                regions.joinToString("\n") { it.text } to ReceiptOcrParser.parse(regions)
             }
             val staged = stagedAttachments[attachmentId] ?: return
             stagedAttachments[attachmentId] = staged.copy(ocrText = text)
 
             if (text.isNotBlank()) {
-                val parsed = ReceiptOcrParser.parse(text)
                 _uiState.update { state -> applyOcrResult(state, parsed) }
             } else if (mimeType == "application/pdf") {
                 _uiState.update {
@@ -641,23 +645,30 @@ class AddEditItemViewModel(
         val autoFillMerchant =
             state.merchant.isBlank() &&
                 OcrEditableField.MERCHANT !in userEditedOcrFields &&
-                merged.merchant != null
+                merged.merchant != null &&
+                isTrustworthySuggestion(merged, "merchant")
+        // Monetary values are especially risky to guess: uncertain OCR amounts
+        // remain reviewable suggestions, never silent autofill.
         val autoFillValue =
             state.purchaseValue.isBlank() &&
                 OcrEditableField.PURCHASE_VALUE !in userEditedOcrFields &&
-                merged.purchaseValueCents != null
+                merged.purchaseValueCents != null &&
+                merged.evidence["purchaseValueCents"]?.confidence == OcrConfidence.HIGH
         val autoFillDate =
             state.purchaseDate == null &&
                 OcrEditableField.PURCHASE_DATE !in userEditedOcrFields &&
-                merged.purchaseDate != null
+                merged.purchaseDate != null &&
+                isTrustworthySuggestion(merged, "purchaseDate")
         val autoFillModel =
             state.modelNumber.isBlank() &&
                 OcrEditableField.MODEL_NUMBER !in userEditedOcrFields &&
-                merged.modelNumber != null
+                merged.modelNumber != null &&
+                isTrustworthySuggestion(merged, "modelNumber")
         val autoFillSerial =
             state.serialNumber.isBlank() &&
                 OcrEditableField.SERIAL_NUMBER !in userEditedOcrFields &&
-                merged.serialNumber != null
+                merged.serialNumber != null &&
+                isTrustworthySuggestion(merged, "serialNumber")
 
         val merchant = if (autoFillMerchant) merged.merchant.orEmpty() else state.merchant
         val purchaseValue = if (autoFillValue) {
@@ -701,6 +712,12 @@ class AddEditItemViewModel(
             errorMessageRes = null
         )
     }
+
+    private fun isTrustworthySuggestion(suggestions: ReceiptOcrSuggestions, field: String): Boolean =
+        when (suggestions.evidence[field]?.confidence) {
+            OcrConfidence.HIGH, OcrConfidence.MEDIUM -> true
+            OcrConfidence.LOW, null -> false
+        }
 
     private fun sameTextValue(current: String, suggestion: String): Boolean =
         current.trim().equals(suggestion.trim(), ignoreCase = true)

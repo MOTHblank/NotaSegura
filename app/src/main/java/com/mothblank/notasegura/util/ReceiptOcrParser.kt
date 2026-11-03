@@ -9,7 +9,8 @@ data class OcrEvidence(
     val sourceLine: String,
     val lineNumber: Int,
     val heuristicScore: Int,
-    val confidence: OcrConfidence
+    val confidence: OcrConfidence,
+    val recognitionConfidence: Float? = null
 )
 
 data class ReceiptOcrSuggestions(
@@ -43,13 +44,6 @@ object ReceiptOcrParser {
     private val merchantPositiveTerms = Regex(
         """(?i)\b(?:LTDA|EIRELI|EPP|ME|S/?A|SUPERMERCADO|MERCADO|LOJA|FARM[ÁA]CIA|DROGARIA|COM[ÉE]RCIO|MAGAZINE|RESTAURANTE|PADARIA|POSTO)\b"""
     )
-    private val totalStrongTerms = Regex(
-        """(?i)\b(?:TOTAL\s+A\s+PAGAR|VALOR\s+TOTAL|TOTAL\s+GERAL|TOTAL\s+DA\s+(?:COMPRA|VENDA)|TOTAL\s+R\$)\b"""
-    )
-    private val totalAnyTerm = Regex("""(?i)\bTOTAL\b""")
-    private val totalRejectedTerms = Regex(
-        """(?i)\b(?:SUBTOTAL|DESCONTO|TROCO|ACR[ÉE]SCIMO|VALOR\s+PAGO|DINHEIRO|CART[AÃ]O|PIX|IMPOSTO|TRIBUTO)\b"""
-    )
     private val dateStrongTerms = Regex(
         """(?i)\b(?:DATA\s+(?:DA\s+)?(?:COMPRA|VENDA|EMISS[AÃ]O)|EMISS[AÃ]O)\b"""
     )
@@ -68,7 +62,10 @@ object ReceiptOcrParser {
 
         val merchant = findMerchant(lines)
         val date = findPurchaseDate(lines, today)
-        val total = findPurchaseTotal(lines)
+        val totalResult = ReceiptPriceAnalyzer.findTotal(
+            normalizedLines.map { (lineNumber, line) -> OcrTextRegion(line, lineNumber) }
+        )
+        val total = totalResult?.amountCents
         val model = modelRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier()
         val serial = serialRegex.find(text)?.groupValues?.getOrNull(1)?.cleanIdentifier()
         val evidence = buildMap {
@@ -112,37 +109,8 @@ object ReceiptOcrParser {
                     put("purchaseDate", evidenceFor(lines, sourceLineNumbers, index, score, 8, 3))
                 }
             }
-            total?.let { chosen ->
-                data class TotalEvidenceCandidate(
-                    val lineIndex: Int,
-                    val matchIndex: Int,
-                    val score: Int
-                )
-                val candidate = lines.flatMapIndexed { lineIndex, line ->
-                    moneyRegex.findAll(line).mapIndexedNotNull { matchIndex, match ->
-                        if (moneyToCents(match.groupValues[1]) != chosen) {
-                            return@mapIndexedNotNull null
-                        }
-                        val score =
-                            (if (totalStrongTerms.containsMatchIn(line)) 10
-                            else if (totalAnyTerm.containsMatchIn(line)) 6 else 0) +
-                                (if (Regex("""\bA\s+PAGAR\b""", RegexOption.IGNORE_CASE)
-                                        .containsMatchIn(line)) 3 else 0) -
-                                (if (totalRejectedTerms.containsMatchIn(line)) 10 else 0)
-                        TotalEvidenceCandidate(lineIndex, matchIndex, score)
-                    }.toList()
-                }.filter { it.score >= 0 }
-                    .maxWithOrNull(
-                        compareBy<TotalEvidenceCandidate> { it.score }
-                            .thenBy { it.lineIndex }
-                            .thenBy { it.matchIndex }
-                    )
-                candidate?.let {
-                    put(
-                        "purchaseValueCents",
-                        evidenceFor(lines, sourceLineNumbers, it.lineIndex, it.score, 10, 6)
-                    )
-                }
+            totalResult?.let { result ->
+                put("purchaseValueCents", result.evidence)
             }
             model?.let { chosen ->
                 val index = lines.indexOfFirst { it.contains(chosen, ignoreCase = true) }
@@ -161,6 +129,26 @@ object ReceiptOcrParser {
             serialNumber = serial,
             rawText = text,
             evidence = evidence
+        )
+    }
+
+    /**
+     * OCR-specific overload: preserve confidence and geometry while sharing
+     * merchant/date/identifier extraction with PDF text and existing callers.
+     */
+    fun parse(
+        regions: List<OcrTextRegion>,
+        today: LocalDate = LocalDate.now()
+    ): ReceiptOcrSuggestions {
+        val text = regions.joinToString("\n") { it.text }
+        val base = parse(text, today)
+        val price = ReceiptPriceAnalyzer.findTotal(regions)
+        return base.copy(
+            purchaseValueCents = price?.amountCents,
+            evidence = base.evidence.toMutableMap().apply {
+                remove("purchaseValueCents")
+                price?.let { put("purchaseValueCents", it.evidence) }
+            }
         )
     }
 
@@ -255,42 +243,6 @@ object ReceiptOcrParser {
         return uniqueDates.singleOrNull()
     }
 
-    private fun findPurchaseTotal(lines: List<String>): Long? {
-        data class Candidate(val cents: Long, val score: Int, val lineIndex: Int, val matchIndex: Int)
-
-        val candidates = lines.flatMapIndexed { lineIndex, line ->
-            moneyRegex.findAll(line).mapIndexedNotNull { matchIndex, match ->
-                val cents = moneyToCents(match.groupValues[1]) ?: return@mapIndexedNotNull null
-                if (cents <= 0L) return@mapIndexedNotNull null
-
-                var score = 0
-                if (totalStrongTerms.containsMatchIn(line)) score += 10
-                else if (totalAnyTerm.containsMatchIn(line)) score += 6
-                if (Regex("""(?i)\bA\s+PAGAR\b""").containsMatchIn(line)) score += 3
-                if (totalRejectedTerms.containsMatchIn(line)) score -= 10
-
-                Candidate(cents, score, lineIndex, matchIndex)
-            }.toList()
-        }
-
-        if (candidates.isEmpty()) return null
-
-        candidates
-            .filter { it.score > 0 }
-            .maxWithOrNull(
-                compareBy<Candidate> { it.score }
-                    .thenBy { it.lineIndex }
-                    .thenBy { it.matchIndex }
-            )
-            ?.let { return it.cents }
-
-        val uniqueValues = candidates
-            .filter { it.score >= 0 }
-            .map { it.cents }
-            .distinct()
-        return uniqueValues.singleOrNull()
-    }
-
     private fun parseDate(match: MatchResult): LocalDate? {
         val day = match.groupValues[1].toIntOrNull() ?: return null
         val month = match.groupValues[2].toIntOrNull() ?: return null
@@ -302,22 +254,6 @@ object ReceiptOcrParser {
         } catch (_: DateTimeException) {
             null
         }
-    }
-
-    private fun moneyToCents(raw: String): Long? {
-        val normalized = raw.replace(" ", "")
-        val separatorIndex = maxOf(normalized.lastIndexOf(','), normalized.lastIndexOf('.'))
-        if (separatorIndex <= 0 || normalized.length - separatorIndex != 3) return null
-
-        val integerPart = normalized
-            .substring(0, separatorIndex)
-            .filter(Char::isDigit)
-        val decimals = normalized
-            .substring(separatorIndex + 1)
-            .filter(Char::isDigit)
-
-        if (integerPart.isEmpty() || decimals.length != 2) return null
-        return (integerPart + decimals).toLongOrNull()
     }
 
     private fun normalizeWhitespace(value: String): String =

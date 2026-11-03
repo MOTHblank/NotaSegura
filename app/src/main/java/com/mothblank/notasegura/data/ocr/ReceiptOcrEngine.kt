@@ -9,6 +9,7 @@ import com.paddle.ocr.EngineConfig
 import com.paddle.ocr.PaddleOCR
 import com.paddle.ocr.PaddleOCRConfig
 import com.paddle.ocr.util.OpenCVUtils
+import com.mothblank.notasegura.util.OcrTextRegion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,6 +37,40 @@ class ReceiptOcrEngine(
             }
         }
     }
+
+    /**
+     * Unlike the plain-text helper, this keeps each PaddleOCR text box and its
+     * recognition confidence so the receipt parser can match labels to amounts.
+     */
+    suspend fun recognizeLines(imageFile: File): List<OcrTextRegion> =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                require(imageFile.isFile && imageFile.length() > 0L) {
+                    "Imagem de OCR ausente ou vazia."
+                }
+                val bitmap = decodeForOcr(imageFile)
+                try {
+                    getOrCreateEngine().recognize(bitmap).results.mapIndexedNotNull { index, item ->
+                        val text = item.text.trim()
+                        if (text.isBlank()) return@mapIndexedNotNull null
+                        val points = item.box.points
+                        OcrTextRegion(
+                            text = text,
+                            lineNumber = index + 1,
+                            recognitionConfidence = item.confidence
+                                .takeIf { it.isFinite() }
+                                ?.coerceIn(0f, 1f),
+                            left = points.minOf { it.x },
+                            top = points.minOf { it.y },
+                            right = points.maxOf { it.x },
+                            bottom = points.maxOf { it.y }
+                        )
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
+            }
+        }
 
     /** Caller retains ownership of bitmaps rendered from PDF pages. */
     suspend fun recognize(bitmap: Bitmap): String = withContext(Dispatchers.IO) {
